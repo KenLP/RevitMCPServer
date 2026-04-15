@@ -1,0 +1,27 @@
+# C# / .NET
+src/RevitAddin/bin/
+src/RevitAddin/obj/
+*.user
+
+# Node / TypeScript
+src/McpServer/node_modules/
+src/McpServer/dist/
+npm-debug.log*
+
+# Editors
+.vs/
+.vscode/
+.idea/
+
+# Claude Code local state
+.claude/
+
+# Runtime artifacts (auth token is generated per session)
+revit-mcp-token.txt
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Internal notes (not for public repo)
+docs/internal/

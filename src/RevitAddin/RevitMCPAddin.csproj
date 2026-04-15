@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RootNamespace>RevitMCPAddin</RootNamespace>
+    <AssemblyName>RevitMCPAddin</AssemblyName>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Override on the command line: dotnet build -p:RevitVersion=2027 -->
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2026</RevitVersion>
+    <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">C:\Program Files\Autodesk\Revit $(RevitVersion)</RevitInstallDir>
+
+    <!-- Where to drop the manifest + dll for the local Revit install -->
+    <RevitAddinFolder>$(APPDATA)\Autodesk\Revit\Addins\$(RevitVersion)</RevitAddinFolder>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- After build, copy the DLL + manifest into the per-user Revit Addins folder
+       so Revit picks it up on the next launch.  Disable with -p:DeployToRevit=false -->
+  <Target Name="DeployToRevitAddinsFolder" AfterTargets="Build"
+          Condition="'$(DeployToRevit)' != 'false'">
+    <MakeDir Directories="$(RevitAddinFolder)" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
+          DestinationFolder="$(RevitAddinFolder)" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb"
+          DestinationFolder="$(RevitAddinFolder)"
+          Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\RevitMCPAddin.addin"
+          DestinationFolder="$(RevitAddinFolder)" />
+    <Message Importance="high"
+             Text="Deployed RevitMCPAddin to $(RevitAddinFolder)" />
+  </Target>
+
+</Project>

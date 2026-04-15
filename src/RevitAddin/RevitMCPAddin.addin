@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Revit MCP Addin</Name>
+    <Assembly>RevitMCPAddin.dll</Assembly>
+    <FullClassName>RevitMCPAddin.App</FullClassName>
+    <ClientId>9C4D2B7E-3F1A-4E5C-8B6D-1A2C3D4E5F60</ClientId>
+    <VendorId>LEPHU</VendorId>
+    <VendorDescription>Le Phu - Revit MCP Server MVP</VendorDescription>
+  </AddIn>
+</RevitAddIns>
