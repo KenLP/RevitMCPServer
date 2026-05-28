@@ -1,14 +1,14 @@
 # Revit MCP Server
 
 > A custom **Model Context Protocol** server that lets Claude (Desktop, Code,
-> or any MCP client) drive **Autodesk Revit 2026** — read the model, create &
+> or any MCP client) drive **Autodesk Revit 2026 and Revit 2027** — read the model, create &
 > edit elements, and run multi-step operations as a single undoable
 > Transaction.
 
 > Author: KenLP
 
 ```
-Claude Desktop / Claude Code  ──stdio──▶  revit-mcp-server (Node)  ──HTTP──▶  RevitMCPAddin  ──ExternalEvent + Transaction──▶  Revit 2026
+Claude Desktop / Claude Code  ──stdio──▶  revit-mcp-server (Node)  ──HTTP──▶  RevitMCPAddin  ──ExternalEvent + Transaction──▶  Revit 2026/2027
 ```
 
 - **C# .NET 8 addin** runs inside Revit, owns transactions, marshals work
