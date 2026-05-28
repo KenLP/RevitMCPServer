@@ -38,6 +38,9 @@ This file tracks the actual delivery status for each phase.
   - Structured diffs (`changeSummary` + `changes` before/after)
   - Auth token (random per-session Bearer token, token file)
   - Per-tool risk levels (`read` / `low` / `medium` / `high`)
+- ✅ **Phase 3a — Revit 2027 support** — `v0.4.1`
+  - Conditional `TargetFramework`: `net10.0-windows` for R2027+, `net8.0-windows` for R2025–2026
+  - Multi-version Claude Desktop config (separate ports + `REVIT_MCP_VERSION`)
 - ⚪ **Phase 5b — Advanced / remaining** — backlog
 
 ## Phase 3 — Cross-version build matrix

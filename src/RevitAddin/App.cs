@@ -20,9 +20,12 @@ namespace RevitMCPAddin;
 /// </summary>
 public sealed class App : IExternalApplication
 {
-    // Default port — can be overridden via environment variable REVIT_MCP_PORT
-    // before launching Revit.
-    private const int DefaultPort = 7891;
+    // Default base port.  When multiple Revit versions run side-by-side each
+    // needs its own port.  The addin auto-assigns:
+    //   Revit 2026 → 7891,  2027 → 7892,  2028 → 7893, …
+    // Override with env var REVIT_MCP_PORT before launching Revit.
+    private const int DefaultBasePort = 7891;
+    private const int BaseRevitYear = 2026;
 
     private RevitMCPExternalEventHandler? _handler;
     private ExternalEvent? _externalEvent;
@@ -39,8 +42,9 @@ public sealed class App : IExternalApplication
             _externalEvent = ExternalEvent.Create(_handler);
             _handler.AttachExternalEvent(_externalEvent);
 
-            var port = ResolvePort();
-            var authToken = ResolveAuthToken(application.ControlledApplication.VersionNumber);
+            var revitVersion = application.ControlledApplication.VersionNumber;
+            var port = ResolvePort(revitVersion);
+            var authToken = ResolveAuthToken(revitVersion);
 
             _httpServer = new McpHttpServer(port, _handler, authToken);
             _httpServer.Start();
@@ -70,12 +74,18 @@ public sealed class App : IExternalApplication
         return Result.Succeeded;
     }
 
-    private static int ResolvePort()
+    private static int ResolvePort(string revitVersion)
     {
+        // Explicit env var always wins.
         var raw = Environment.GetEnvironmentVariable("REVIT_MCP_PORT");
         if (int.TryParse(raw, out var p) && p > 0 && p < 65536)
             return p;
-        return DefaultPort;
+
+        // Auto-assign: 2026 → 7891, 2027 → 7892, 2028 → 7893, …
+        if (int.TryParse(revitVersion, out var year) && year >= BaseRevitYear)
+            return DefaultBasePort + (year - BaseRevitYear);
+
+        return DefaultBasePort;
     }
 
     /// <summary>

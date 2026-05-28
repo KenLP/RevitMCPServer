@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] — 2026-05-28: Revit 2027 support
+
+### Added
+- **Revit 2027 build** — csproj auto-selects `net10.0-windows` when
+  `RevitVersion >= 2027`, `net8.0-windows` for R2025–2026.
+  Build with `dotnet build -p:RevitVersion=2027`.
+- Multi-version Claude Desktop config guide — run R2026 and R2027
+  side-by-side using different ports (`REVIT_MCP_PORT`) and
+  `REVIT_MCP_VERSION` env vars.
+- Beginner-friendly installation walk-through in README (Step 0–6 +
+  troubleshooting table).
+
+### Changed
+- `Revit_MCP_Server_Build_Plan.md` moved to `docs/internal/` (gitignored).
+- README: updated status table, repo layout, build reference for
+  multi-version.
+
+## [0.4.1] — 2026-05-27
+
+### Fixed — UTF-8 request decoding
+- `McpHttpServer.ReadJsonObjectAsync` was decoding incoming bodies with
+  `HttpListenerRequest.ContentEncoding`, which falls back to
+  `Encoding.Default` when the client omits `charset` in `Content-Type`.
+  Under Revit's hosting that produced mojibake for non-ASCII characters
+  (e.g. em-dash `—` arrived as `â€"`, section sign `§` as `Â§`),
+  corrupting audit-trail Comments written by the bim-orchestrator.
+- Force `Encoding.UTF8` on the read path — JSON is canonically UTF-8
+  per RFC 8259, so the client's charset declaration is moot.
+- Also set `response.ContentEncoding = Encoding.UTF8` on the write
+  path for symmetry; the actual bytes were already UTF-8.
+
 ## [0.4.0] — Phase 5a: Security + Preview
 
 ### Added — Dry-run mode

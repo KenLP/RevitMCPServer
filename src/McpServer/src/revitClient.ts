@@ -10,10 +10,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const REVIT_HOST = process.env.REVIT_MCP_HOST ?? "127.0.0.1";
-const REVIT_PORT = Number(process.env.REVIT_MCP_PORT ?? "7891");
+const REVIT_VERSION = process.env.REVIT_MCP_VERSION ?? "2026";
+// Auto-assign port by version: 2026 → 7891, 2027 → 7892, …
+// Explicit REVIT_MCP_PORT always wins.
+const DEFAULT_PORT = 7891 + (parseInt(REVIT_VERSION, 10) - 2026);
+const REVIT_PORT = Number(process.env.REVIT_MCP_PORT ?? String(DEFAULT_PORT));
 const BASE = `http://${REVIT_HOST}:${REVIT_PORT}`;
 const TIMEOUT_MS = Number(process.env.REVIT_MCP_TIMEOUT_MS ?? "30000");
-const REVIT_VERSION = process.env.REVIT_MCP_VERSION ?? "2026";
 
 export interface RevitEnvelope {
   ok: boolean;

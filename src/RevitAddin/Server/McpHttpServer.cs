@@ -96,7 +96,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.4.0",
+                    ["version"] = "0.4.1",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;
@@ -289,8 +289,12 @@ public sealed class McpHttpServer
 
     private static async Task<JsonObject?> ReadJsonObjectAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
+        // JSON is canonically UTF-8 (RFC 8259). HttpListenerRequest.ContentEncoding
+        // falls back to Encoding.Default when Content-Type omits charset, which has
+        // bitten us with mojibake (em-dash, §) on requests where the client sent
+        // valid UTF-8 bytes. Force UTF-8 on the read path.
         string body;
-        using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+        using (var reader = new StreamReader(request.InputStream, Encoding.UTF8))
             body = await reader.ReadToEndAsync().ConfigureAwait(false);
 
         try
@@ -311,6 +315,7 @@ public sealed class McpHttpServer
     private static async Task WriteJsonAsync(HttpListenerResponse response, int statusCode, JsonObject body)
     {
         response.StatusCode = statusCode;
+        response.ContentEncoding = Encoding.UTF8;
         var bytes = Encoding.UTF8.GetBytes(body.ToJsonString());
         response.ContentLength64 = bytes.Length;
         await response.OutputStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);

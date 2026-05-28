@@ -31,12 +31,12 @@ New in v0.4.0: **dry-run mode**, **structured diffs**, **auth token**,
 Cross-version (R25/R27) is next; see
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-| Layer        | Build target            | Status |
-| ------------ | ----------------------- | ------ |
-| Revit addin  | Revit 2026 / .NET 8     | ✅      |
-| MCP server   | Node 22 / TypeScript 5  | ✅      |
-| Revit 2025   | (planned)               | ⏳      |
-| Revit 2027   | (planned)               | ⏳      |
+| Layer        | Build target              | Status |
+| ------------ | ------------------------- | ------ |
+| Revit addin  | Revit 2026 / .NET 8       | ✅      |
+| Revit addin  | Revit 2027 / .NET 10      | ✅      |
+| MCP server   | Node 22 / TypeScript 5    | ✅      |
+| Revit 2025   | .NET 8 (untested)         | ⏳      |
 
 ## Tool surface (60 commands + 1 batch = 61 MCP tools)
 
@@ -145,20 +145,34 @@ cd RevitMCPServer
 **Close Revit first** — if Revit is running it locks the DLL and the build
 will fail.
 
+**For Revit 2026** (default):
+
 ```powershell
 cd C:\Dev\RevitMCPServer\src\RevitAddin
 dotnet build
 ```
 
+**For Revit 2027:**
+
+```powershell
+cd C:\Dev\RevitMCPServer\src\RevitAddin
+dotnet build -p:RevitVersion=2027
+```
+
+> The csproj auto-selects .NET 8 for R2025–2026 and .NET 10 for R2027+.
+
 What this does:
 1. Compiles `RevitMCPAddin.dll`.
 2. Auto-copies the DLL **and** the `.addin` manifest file into
-   `%APPDATA%\Autodesk\Revit\Addins\2026\` so Revit finds it next start.
+   `%APPDATA%\Autodesk\Revit\Addins\<version>\` so Revit finds it next start.
+
+If you use **both** Revit 2026 and 2027, build twice (once per version) —
+each deploys to its own Addins folder.
 
 You should see `Build succeeded` at the end. If you see red errors, check:
 - Is Revit closed?
-- Is Revit 2026 installed at `C:\Program Files\Autodesk\Revit 2026\`? If
-  not, override: `dotnet build -p:RevitInstallDir="D:\Your\Path"`.
+- Is the target Revit version installed at `C:\Program Files\Autodesk\Revit <version>\`?
+  If not, override: `dotnet build -p:RevitInstallDir="D:\Your\Path"`.
 
 ### Step 3 — Build the MCP bridge (TypeScript)
 
@@ -203,7 +217,9 @@ Open (or create) the Claude Desktop config file. The easy way:
 notepad "$env:APPDATA\Claude\claude_desktop_config.json"
 ```
 
-Paste this (adjust the path if you cloned somewhere other than `C:\Dev`):
+Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
+
+**Single Revit version** (e.g. 2026 only):
 
 ```json
 {
@@ -213,17 +229,42 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`):
       "args": [
         "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
       ],
-      "env": { "REVIT_MCP_PORT": "7891" }
+      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+    }
+  }
+}
+```
+
+**Two Revit versions side-by-side** (2026 + 2027, different ports):
+
+```json
+{
+  "mcpServers": {
+    "revit-2026": {
+      "command": "node",
+      "args": [
+        "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
+      ],
+      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+    },
+    "revit-2027": {
+      "command": "node",
+      "args": [
+        "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
+      ],
+      "env": { "REVIT_MCP_PORT": "7892", "REVIT_MCP_VERSION": "2027" }
     }
   }
 }
 ```
 
 > **Important:** the path uses double backslashes (`\\`) because it's JSON.
+> Each Revit version must use a **different port** to avoid conflicts.
+> `REVIT_MCP_VERSION` tells the MCP bridge which token file to read.
 
 Save, then **fully quit and restart Claude Desktop** (right-click tray icon →
 Quit). When it relaunches, click the 🔨 tools icon — you should see **61
-`revit_*` tools**.
+`revit_*` tools** (doubled if you configured two versions).
 
 ### Step 6 — Try your first prompt
 
@@ -258,27 +299,25 @@ Next try:
 
 Quick-reference for developers.
 
-### 1. C# Revit addin (Revit 2026)
+### 1. C# Revit addin
 
-Requires **.NET 8 SDK** (or newer) and a local Revit 2026 install at
-`C:\Program Files\Autodesk\Revit 2026\` (override with `-p:RevitInstallDir=...`).
+| Revit version | .NET required | Build command |
+|---|---|---|
+| 2026 (default) | .NET 8 SDK | `dotnet build` |
+| 2027 | .NET 10 SDK | `dotnet build -p:RevitVersion=2027` |
+| 2025 | .NET 8 SDK | `dotnet build -p:RevitVersion=2025` *(untested)* |
 
 ```bash
 cd src/RevitAddin
-dotnet build
+dotnet build                          # Revit 2026
+dotnet build -p:RevitVersion=2027     # Revit 2027
 ```
 
 Post-build copies `RevitMCPAddin.dll` and the `.addin` manifest into
-`%APPDATA%\Autodesk\Revit\Addins\2026\`. Skip auto-deploy with
+`%APPDATA%\Autodesk\Revit\Addins\<version>\`. Skip auto-deploy with
 `-p:DeployToRevit=false`.
 
-> **Heads up:** close Revit before rebuilding — it holds the DLL open.
-
-To target a different Revit version override `RevitVersion`:
-
-```bash
-dotnet build -p:RevitVersion=2027
-```
+> **Heads up:** close the target Revit before rebuilding — it holds the DLL open.
 
 > **Revit 2025** uses the same .NET 8 runtime as 2026, so the source *should*
 > compile with `-p:RevitVersion=2025`. This is **untested by the maintainer**
@@ -299,11 +338,15 @@ Outputs `dist/index.js`, runnable as `node dist/index.js`.
 
 ## Run
 
-### 1. Start Revit 2026
+### 1. Start Revit
 
 Open any project. The addin auto-loads and starts the HTTP listener on
-`http://127.0.0.1:7891/`. On first start it generates a random auth token
-at `%APPDATA%\Autodesk\Revit\Addins\2026\revit-mcp-token.txt`.
+`http://127.0.0.1:7891/` (default port). On first start it generates a
+random auth token at `%APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt`.
+
+> **Running two Revit versions at once?** Set `REVIT_MCP_PORT` as a system
+> environment variable before launching each Revit (e.g. `7891` for R26,
+> `7892` for R27). Each addin reads the env var independently.
 
 Sanity check:
 
@@ -326,21 +369,38 @@ Invoke-RestMethod http://127.0.0.1:7891/commands -Headers @{ Authorization = "Be
 **Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json`) or
 **Claude Code** (`~/.claude/settings.json` `mcpServers` block):
 
+Single version:
 ```json
 {
   "mcpServers": {
     "revit-mcp-mvp": {
       "command": "node",
-      "args": [
-        "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
-      ],
-      "env": { "REVIT_MCP_PORT": "7891" }
+      "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
+      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
     }
   }
 }
 ```
 
-Restart the client. You should see 61 `revit_*` tools appear.
+Two versions side-by-side (different ports):
+```json
+{
+  "mcpServers": {
+    "revit-2026": {
+      "command": "node",
+      "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
+      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+    },
+    "revit-2027": {
+      "command": "node",
+      "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
+      "env": { "REVIT_MCP_PORT": "7892", "REVIT_MCP_VERSION": "2027" }
+    }
+  }
+}
+```
+
+Restart the client. You should see 61 `revit_*` tools per configured version.
 
 ### 3. Try it
 
