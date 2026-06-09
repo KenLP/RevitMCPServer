@@ -283,7 +283,7 @@ server.tool("revit_set_parameter_batch", "Set the same parameter on multiple ele
   dryRun: dryRunField,
 }, fwdWrite("set_parameter_batch"));
 
-server.tool("revit_rename_element", "Rename an element (set Element.Name). Returns before/after diff.", {
+server.tool("revit_rename_element", "Rename an element — supports Family, FamilySymbol (type name), and any other element. For Family/FamilySymbol uses direct property setter; validates system families, illegal chars, and name collisions. Returns before/after diff with instancesAffected count.", {
   id: z.number().int(),
   name: z.string(),
   dryRun: dryRunField,

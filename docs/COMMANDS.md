@@ -190,6 +190,37 @@ you asked because of dependent cleanup.
 Params: `id`, `translation` *({x,y,z?}, required)*, `units`.
 Data: `id`, `name`, `translationFeet`.
 
+### `rename_element`
+Params:
+- `id` *(long, required)* — element id (Family, FamilySymbol, or any element).
+- `name` *(string, required)* — new name.
+
+Handles three distinct rename paths automatically:
+
+| Element type | Rename mechanism | Validation |
+|---|---|---|
+| `Family` | Direct property `family.Name` | System family check, illegal chars, name collision |
+| `FamilySymbol` (Type) | Direct property `symbol.Name` | Illegal chars, duplicate type within family |
+| Everything else | `Element.Name` virtual setter | Standard Revit rules |
+
+Data (Family / FamilySymbol):
+```jsonc
+{
+  "id": 12345,
+  "elementType": "Family",
+  "oldName": "OLD_Door_Ext",
+  "newName": "SRA_Door_Ext_Sgl",
+  "instancesAffected": 42,
+  "changeSummary": "Renamed Family 12345: 'OLD_Door_Ext' → 'SRA_Door_Ext_Sgl' (42 instances affected)",
+  "changes": { "before": "OLD_Door_Ext", "after": "SRA_Door_Ext_Sgl" }
+}
+```
+
+Error codes:
+- `system_family` — cannot rename built-in families (Basic Wall, Floor, etc.).
+- `name_collision` — a Family/Type with the same name already exists.
+- `invalid_chars` — name contains `\ : { } [ ] | ; < > ? * ~`.
+
 ---
 
 ## Batch

@@ -1,8 +1,8 @@
 # Revit MCP Server
 
 > A custom **Model Context Protocol** server that lets Claude (Desktop, Code,
-> or any MCP client) drive **Autodesk Revit 2026 and Revit 2027** — read the model, create &
-> edit elements, and run multi-step operations as a single undoable
+> or any MCP client) drive **Autodesk Revit 2026 & 2027** — read the model,
+> create & edit elements, and run multi-step operations as a single undoable
 > Transaction.
 
 > Author: KenLP
@@ -11,8 +11,10 @@
 Claude Desktop / Claude Code  ──stdio──▶  revit-mcp-server (Node)  ──HTTP──▶  RevitMCPAddin  ──ExternalEvent + Transaction──▶  Revit 2026/2027
 ```
 
-- **C# .NET 8 addin** runs inside Revit, owns transactions, marshals work
-  onto the main UI thread via `IExternalEventHandler`.
+- **C# addin** (.NET 8 for R2026, .NET 10 for R2027) runs inside Revit,
+  owns transactions, marshals work onto the main UI thread via
+  `IExternalEventHandler`. Auto-assigns a unique port per Revit version
+  so multiple versions can run side-by-side.
 - **TypeScript MCP server** is a thin stdio bridge: every tool just forwards
   to a small HTTP API on the addin.
 - **Curated, schema-validated tool surface** — no eval-style escape hatch,
@@ -25,11 +27,11 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.4.0** — Phase 5a complete. 60 C# commands + 1 batch = **61 MCP tools**.
-New in v0.4.0: **dry-run mode**, **structured diffs**, **auth token**,
-**per-tool risk levels**.
-Cross-version (R25/R27) is next; see
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.4.2** — 60 C# commands + 1 batch = **61 MCP tools**.
+Supports **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
+auto-port assignment for side-by-side use. Features: **dry-run mode**,
+**structured diffs**, **auth token**, **per-tool risk levels**, **Family &
+FamilySymbol rename**. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 | Layer        | Build target              | Status |
 | ------------ | ------------------------- | ------ |
@@ -82,7 +84,7 @@ RevitMCPServer/
 │   ├── API_COVERAGE.md             ← what we wrap, what we don't, why
 │   └── ROADMAP.md                  ← phase tracker
 └── src/
-    ├── RevitAddin/                 ← C# .NET 8 addin (in-Revit)
+    ├── RevitAddin/                 ← C# addin (in-Revit, .NET 8/10)
     │   ├── App.cs
     │   ├── RevitMCPExternalEventHandler.cs
     │   ├── Server/McpHttpServer.cs
@@ -105,8 +107,8 @@ Every step is copy-paste into **PowerShell** on Windows.
 
 | Tool                  | Why                                        | Download                                                       |
 | --------------------- | ------------------------------------------ | -------------------------------------------------------------- |
-| **Autodesk Revit 2026** | The app the addin plugs into             | Autodesk account (you already have this)                       |
-| **.NET 8 SDK**        | Compiles the C# addin (`.dll`)             | <https://dotnet.microsoft.com/download/dotnet/8.0>             |
+| **Autodesk Revit 2026 or 2027** | The app the addin plugs into    | Autodesk account (you already have this)                       |
+| **.NET 8 SDK** (R2026) or **.NET 10 SDK** (R2027) | Compiles the C# addin | <https://dotnet.microsoft.com/download/dotnet/8.0> (or `/10.0`) |
 | **Node.js 22 (LTS)**  | Runs the MCP bridge                        | <https://nodejs.org/>                                          |
 | **Git**               | Downloads this repo                        | <https://git-scm.com/download/win>                             |
 | **Claude Desktop** *(or Claude Code)* | Your MCP client              | <https://claude.ai/download>                                   |
@@ -186,25 +188,26 @@ This produces `dist/index.js` — the small Node program Claude will launch.
 
 ### Step 4 — Start Revit and verify the addin loaded
 
-1. Open Revit 2026 → open any project (even a blank one).
-2. In PowerShell, run:
+1. Open Revit (2026 or 2027) → open any project (even a blank one).
+2. In PowerShell, run (use port 7891 for R2026, 7892 for R2027):
 
    ```powershell
-   Invoke-RestMethod http://127.0.0.1:7891/health
+   Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
+   Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
    ```
 
    Expected output:
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.4.0
+   version   : 0.4.1
    authEnabled : True
    ```
 
 3. The first time Revit starts after the build, the addin generates a
    random token at:
    ```
-   %APPDATA%\Autodesk\Revit\Addins\2026\revit-mcp-token.txt
+   %APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt
    ```
    You don't need to read it yourself — the MCP bridge does that
    automatically.
@@ -224,18 +227,18 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
 ```json
 {
   "mcpServers": {
-    "revit-mcp-mvp": {
+    "revit-2026": {
       "command": "node",
       "args": [
         "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
       ],
-      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+      "env": { "REVIT_MCP_VERSION": "2026" }
     }
   }
 }
 ```
 
-**Two Revit versions side-by-side** (2026 + 2027, different ports):
+**Two Revit versions side-by-side** (port is auto-assigned per version):
 
 ```json
 {
@@ -245,22 +248,23 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
       "args": [
         "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
       ],
-      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+      "env": { "REVIT_MCP_VERSION": "2026" }
     },
     "revit-2027": {
       "command": "node",
       "args": [
         "C:\\Dev\\RevitMCPServer\\src\\McpServer\\dist\\index.js"
       ],
-      "env": { "REVIT_MCP_PORT": "7892", "REVIT_MCP_VERSION": "2027" }
+      "env": { "REVIT_MCP_VERSION": "2027" }
     }
   }
 }
 ```
 
 > **Important:** the path uses double backslashes (`\\`) because it's JSON.
-> Each Revit version must use a **different port** to avoid conflicts.
-> `REVIT_MCP_VERSION` tells the MCP bridge which token file to read.
+> Port is auto-assigned (R2026 = 7891, R2027 = 7892) — no need to set
+> `REVIT_MCP_PORT` unless you want a custom port.
+> `REVIT_MCP_VERSION` tells the bridge which port + token file to use.
 
 Save, then **fully quit and restart Claude Desktop** (right-click tray icon →
 Quit). When it relaunches, click the 🔨 tools icon — you should see **61
@@ -344,15 +348,15 @@ Open any project. The addin auto-loads and starts the HTTP listener on
 `http://127.0.0.1:7891/` (default port). On first start it generates a
 random auth token at `%APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt`.
 
-> **Running two Revit versions at once?** Set `REVIT_MCP_PORT` as a system
-> environment variable before launching each Revit (e.g. `7891` for R26,
-> `7892` for R27). Each addin reads the env var independently.
+> **Running two Revit versions at once?** Each version auto-assigns its own
+> port (R2026 = 7891, R2027 = 7892). No extra config needed — just open both.
 
 Sanity check:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.4.0, authEnabled=True
+Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
+Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
+# → ok=True, service=revit-mcp-addin, version=0.4.1, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
@@ -373,28 +377,28 @@ Single version:
 ```json
 {
   "mcpServers": {
-    "revit-mcp-mvp": {
+    "revit-2026": {
       "command": "node",
       "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
-      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+      "env": { "REVIT_MCP_VERSION": "2026" }
     }
   }
 }
 ```
 
-Two versions side-by-side (different ports):
+Two versions side-by-side (port auto-assigned):
 ```json
 {
   "mcpServers": {
     "revit-2026": {
       "command": "node",
       "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
-      "env": { "REVIT_MCP_PORT": "7891", "REVIT_MCP_VERSION": "2026" }
+      "env": { "REVIT_MCP_VERSION": "2026" }
     },
     "revit-2027": {
       "command": "node",
       "args": [ "C:\\path\\to\\RevitMCPServer\\src\\McpServer\\dist\\index.js" ],
-      "env": { "REVIT_MCP_PORT": "7892", "REVIT_MCP_VERSION": "2027" }
+      "env": { "REVIT_MCP_VERSION": "2027" }
     }
   }
 }
@@ -454,14 +458,18 @@ Batches add `committed`, `count`, `hadFailures`, `results[]`. See
 
 ## Configuration env vars
 
-| Variable                | Where         | Default     | Purpose                                    |
-| ----------------------- | ------------- | ----------- | ------------------------------------------ |
-| `REVIT_MCP_PORT`        | Revit + Node  | `7891`      | HTTP port the addin listens on             |
-| `REVIT_MCP_HOST`        | Node only     | `127.0.0.1` | Host the MCP server connects to            |
-| `REVIT_MCP_TIMEOUT_MS`  | Node only     | `30000`     | Per-tool-call HTTP timeout                 |
-| `REVIT_MCP_AUTH`        | Revit + Node  | (enabled)   | Set `false` to disable auth token          |
-| `REVIT_MCP_AUTH_TOKEN`  | Node only     | (auto-read) | Override: use this token instead of file    |
-| `REVIT_MCP_VERSION`     | Node only     | `2026`      | Revit version (for token file path)         |
+| Variable                | Where         | Default           | Purpose                                    |
+| ----------------------- | ------------- | ----------------- | ------------------------------------------ |
+| `REVIT_MCP_PORT`        | Revit + Node  | auto (see below)  | HTTP port — override the auto-assigned port |
+| `REVIT_MCP_HOST`        | Node only     | `127.0.0.1`       | Host the MCP server connects to            |
+| `REVIT_MCP_TIMEOUT_MS`  | Node only     | `30000`           | Per-tool-call HTTP timeout                 |
+| `REVIT_MCP_AUTH`        | Revit + Node  | (enabled)         | Set `false` to disable auth token          |
+| `REVIT_MCP_AUTH_TOKEN`  | Node only     | (auto-read)       | Override: use this token instead of file    |
+| `REVIT_MCP_VERSION`     | Node only     | `2026`            | Revit version (for token file + auto-port)  |
+
+**Auto-port**: both the C# addin and the TypeScript bridge auto-assign a port
+based on the Revit version: R2026 = `7891`, R2027 = `7892`, R2028 = `7893`, etc.
+`REVIT_MCP_PORT` overrides this if set.
 
 ## Dry-run mode
 

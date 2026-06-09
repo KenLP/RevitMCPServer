@@ -11,7 +11,7 @@
                                                          ▼
                                                 ┌────────────────────┐
                                                 │  RevitMCPAddin     │
-                                                │  (C# .NET 8,       │
+                                                │  (C# .NET 8/10,    │
                                                 │  in Revit process) │
                                                 │                    │
                                                 │  ┌──────────────┐  │
@@ -40,7 +40,7 @@
 | Layer | Why it exists |
 |---|---|
 | **MCP server (Node/stdio)** | MCP clients (Claude Desktop, Claude Code) speak JSON-RPC over stdio. The Node process owns that contract: tool names, schemas, descriptions. It is intentionally **dumb** — every tool just forwards to HTTP. Swap clients without touching Revit. |
-| **HTTP bridge (in-Revit)** | Revit cannot easily host an MCP transport itself. A tiny `HttpListener` lets *anything* talk to the addin (curl, Postman, integration tests, future GUIs) without depending on the MCP SDK. Auth via random Bearer token generated per session; `GET /health` is exempt. |
+| **HTTP bridge (in-Revit)** | Revit cannot easily host an MCP transport itself. A tiny `HttpListener` lets *anything* talk to the addin (curl, Postman, integration tests, future GUIs) without depending on the MCP SDK. Auth via random Bearer token generated per session; `GET /health` is exempt. Port is auto-assigned by Revit version (R2026=7891, R2027=7892, …) so multiple versions can run side-by-side. |
 | **ExternalEvent + Transaction dispatcher** | Revit API can only be called on the main UI thread. Background HTTP requests are queued and drained inside `IExternalEventHandler.Execute(UIApplication)`. The dispatcher also owns the `Transaction` lifecycle so commands stay free of boilerplate. |
 
 ## Threading & transaction lifecycle
@@ -171,7 +171,7 @@ summary by default and only reveal full diffs on demand.
 2. Register it in `CommandRegistry.RegisterDefaults()`.
 3. **TypeScript side**: add a `server.tool(...)` declaration in `index.ts`
    that forwards to `callRevit("your_command", params)`.
-4. `dotnet build` (the post-build target deploys to
-   `%APPDATA%\Autodesk\Revit\Addins\2026`).
+4. `dotnet build` (or `dotnet build -p:RevitVersion=2027` for R2027).
+   The post-build target deploys to `%APPDATA%\Autodesk\Revit\Addins\<version>\`.
 5. `npm run build` in `src/McpServer/`.
 6. Restart Revit and the MCP client.

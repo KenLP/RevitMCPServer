@@ -4,22 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.2] — 2026-05-28: Revit 2027 support
+## [0.4.2] — 2026-06-09: Revit 2027 support + Family rename
 
 ### Added
 - **Revit 2027 build** — csproj auto-selects `net10.0-windows` when
   `RevitVersion >= 2027`, `net8.0-windows` for R2025–2026.
   Build with `dotnet build -p:RevitVersion=2027`.
-- Multi-version Claude Desktop config guide — run R2026 and R2027
-  side-by-side using different ports (`REVIT_MCP_PORT`) and
-  `REVIT_MCP_VERSION` env vars.
+- **Auto-port assignment** — each Revit version gets its own port
+  automatically (R2026=7891, R2027=7892, ...). No manual port config
+  needed for side-by-side use.
+- **Family & FamilySymbol rename** — `revit_rename_element` now handles
+  `Family.Name` and `FamilySymbol.Name` (direct property setters), not
+  just parameter-based renames. Validates system families, illegal
+  characters, and name collisions. Returns `instancesAffected` count.
+- Multi-version Claude Desktop config guide.
 - Beginner-friendly installation walk-through in README (Step 0–6 +
   troubleshooting table).
 
 ### Changed
 - `Revit_MCP_Server_Build_Plan.md` moved to `docs/internal/` (gitignored).
-- README: updated status table, repo layout, build reference for
-  multi-version.
+- README + docs fully updated for R2026/R2027 dual support.
 
 ## [0.4.1] — 2026-05-27
 
