@@ -3,6 +3,27 @@ using System.Text.Json.Nodes;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
+/// How a command must be executed, which drives the dispatcher's transaction
+/// policy.
+/// </summary>
+public enum ExecutionKind
+{
+    /// <summary>Read-only — no transaction, no model or UI mutation.</summary>
+    ReadOnly,
+
+    /// <summary>Mutates the Revit model — must run inside a Transaction.</summary>
+    ModelWrite,
+
+    /// <summary>
+    /// Mutates UI state only (active view, selection, zoom).  Runs on the UI
+    /// thread but must NOT be wrapped in a model Transaction — some UI calls
+    /// throw while a transaction is open, and a rollback cannot undo the UI
+    /// effect anyway.
+    /// </summary>
+    UiAction,
+}
+
+/// <summary>
 /// A single Revit command.  Implementations:
 ///
 ///   - Run on the Revit main UI thread (the dispatcher arranges that).
@@ -31,6 +52,16 @@ public interface IRevitCommand
     /// Default: <c>"read"</c> if <see cref="IsReadOnly"/>, else <c>"low"</c>.
     /// </summary>
     string RiskLevel => IsReadOnly ? "read" : "low";
+
+    /// <summary>
+    /// Execution classification driving the dispatcher's transaction policy.
+    /// Defaults from <see cref="IsReadOnly"/> for backward compatibility:
+    /// read-only → <see cref="ExecutionKind.ReadOnly"/>, otherwise
+    /// <see cref="ExecutionKind.ModelWrite"/>.  UI-only commands
+    /// (open_view, select_elements, zoom_to_elements) override this to
+    /// <see cref="ExecutionKind.UiAction"/>.
+    /// </summary>
+    ExecutionKind Execution => IsReadOnly ? ExecutionKind.ReadOnly : ExecutionKind.ModelWrite;
 
     JsonNode? Execute(CommandContext ctx);
 }

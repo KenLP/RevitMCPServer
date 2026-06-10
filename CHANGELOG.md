@@ -4,6 +4,89 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-06-10: Safety, tests, CI, and production hardening
+
+### Added — Command execution classification
+- New `ExecutionKind` enum: `ReadOnly`, `ModelWrite`, `UiAction`.
+- `open_view`, `select_elements`, `zoom_to_elements` marked `UiAction` —
+  no longer wrapped in a model transaction; dry-run returns a no-op instead
+  of silently reverting UI state.
+
+### Added — Unit conversion for numeric parameters
+- `set_parameter` and `set_parameter_batch` accept `units:"meters"|"feet"|"internal"`.
+  When a Double parameter has measurable units (length, area, volume …),
+  `UnitUtils.ConvertToInternalUnits` is called automatically.
+  Dimensionless parameters (ratio, slope, etc.) are never converted.
+  Response echoes `inputUnits` and `unitConversionApplied`.
+
+### Added — View filter hardening
+- `apply_view_filter` checks `AreGraphicsOverridesAllowed()` before
+  creating the filter; raises a clear error for schedule/legend views.
+- Duplicate filter names now detected before `ParameterFilterElement.Create()`
+  — error includes the conflicting filter id. Set `reuseExisting:true` to
+  re-apply an existing filter to the view instead.
+
+### Added — `color_override_by_param` view guard
+- `AreGraphicsOverridesAllowed()` check with view type in the error message.
+
+### Added — Unambiguous family instance placement
+- `place_family_instance` returns `placed:false` + a candidate list when
+  both `familyName` and `familyTypeName` are omitted and multiple types
+  match. When a partial filter still yields >1 match, places the first but
+  includes a `warning` field and `familyTypeId` in the response.
+
+### Added — Auth token auto-refresh
+- `revitClient.ts` promotes `AUTH_TOKEN` to a mutable `_authToken` and
+  re-reads the token file on `unauthorized` responses — handles Revit
+  generating a new token on restart without requiring a server restart.
+
+### Added — Startup health check
+- On startup `index.ts` probes `/health` and logs: Revit not reachable,
+  auth mismatch (enabled but no token), or successful connection with version.
+
+### Added — Test suite (Phase 2)
+- **13 TypeScript tests** (Vitest): `callRevit`, `callRevitBatch`,
+  `envelopeToToolResult`, error codes, auth header.
+- **46 C# tests** (xUnit): `JsonResult`, `ParamUtil` (all methods + bounds),
+  `CommandRegistry` (register, replace, TryGet, ExecutionKind, RiskLevel).
+- `Nice3point.Revit.Api` NuGet stubs used as fallback so `dotnet build`
+  succeeds on CI machines without a Revit install.
+- `scripts/check-version.mjs` — exits non-zero when version strings drift
+  across `package.json`, `index.ts`, `McpHttpServer.cs`, and `CHANGELOG.md`.
+
+### Added — GitHub Actions CI
+- Three jobs: TypeScript build+test (ubuntu-latest), C# build+test
+  (windows-latest, `DeployToRevit=false`), version consistency check.
+- Release job on `v*` tags: builds R2026 + R2027 artifacts and uploads
+  versioned zip files as GitHub Release assets.
+
+### Added — Release tooling
+- `scripts/build-release.ps1` — full release pipeline: version check,
+  tests, multi-version C# build, TypeScript build, zip packaging.
+- `scripts/install.ps1` — copies addin DLL + manifest to the per-user
+  Revit Addins folder; runs `npm install --production` for the MCP server.
+- `scripts/uninstall.ps1` — removes addin files from Revit Addins folder.
+
+### Added — Compatibility matrix & troubleshooting guide
+- `docs/COMPATIBILITY.md` — Revit × .NET × Node.js matrix with known limits.
+- `docs/TROUBLESHOOTING.md` — diagnostic checklist for common failure modes.
+
+### Fixed — HTTP error semantics
+- `StatusForResult()` maps error codes to proper HTTP statuses:
+  `bad_request`/`bad_json` → 400, `unauthorized` → 401,
+  `unknown_command` → 404, name collision → 409, timeout → 408, else 500.
+
+### Fixed — `set_parameter_batch` partial failure
+- `partialFailure:true` added to top-level response when any element fails.
+- New `atomic` option: `true` → any element failure rolls back the entire batch.
+
+### Fixed — RGB color validation
+- `P.ColorByte()` rejects values outside 0-255 with a clear error instead
+  of silently wrapping via `(byte)` cast.
+
+### Fixed — Version drift
+- `package.json`, `index.ts`, `McpHttpServer.cs` all report `0.5.0`.
+
 ## [0.4.2] — 2026-06-09: Revit 2027 support + Family rename
 
 ### Added

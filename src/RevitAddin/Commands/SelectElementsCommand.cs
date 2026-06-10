@@ -14,6 +14,7 @@ public sealed class SelectElementsCommand : IRevitCommand
 {
     public string Name => "select_elements";
     public bool IsReadOnly => false; // modifies UI state
+    public ExecutionKind Execution => ExecutionKind.UiAction;
 
     public JsonNode? Execute(CommandContext ctx)
     {

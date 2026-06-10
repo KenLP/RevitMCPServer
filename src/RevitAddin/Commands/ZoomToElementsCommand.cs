@@ -15,6 +15,7 @@ public sealed class ZoomToElementsCommand : IRevitCommand
 {
     public string Name => "zoom_to_elements";
     public bool IsReadOnly => false; // modifies UI view state
+    public ExecutionKind Execution => ExecutionKind.UiAction;
 
     public JsonNode? Execute(CommandContext ctx)
     {

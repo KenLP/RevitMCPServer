@@ -13,6 +13,7 @@ public sealed class OpenViewCommand : IRevitCommand
 {
     public string Name => "open_view";
     public bool IsReadOnly => false;
+    public ExecutionKind Execution => ExecutionKind.UiAction;
 
     public JsonNode? Execute(CommandContext ctx)
     {

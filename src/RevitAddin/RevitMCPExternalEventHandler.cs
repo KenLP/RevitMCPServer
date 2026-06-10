@@ -115,9 +115,24 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
 
         var ctx = BuildContext(app, parameters, dryRun);
 
-        // Read-only commands run without a transaction.
-        if (command.IsReadOnly)
+        // Read-only and UI-action commands run WITHOUT a model transaction.
+        if (command.Execution is ExecutionKind.ReadOnly or ExecutionKind.UiAction)
         {
+            // A UI action cannot be previewed by rollback — there's no model
+            // change to undo and the UI effect can't be reverted. In dry-run
+            // we therefore report a no-op instead of mutating UI state.
+            if (dryRun && command.Execution == ExecutionKind.UiAction)
+            {
+                return JsonResult.Success(new JsonObject
+                {
+                    ["dryRun"] = true,
+                    ["committed"] = false,
+                    ["skipped"] = true,
+                    ["changeSummary"] =
+                        $"Dry-run: UI action '{commandName}' not executed (UI changes cannot be rolled back).",
+                });
+            }
+
             try
             {
                 var data = command.Execute(ctx);
@@ -131,7 +146,7 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
             }
         }
 
-        // Write commands always need a document + a transaction.
+        // Model-write commands always need a document + a transaction.
         var doc = ctx.RequireDoc();
         using var tx = new Transaction(doc, $"MCP: {commandName}");
         try
@@ -175,10 +190,10 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
                 return JsonResult.Error("unknown_command",
                     $"No command registered for '{step.CommandName}'.");
             resolved.Add((step, cmd));
-            if (!cmd.IsReadOnly) anyWrite = true;
+            if (cmd.Execution == ExecutionKind.ModelWrite) anyWrite = true;
         }
 
-        // Pure read-only batch: no transaction required.
+        // No model writes (only read-only / UI actions): no transaction required.
         if (!anyWrite)
         {
             var roResults = new JsonArray();

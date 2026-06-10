@@ -42,6 +42,19 @@ public static class P
     public static int IntOr(JsonObject obj, string key, int @default) =>
         obj[key]?.GetValue<int>() ?? @default;
 
+    /// <summary>
+    /// Reads an RGB channel value, validating it is within 0-255.  Throws a
+    /// clear error instead of silently wrapping when a caller passes e.g. 300.
+    /// </summary>
+    public static byte ColorByte(JsonObject obj, string key, int @default)
+    {
+        var v = IntOr(obj, key, @default);
+        if (v < 0 || v > 255)
+            throw new ArgumentException(
+                $"Color channel '{key}' must be 0-255, got {v}.");
+        return (byte)v;
+    }
+
     public static long Long(JsonObject obj, string key)
     {
         var node = obj[key]

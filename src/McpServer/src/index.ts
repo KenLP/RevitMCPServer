@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.4.1 (stdio).
+ * Revit MCP Server v0.5.0 (stdio).
  *
  * 60 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, and batch operations.
@@ -19,10 +19,11 @@ import {
   callRevit,
   callRevitBatch,
   envelopeToToolResult,
+  checkRevitHealth,
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.4.1" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.5.0" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -190,7 +191,7 @@ server.tool("revit_create_opening_in_wall", "Create a rectangular opening in a w
   dryRun: dryRunField,
 }, fwdWrite("create_opening_in_wall"));
 
-server.tool("revit_place_family_instance", "Place a FamilyInstance at a point (non-hosted).", {
+server.tool("revit_place_family_instance", "Place a FamilyInstance at a point (non-hosted). When selection is ambiguous (no familyName/familyTypeName given) returns a candidate list with placed:false — pick from the list and retry with both fields.", {
   location: xyz,
   familyName: z.string().optional(),
   familyTypeName: z.string().optional(),
@@ -269,17 +270,20 @@ server.tool("revit_create_text_note", "Create a TextNote in a view.", {
 // EDIT — PARAMETERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff.", {
+server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff. For numeric (Double) parameters with measurable units pass units:'meters' or 'feet' for automatic conversion; default 'internal' means raw Revit feet.", {
   id: z.number().int(),
   parameterName: z.string(),
   value: z.union([z.string(), z.number(), z.boolean(), z.object({ id: z.number().int() })]),
+  units: z.enum(["meters", "feet", "internal"]).optional().describe("Unit for numeric double parameters. 'meters' or 'feet' triggers UnitUtils conversion. Default 'internal' (raw Revit feet)."),
   dryRun: dryRunField,
 }, fwdWrite("set_parameter"));
 
-server.tool("revit_set_parameter_batch", "Set the same parameter on multiple elements. Returns changeSummary.", {
+server.tool("revit_set_parameter_batch", "Set the same parameter on multiple elements. Returns changeSummary + partialFailure flag. Set atomic:true for all-or-nothing (any failure rolls back the whole call); default is best-effort. Pass units:'meters'/'feet' for automatic double-parameter conversion.", {
   ids: idsField,
   parameterName: z.string(),
   value: z.union([z.string(), z.number(), z.boolean(), z.object({ id: z.number().int() })]),
+  units: z.enum(["meters", "feet", "internal"]).optional().describe("Unit for numeric double parameters. Default 'internal' (raw Revit feet)."),
+  atomic: z.boolean().optional().describe("All-or-nothing. If true, any element failure rolls back the entire batch. Default false (best-effort)."),
   dryRun: dryRunField,
 }, fwdWrite("set_parameter_batch"));
 
@@ -439,7 +443,27 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.4.1 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.5.0 connected to Revit addin at ${REVIT_BASE_URL}`);
+
+  // Startup connectivity probe — log diagnostics but never crash.
+  const health = await checkRevitHealth();
+  if (!health.reachable) {
+    console.error(
+      `[revit-mcp-server] WARNING: Revit addin not reachable at ${REVIT_BASE_URL}. ` +
+      "Ensure Revit is running with RevitMCPAddin loaded.",
+    );
+  } else if (health.authEnabled && !health.authTokenPresent) {
+    console.error(
+      "[revit-mcp-server] WARNING: Revit addin requires auth but no token was found. " +
+      "Set REVIT_MCP_AUTH_TOKEN or ensure the token file is readable at " +
+      `%APPDATA%/Autodesk/Revit/Addins/${process.env.REVIT_MCP_VERSION ?? "2026"}/revit-mcp-token.txt`,
+    );
+  } else {
+    console.error(
+      `[revit-mcp-server] Revit addin reachable (v${health.version ?? "?"}, ` +
+      `auth: ${health.authEnabled ? "enabled" : "disabled"})`,
+    );
+  }
 }
 
 main().catch((err) => {

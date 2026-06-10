@@ -96,7 +96,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.4.1",
+                    ["version"] = "0.5.0",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;
@@ -178,6 +178,30 @@ public sealed class McpHttpServer
         return string.Equals(token, _authToken, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Map a result envelope to an HTTP status code.  Success → 200.  For
+    /// failures, the error <c>code</c> determines the status so clients can
+    /// distinguish user/client errors from genuine server faults.
+    /// </summary>
+    private static int StatusForResult(JsonObject result)
+    {
+        if (result["ok"]?.GetValue<bool>() == true)
+            return 200;
+
+        var code = (result["error"] as JsonObject)?["code"]?.GetValue<string>();
+        return code switch
+        {
+            "bad_request" or "bad_json"          => 400,
+            "unauthorized"                       => 401,
+            "unknown_command" or "not_found"     => 404,
+            "name_collision" or "system_family"  => 409,
+            "timeout" or "cancelled"             => 408,
+            // command_failed / dispatch_failed / server_error / batch_aborted
+            // and anything unrecognised fall through to 500.
+            _                                    => 500,
+        };
+    }
+
     /// <summary>Parse dryRun from query string (?dryRun=true) or JSON body field.</summary>
     private static bool ParseDryRun(HttpListenerRequest request, JsonObject? body)
     {
@@ -218,8 +242,7 @@ public sealed class McpHttpServer
             result = JsonResult.Error("dispatch_failed", ex.Message, ex.GetType().FullName);
         }
 
-        var statusCode = result["ok"]?.GetValue<bool>() == true ? 200 : 500;
-        await WriteJsonAsync(response, statusCode, result).ConfigureAwait(false);
+        await WriteJsonAsync(response, StatusForResult(result), result).ConfigureAwait(false);
     }
 
     private async Task HandleBatchAsync(HttpListenerRequest request, HttpListenerResponse response)
@@ -283,8 +306,7 @@ public sealed class McpHttpServer
             result = JsonResult.Error("dispatch_failed", ex.Message, ex.GetType().FullName);
         }
 
-        var statusCode = result["ok"]?.GetValue<bool>() == true ? 200 : 500;
-        await WriteJsonAsync(response, statusCode, result).ConfigureAwait(false);
+        await WriteJsonAsync(response, StatusForResult(result), result).ConfigureAwait(false);
     }
 
     private static async Task<JsonObject?> ReadJsonObjectAsync(HttpListenerRequest request, HttpListenerResponse response)

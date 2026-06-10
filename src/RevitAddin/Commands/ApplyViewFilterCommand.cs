@@ -18,6 +18,8 @@ namespace RevitMCPAddin.Commands;
 ///   - value:          string, required (the equality match value)
 ///   - colorRGB:       { r, g, b }, optional — projection fill color override
 ///   - visible:        bool, optional, default true (false = hide matching elements)
+///   - reuseExisting:  bool, optional, default false. When true, a filter with
+///                     the same name is reused rather than raising an error.
 /// </summary>
 public sealed class ApplyViewFilterCommand : IRevitCommand
 {
@@ -31,37 +33,72 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
         var p = ctx.Parameters;
 
         var view = SetViewDetailLevelCommand.ResolveView(doc, ctx, p);
+
+        // Views like schedules, legends, and some 3-D views do not support
+        // parameter filters or graphic overrides.
+        if (!view.AreGraphicsOverridesAllowed())
+            throw new InvalidOperationException(
+                $"View '{view.Name}' (type: {view.ViewType}) does not support " +
+                "graphic overrides or parameter filters.");
+
         var filterName = P.Str(p, "filterName");
+        var reuseExisting = P.BoolOr(p, "reuseExisting", false);
+
+        // Detect name collision early — ParameterFilterElement.Create throws an
+        // unhelpful exception otherwise.
+        var existingFilter = new FilteredElementCollector(doc)
+            .OfClass(typeof(ParameterFilterElement))
+            .Cast<ParameterFilterElement>()
+            .FirstOrDefault(f => f.Name.Equals(filterName, StringComparison.OrdinalIgnoreCase));
 
         var catName = P.Str(p, "category");
         if (!Enum.TryParse<BuiltInCategory>(catName, true, out var bic))
             throw new ArgumentException($"Unknown BuiltInCategory '{catName}'.");
 
-        var paramName = P.Str(p, "parameterName");
-        var matchValue = P.Str(p, "value");
+        ParameterFilterElement filter;
+        bool reused = false;
 
-        // Find the parameter id from an element in this category.
-        var sampleElement = new FilteredElementCollector(doc)
-            .OfCategory(bic)
-            .WhereElementIsNotElementType()
-            .FirstOrDefault();
+        if (existingFilter != null)
+        {
+            if (!reuseExisting)
+                throw new InvalidOperationException(
+                    $"A filter named '{filterName}' already exists " +
+                    $"(id: {existingFilter.Id.Value}). " +
+                    "Set reuseExisting:true to apply it to this view, or choose a different name.");
 
-        var param = sampleElement?.LookupParameter(paramName)
-            ?? throw new InvalidOperationException(
-                $"Cannot find parameter '{paramName}' on any {catName} element.");
+            filter = existingFilter;
+            reused = true;
+        }
+        else
+        {
+            var paramName = P.Str(p, "parameterName");
+            var matchValue = P.Str(p, "value");
 
-        var paramId = param.Id;
+            // Find the parameter id from an existing element of the target category.
+            var sampleElement = new FilteredElementCollector(doc)
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    $"No elements of category '{catName}' found in the document. " +
+                    $"The filter needs at least one existing element to resolve the " +
+                    $"parameter '{paramName}'. Place an element of that category first.");
 
-        var categories = new List<ElementId> { new ElementId(bic) };
+            var param = sampleElement.LookupParameter(paramName)
+                ?? throw new InvalidOperationException(
+                    $"Parameter '{paramName}' not found on any '{catName}' element. " +
+                    "Verify the parameter name and category.");
 
-        // Build filter rule (string equals).
-        var rule = ParameterFilterRuleFactory.CreateEqualsRule(paramId, matchValue);
-        var elementFilter = new ElementParameterFilter(rule);
-
-        var filter = ParameterFilterElement.Create(doc, filterName, categories, elementFilter);
+            var paramId = param.Id;
+            var categories = new List<ElementId> { new ElementId(bic) };
+            var rule = ParameterFilterRuleFactory.CreateEqualsRule(paramId, matchValue);
+            var elementFilter = new ElementParameterFilter(rule);
+            filter = ParameterFilterElement.Create(doc, filterName, categories, elementFilter);
+        }
 
         // Apply to view.
-        view.AddFilter(filter.Id);
+        if (!view.GetFilters().Contains(filter.Id))
+            view.AddFilter(filter.Id);
 
         var visible = P.BoolOr(p, "visible", true);
 
@@ -69,9 +106,9 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
         if (p["colorRGB"] is JsonObject rgb)
         {
             var color = new Color(
-                (byte)P.IntOr(rgb, "r", 255),
-                (byte)P.IntOr(rgb, "g", 0),
-                (byte)P.IntOr(rgb, "b", 0));
+                P.ColorByte(rgb, "r", 255),
+                P.ColorByte(rgb, "g", 0),
+                P.ColorByte(rgb, "b", 0));
             overrides.SetSurfaceForegroundPatternColor(color);
             overrides.SetProjectionLineColor(color);
         }
@@ -85,6 +122,7 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
             ["filterName"] = filterName,
             ["viewId"] = view.Id.Value,
             ["visible"] = visible,
+            ["reused"] = reused,
         };
     }
 }

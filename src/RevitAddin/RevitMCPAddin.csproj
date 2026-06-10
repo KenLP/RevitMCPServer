@@ -23,7 +23,10 @@
     <TargetFramework Condition="$([MSBuild]::VersionLessThan($(RevitVersion), 2027))">net8.0-windows</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
+  <!-- On developer machines use the real Revit DLLs from the install folder.
+       On CI (no Revit installed) fall back to Nice3point reference assemblies
+       so the build succeeds without touching an actual Revit environment. -->
+  <ItemGroup Condition="Exists('$(RevitInstallDir)\RevitAPI.dll')">
     <Reference Include="RevitAPI">
       <HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath>
       <Private>False</Private>
@@ -32,6 +35,17 @@
       <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll')">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <!-- After build, copy the DLL + manifest into the per-user Revit Addins folder

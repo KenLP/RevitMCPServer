@@ -17,6 +17,10 @@ namespace RevitMCPAddin.Commands;
 ///   - levelName:      string, optional
 ///   - structural:     bool, default false
 ///   - units:          "meters"|"feet"
+///
+/// When neither familyName nor familyTypeName is supplied (or the query still
+/// returns multiple symbols), the command returns a candidate list instead of
+/// picking arbitrarily.  Specify both fields for unambiguous placement.
 /// </summary>
 public sealed class PlaceFamilyInstanceCommand : IRevitCommand
 {
@@ -28,10 +32,6 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var p = ctx.Parameters;
         var units = P.Units(p);
-
-        var location = P.Xyz(p, "location", units);
-        var level = CreateWallCommand.ResolveLevel(doc, P.StrOrNull(p, "levelName"));
-        var structural = P.BoolOr(p, "structural", false);
 
         var familyName = P.StrOrNull(p, "familyName");
         var typeName = P.StrOrNull(p, "familyTypeName");
@@ -51,16 +51,50 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         if (!string.IsNullOrWhiteSpace(typeName))
             query = query.Where(s => s.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
-        var symbol = query.FirstOrDefault()
-            ?? throw new InvalidOperationException(
-                $"No FamilySymbol found (family='{familyName}', type='{typeName}', category='{catName}').");
+        // Cap at 11 to distinguish "many" from "exactly 10".
+        var matches = query.Take(11).ToList();
+
+        if (matches.Count == 0)
+            throw new InvalidOperationException(
+                $"No FamilySymbol found (family='{familyName ?? "*"}', " +
+                $"type='{typeName ?? "*"}', category='{catName ?? "*"}').");
+
+        // When the query is still ambiguous (no explicit type selected), return
+        // candidates so the caller can make an informed choice.
+        bool noExplicitFamily = string.IsNullOrWhiteSpace(familyName);
+        bool noExplicitType   = string.IsNullOrWhiteSpace(typeName);
+
+        if (matches.Count > 1 && noExplicitFamily && noExplicitType)
+        {
+            var shown = matches.Take(10).ToList();
+            return new JsonObject
+            {
+                ["placed"] = false,
+                ["action"] = "select_type",
+                ["candidatesFound"] = matches.Count > 10 ? "10+" : matches.Count.ToString(),
+                ["candidates"] = new JsonArray(shown.Select(s => (JsonNode?)new JsonObject
+                {
+                    ["familyName"] = s.FamilyName,
+                    ["typeName"] = s.Name,
+                    ["category"] = s.Category?.Name,
+                    ["id"] = s.Id.Value,
+                }).ToArray()),
+                ["hint"] = "Multiple family types match. Specify familyName and familyTypeName to place an instance.",
+            };
+        }
+
+        var symbol = matches[0];
+        bool usedFirstMatch = matches.Count > 1; // partial filter → first wins, but warn
+
+        var location = P.Xyz(p, "location", units);
+        var level = CreateWallCommand.ResolveLevel(doc, P.StrOrNull(p, "levelName"));
+        var structural = P.BoolOr(p, "structural", false);
 
         if (!symbol.IsActive) symbol.Activate();
 
-        var stype = structural ? StructuralType.NonStructural : StructuralType.NonStructural;
+        var stype = StructuralType.NonStructural;
         if (structural)
         {
-            // Determine structural type from category.
             var bc = symbol.Category?.BuiltInCategory;
             stype = bc switch
             {
@@ -74,12 +108,20 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         var pt = new XYZ(location.X, location.Y, level.Elevation);
         var instance = doc.Create.NewFamilyInstance(pt, symbol, level, stype);
 
-        return new JsonObject
+        var result = new JsonObject
         {
+            ["placed"] = true,
             ["id"] = instance.Id.Value,
             ["familyName"] = symbol.FamilyName,
             ["familyTypeName"] = symbol.Name,
+            ["familyTypeId"] = symbol.Id.Value,
             ["levelName"] = level.Name,
         };
+
+        if (usedFirstMatch)
+            result["warning"] = $"Multiple types matched — used first result '{symbol.FamilyName} : {symbol.Name}'. " +
+                                 "Provide both familyName and familyTypeName for deterministic placement.";
+
+        return result;
     }
 }

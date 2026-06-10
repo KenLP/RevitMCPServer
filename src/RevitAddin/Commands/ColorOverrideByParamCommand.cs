@@ -28,6 +28,12 @@ public sealed class ColorOverrideByParamCommand : IRevitCommand
         var p = ctx.Parameters;
 
         var view = SetViewDetailLevelCommand.ResolveView(doc, ctx, p);
+
+        if (!view.AreGraphicsOverridesAllowed())
+            throw new InvalidOperationException(
+                $"View '{view.Name}' (type: {view.ViewType}) does not support " +
+                "element graphic overrides.");
+
         var catName = P.Str(p, "category");
         if (!Enum.TryParse<BuiltInCategory>(catName, true, out var bic))
             throw new ArgumentException($"Unknown BuiltInCategory '{catName}'.");
@@ -41,9 +47,9 @@ public sealed class ColorOverrideByParamCommand : IRevitCommand
             if (kv.Value is JsonObject rgb)
             {
                 colorMap[kv.Key] = new Color(
-                    (byte)P.IntOr(rgb, "r", 200),
-                    (byte)P.IntOr(rgb, "g", 200),
-                    (byte)P.IntOr(rgb, "b", 200));
+                    P.ColorByte(rgb, "r", 200),
+                    P.ColorByte(rgb, "g", 200),
+                    P.ColorByte(rgb, "b", 200));
             }
         }
 

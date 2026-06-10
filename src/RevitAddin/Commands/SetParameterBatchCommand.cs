@@ -11,6 +11,13 @@ namespace RevitMCPAddin.Commands;
 ///   - ids:            long[], required
 ///   - parameterName:  string, required
 ///   - value:          any, required (same coercion rules as set_parameter)
+///   - units:          "meters"|"feet"|"internal", optional, default "internal".
+///                     See set_parameter for full unit-conversion semantics.
+///   - atomic:         bool, optional, default false. When true, ANY per-element
+///                     failure throws — the dispatcher's transaction rolls back
+///                     and the whole call reports ok:false (all-or-nothing).
+///                     When false (best-effort), successful writes are kept and
+///                     the result carries partialFailure:true if any failed.
 /// </summary>
 public sealed class SetParameterBatchCommand : IRevitCommand
 {
@@ -27,6 +34,8 @@ public sealed class SetParameterBatchCommand : IRevitCommand
         var paramName = P.Str(p, "parameterName");
         var valueNode = p["value"]
             ?? throw new ArgumentException("Missing required parameter 'value'.");
+        var atomic = P.BoolOr(p, "atomic", false);
+        var units = P.StrOrNull(p, "units") ?? "internal";
 
         var succeeded = 0;
         var failed = 0;
@@ -47,11 +56,17 @@ public sealed class SetParameterBatchCommand : IRevitCommand
                 if (param.IsReadOnly)
                     throw new InvalidOperationException($"Parameter '{paramName}' is read-only.");
 
-                SetValue(param, valueNode);
+                SetValue(param, valueNode, units);
                 succeeded++;
             }
             catch (Exception ex)
             {
+                // Atomic mode: abort immediately so the surrounding transaction
+                // rolls back and the call reports ok:false (all-or-nothing).
+                if (atomic)
+                    throw new InvalidOperationException(
+                        $"Atomic batch aborted: element {idValue}: {ex.Message}");
+
                 failed++;
                 errors.Add(new JsonObject
                 {
@@ -66,13 +81,15 @@ public sealed class SetParameterBatchCommand : IRevitCommand
             ["total"] = ids.Count,
             ["succeeded"] = succeeded,
             ["failed"] = failed,
+            ["partialFailure"] = failed > 0,
+            ["inputUnits"] = units,
             ["errors"] = errors,
             ["changeSummary"] = $"Set '{paramName}' on {succeeded}/{ids.Count} elements" +
                                 (failed > 0 ? $" ({failed} failed)" : ""),
         };
     }
 
-    private static void SetValue(Parameter param, JsonNode valueNode)
+    private static void SetValue(Parameter param, JsonNode valueNode, string units)
     {
         switch (param.StorageType)
         {
@@ -87,8 +104,13 @@ public sealed class SetParameterBatchCommand : IRevitCommand
                     param.Set(valueNode.GetValue<int>());
                 break;
             case StorageType.Double:
-                param.Set(valueNode.GetValue<double>());
+            {
+                var raw = valueNode.GetValue<double>();
+                var converted = SetParameterCommand.ConvertToInternal(
+                    param, raw, units, out _);
+                param.Set(converted);
                 break;
+            }
             case StorageType.ElementId:
                 var idVal = valueNode is JsonObject obj && obj["id"] is JsonNode idn
                     ? idn.GetValue<long>()
