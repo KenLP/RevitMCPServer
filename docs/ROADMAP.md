@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.6.0
+## Current status — v0.7.0
 
 | Phase | Version | Status |
 |---|---|---|
@@ -14,6 +14,7 @@
 | Revit hardening (unit conversion, view guards, family candidates) | v0.5.0 | ✅ Done |
 | Release tooling (build script, install/uninstall, compat matrix, troubleshooting) | v0.5.0 | ✅ Done |
 | Correctness & API hardening (batch policy, spec-aware units, domain errors, CI R2027) | v0.6.0 | ✅ Done |
+| Linked-file element reading, clash/clearance detection, view image export, R2025 | v0.7.0 | ✅ Done |
 
 ## Near-term backlog
 
@@ -27,9 +28,6 @@
   user project units from `Document.GetUnits()` and applying automatically.
 - Add `get_parameter_units` introspection command.
 
-### Revit 2025 build validation
-- Add R2025 to the CI build matrix once reference assemblies are confirmed.
-
 ### Structured log with request IDs
 - Request ID generated per HTTP call, threaded through dispatcher, Revit
   command, and response — enables correlation across MCP ↔ HTTP ↔ addin logs.
@@ -42,5 +40,7 @@
 - `create_dimension` (linear), `create_detail_line`
 - `purge_unused` (with dry-run preview of what would be purged)
 - `get_schedule_data` — read rendered schedule rows as JSON
-- Linked-file cross-queries
+- MEP element creation (`create_duct`, `create_pipe`, `create_mep_system`)
+- IFC export
+- Solid-based clearance check (upgrade `check_clearance` cross-doc path from AABB to geometry)
 - Hot-reload without restarting Revit (AppDomain research)

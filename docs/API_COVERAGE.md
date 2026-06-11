@@ -27,9 +27,9 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.6.0)
+## Current command surface (v0.7.0)
 
-**60 commands** across read, write, and UI categories.
+**63 commands** across read, write, UI, and coordination categories.
 
 ### Implemented — Read / Introspection
 
@@ -57,7 +57,9 @@ Claude Desktop / Claude Code.
 | `get_views` | All views with type/template/discipline |
 | `get_active_view` | Current UI view |
 | `get_selected_elements` | UIDocument selection |
-| `get_linked_files` | Linked Revit files |
+| `get_linked_files` | Linked Revit files — list instances with metadata |
+| `get_linked_elements` | Read elements **inside** a linked RVT; bboxes in host coords |
+| `get_view_image` | Export any view to PNG; returns base64 + MCP Image content |
 
 ### Implemented — Model Writes
 
@@ -98,6 +100,12 @@ Claude Desktop / Claude Code.
 | `unhide_elements_in_view` | Unhide by ids in view |
 | `create_opening_in_wall` | Rectangular wall opening |
 
+### Implemented — Coordination / Clash Detection
+
+| Command | Notes |
+|---|---|
+| `check_clearance` | Hard clash (`ElementIntersectsElementFilter`, solid-based) for host-vs-host; AABB + clearance inflation for cross-linked-file checks |
+
 ### Implemented — UI Actions (no model transaction)
 
 | Command | Notes |
@@ -111,31 +119,31 @@ Claude Desktop / Claude Code.
 
 | Version | Status |
 |---|---|
+| Revit 2025 | ✅ Supported — Nice3point ref assemblies, CI-tested, port 7890 (added v0.7.0) |
 | Revit 2026 | ✅ Supported — primary target, CI-tested |
 | Revit 2027 | ✅ Supported — CI-tested (R2027/.NET 10 matrix added in v0.6.0) |
-| Revit 2025 | ⚠️ Untested — likely works but no CI coverage |
 | Revit 2024 and earlier | ❌ Not supported (`ElementId(long)` and other API differences) |
 
 The build uses `Nice3point.Revit.Api` reference assemblies (pinned versions)
-so CI builds and tests run without Revit installed. Version-specific shims are
-handled via `<DefineConstants>REVIT2027</DefineConstants>` in the project.
+so CI builds and tests run without Revit installed. All three supported versions
+build and run unit tests (116 tests) on CI without any Revit installation.
 
 ## Remaining roadmap
 
 ### High value — next
 
-- `purge_unused` — equivalent of the Purge dialog.
 - `create_dimension` — linear dimension from two element references.
 - `get_categories_schema` — for a given category, return parameter definitions
   (name, group, storage type, unit type, builtin/instance). Lets the AI know
   what `set_parameter` calls are valid before trying.
-- `transform_elements` — bulk move/rotate in one call.
+- `purge_unused` — equivalent of the Purge dialog (with dry-run preview).
+- `create_duct` / `create_pipe` — MEP element creation.
 
 ### Analysis-side (future)
 
 - Energy / area analysis hooks.
-- Structural analytical model.
-- MEP system queries.
+- IFC export.
+- MEP system creation and connectivity queries.
 
 ## Why we still ship a thin tool surface
 
