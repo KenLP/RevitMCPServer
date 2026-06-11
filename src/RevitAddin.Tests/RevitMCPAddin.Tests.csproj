@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsTestProject>true</IsTestProject>
+    <!-- MSB3277: harmless version conflict between .NET 8 refs and Revit assemblies. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

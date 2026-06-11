@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.5.0 (stdio).
+ * Revit MCP Server v0.6.0 (stdio).
  *
  * 60 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, and batch operations.
@@ -23,13 +23,15 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.5.0" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.6.0" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
 const unitsField = z.enum(["meters", "feet"]).optional().describe("Units. Default 'meters'.");
 const idsField = z.array(z.number().int()).min(1).describe("Array of ElementId values.");
 const dryRunField = z.boolean().optional().describe("Preview mode: execute but rollback — model is not modified. Default false.");
+const colorChannel = z.number().int().min(0).max(255);
+const rgbSchema = z.object({ r: colorChannel, g: colorChannel, b: colorChannel });
 
 // Helper: forward a single command (read-only, no dryRun)
 const fwd = (cmd: string) => async (params: Record<string, unknown>) =>
@@ -270,19 +272,21 @@ server.tool("revit_create_text_note", "Create a TextNote in a view.", {
 // EDIT — PARAMETERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff. For numeric (Double) parameters with measurable units pass units:'meters' or 'feet' for automatic conversion; default 'internal' means raw Revit feet.", {
+server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff. For numeric (Double) parameters with measurable units pass the matching unit string for automatic conversion; default 'internal' means raw Revit feet.", {
   id: z.number().int(),
   parameterName: z.string(),
   value: z.union([z.string(), z.number(), z.boolean(), z.object({ id: z.number().int() })]),
-  units: z.enum(["meters", "feet", "internal"]).optional().describe("Unit for numeric double parameters. 'meters' or 'feet' triggers UnitUtils conversion. Default 'internal' (raw Revit feet)."),
+  units: z.enum(["meters", "feet", "square_meters", "square_feet", "cubic_meters", "cubic_feet", "internal"]).optional()
+    .describe("Unit for numeric double parameters. Length: 'meters'/'feet'. Area: 'square_meters'/'square_feet'. Volume: 'cubic_meters'/'cubic_feet'. Default 'internal' (raw Revit feet)."),
   dryRun: dryRunField,
 }, fwdWrite("set_parameter"));
 
-server.tool("revit_set_parameter_batch", "Set the same parameter on multiple elements. Returns changeSummary + partialFailure flag. Set atomic:true for all-or-nothing (any failure rolls back the whole call); default is best-effort. Pass units:'meters'/'feet' for automatic double-parameter conversion.", {
+server.tool("revit_set_parameter_batch", "Set the same parameter on multiple elements. Returns changeSummary + partialFailure flag. Set atomic:true for all-or-nothing (any failure rolls back the whole call); default is best-effort.", {
   ids: idsField,
   parameterName: z.string(),
   value: z.union([z.string(), z.number(), z.boolean(), z.object({ id: z.number().int() })]),
-  units: z.enum(["meters", "feet", "internal"]).optional().describe("Unit for numeric double parameters. Default 'internal' (raw Revit feet)."),
+  units: z.enum(["meters", "feet", "square_meters", "square_feet", "cubic_meters", "cubic_feet", "internal"]).optional()
+    .describe("Unit for numeric double parameters. Length: 'meters'/'feet'. Area: 'square_meters'/'square_feet'. Volume: 'cubic_meters'/'cubic_feet'. Default 'internal'."),
   atomic: z.boolean().optional().describe("All-or-nothing. If true, any element failure rolls back the entire batch. Default false (best-effort)."),
   dryRun: dryRunField,
 }, fwdWrite("set_parameter_batch"));
@@ -397,8 +401,9 @@ server.tool("revit_apply_view_filter", "Create a parameter filter rule and apply
   category: z.string(),
   parameterName: z.string(),
   value: z.string().describe("Equality match value."),
-  colorRGB: z.object({ r: z.number().int(), g: z.number().int(), b: z.number().int() }).optional(),
+  colorRGB: rgbSchema.optional(),
   visible: z.boolean().optional().describe("False = hide matching elements."),
+  reuseExisting: z.boolean().optional().describe("Reuse filter if a filter with this name already exists. Default false."),
   dryRun: dryRunField,
 }, fwdWrite("apply_view_filter"));
 
@@ -406,7 +411,7 @@ server.tool("revit_color_override_by_param", "Color-code elements in a view by a
   viewId: z.number().int().optional(),
   category: z.string(),
   parameterName: z.string(),
-  colorMap: z.record(z.object({ r: z.number().int(), g: z.number().int(), b: z.number().int() }))
+  colorMap: z.record(rgbSchema)
     .describe('Map of parameter value → RGB color. E.g. {"Fire Rated": {r:255,g:0,b:0}}'),
   dryRun: dryRunField,
 }, fwdWrite("color_override_by_param"));

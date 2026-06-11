@@ -37,7 +37,7 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
         // Views like schedules, legends, and some 3-D views do not support
         // parameter filters or graphic overrides.
         if (!view.AreGraphicsOverridesAllowed())
-            throw new InvalidOperationException(
+            throw new RevitCommandException("unsupported_view",
                 $"View '{view.Name}' (type: {view.ViewType}) does not support " +
                 "graphic overrides or parameter filters.");
 
@@ -61,7 +61,7 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
         if (existingFilter != null)
         {
             if (!reuseExisting)
-                throw new InvalidOperationException(
+                throw new RevitCommandException("name_collision",
                     $"A filter named '{filterName}' already exists " +
                     $"(id: {existingFilter.Id.Value}). " +
                     "Set reuseExisting:true to apply it to this view, or choose a different name.");
@@ -79,13 +79,13 @@ public sealed class ApplyViewFilterCommand : IRevitCommand
                 .OfCategory(bic)
                 .WhereElementIsNotElementType()
                 .FirstOrDefault()
-                ?? throw new InvalidOperationException(
+                ?? throw new RevitCommandException("not_found",
                     $"No elements of category '{catName}' found in the document. " +
                     $"The filter needs at least one existing element to resolve the " +
                     $"parameter '{paramName}'. Place an element of that category first.");
 
             var param = sampleElement.LookupParameter(paramName)
-                ?? throw new InvalidOperationException(
+                ?? throw new RevitCommandException("not_found",
                     $"Parameter '{paramName}' not found on any '{catName}' element. " +
                     "Verify the parameter name and category.");
 

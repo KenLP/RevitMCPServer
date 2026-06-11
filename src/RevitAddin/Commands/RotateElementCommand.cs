@@ -27,7 +27,7 @@ public sealed class RotateElementCommand : IRevitCommand
 
         var id = new ElementId(P.Long(p, "id"));
         var element = doc.GetElement(id)
-            ?? throw new InvalidOperationException($"No element with id {id.Value}.");
+            ?? throw new RevitCommandException("not_found", $"No element with id {id.Value}.");
 
         var center = P.Xyz(p, "center", units);
         var angleDeg = P.Dbl(p, "angleDeg");

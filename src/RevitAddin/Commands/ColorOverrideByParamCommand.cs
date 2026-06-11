@@ -30,7 +30,7 @@ public sealed class ColorOverrideByParamCommand : IRevitCommand
         var view = SetViewDetailLevelCommand.ResolveView(doc, ctx, p);
 
         if (!view.AreGraphicsOverridesAllowed())
-            throw new InvalidOperationException(
+            throw new RevitCommandException("unsupported_view",
                 $"View '{view.Name}' (type: {view.ViewType}) does not support " +
                 "element graphic overrides.");
 

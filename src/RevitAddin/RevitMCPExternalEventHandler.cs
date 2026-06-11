@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
@@ -140,6 +141,10 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
                 if (dryRun) result["dryRun"] = true;
                 return result;
             }
+            catch (RevitCommandException ex)
+            {
+                return JsonResult.Error(ex.Code, ex.Message);
+            }
             catch (Exception ex)
             {
                 return JsonResult.Error("command_failed", ex.Message, ex.GetType().FullName);
@@ -169,6 +174,11 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
                 tx.Commit();
             return JsonResult.Success(data);
         }
+        catch (RevitCommandException ex)
+        {
+            try { if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); } catch { }
+            return JsonResult.Error(ex.Code, ex.Message);
+        }
         catch (Exception ex)
         {
             try { if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); } catch { }
@@ -193,14 +203,41 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
             if (cmd.Execution == ExecutionKind.ModelWrite) anyWrite = true;
         }
 
+        // Mixed batches are rejected: UI effects cannot be rolled back alongside
+        // model changes, leading to unpredictable state on failure or dry-run.
+        var mixedError = BatchPolicy.ValidateBatchKinds(resolved.Select(r => r.cmd.Execution));
+        if (mixedError is not null) return mixedError;
+
         // No model writes (only read-only / UI actions): no transaction required.
         if (!anyWrite)
         {
             var roResults = new JsonArray();
-            foreach (var (step, cmd) in resolved)
+            for (var i = 0; i < resolved.Count; i++)
             {
+                var (step, cmd) = resolved[i];
+
+                // Dry-run skips UI actions — they cannot be rolled back.
+                if (dryRun && cmd.Execution == ExecutionKind.UiAction)
+                {
+                    var skipEnv = JsonResult.Success(new JsonObject
+                    {
+                        ["dryRun"] = true,
+                        ["committed"] = false,
+                        ["skipped"] = true,
+                        ["changeSummary"] =
+                            $"Dry-run: UI action '{step.CommandName}' not executed.",
+                    });
+                    skipEnv["index"] = i;
+                    skipEnv["command"] = step.CommandName;
+                    roResults.Add(skipEnv);
+                    continue;
+                }
+
                 var ctx = BuildContext(app, step.Parameters, dryRun);
-                roResults.Add(RunStepCaptured(cmd, ctx));
+                var r = RunStepCaptured(cmd, ctx);
+                r["index"] = i;
+                r["command"] = step.CommandName;
+                roResults.Add(r);
             }
             var roEnvelope = JsonResult.Success(new JsonObject
             {
@@ -231,6 +268,31 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
                 {
                     var data = cmd.Execute(ctx);
                     stepEnvelope = JsonResult.Success(data);
+                }
+                catch (RevitCommandException ex)
+                {
+                    hadFailure = true;
+                    stepEnvelope = JsonResult.Error(ex.Code, ex.Message);
+                    stepEnvelope["index"] = i;
+                    stepEnvelope["command"] = step.CommandName;
+                    results.Add(stepEnvelope);
+
+                    if (stopOnError)
+                    {
+                        if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                        return new JsonObject
+                        {
+                            ["ok"] = false,
+                            ["error"] = new JsonObject
+                            {
+                                ["code"] = "batch_aborted",
+                                ["message"] = $"Batch aborted at step {i} ('{step.CommandName}'): {ex.Message}",
+                            },
+                            ["committed"] = false,
+                            ["results"] = results,
+                        };
+                    }
+                    continue;
                 }
                 catch (Exception ex)
                 {
@@ -295,6 +357,10 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
             var data = cmd.Execute(ctx);
             return JsonResult.Success(data);
         }
+        catch (RevitCommandException ex)
+        {
+            return JsonResult.Error(ex.Code, ex.Message);
+        }
         catch (Exception ex)
         {
             return JsonResult.Error("step_failed", ex.Message, ex.GetType().FullName);
@@ -310,6 +376,7 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
     };
 
     public string GetName() => "RevitMCPExternalEventHandler";
+
 
     private enum RequestKind { Single, Batch }
 

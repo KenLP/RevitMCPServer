@@ -10,6 +10,8 @@
     <RootNamespace>RevitMCPAddin</RootNamespace>
     <AssemblyName>RevitMCPAddin</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <!-- MSB3277: harmless version conflict between .NET ref assemblies and Revit DLLs. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
 
     <!-- Override on the command line: dotnet build -p:RevitVersion=2027 -->
     <RevitVersion Condition="'$(RevitVersion)' == ''">2026</RevitVersion>
@@ -37,12 +39,23 @@
     </Reference>
   </ItemGroup>
 
-  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll')">
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*">
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2026'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.4.10">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>compile</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.4.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2027'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2027.0.20">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2027.0.20">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>compile</IncludeAssets>
     </PackageReference>

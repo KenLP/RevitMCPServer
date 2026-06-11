@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-06-11: Correctness, API hardening, CI R2027
+
+### Breaking
+
+- **Batch policy**: batches that mix `ModelWrite` and `UiAction` commands are
+  now rejected with `bad_request`. Previously, UI actions could silently run
+  inside a model transaction. Submit model writes and UI actions as separate
+  batches.
+- **Unit conversion extended**: `set_parameter` / `set_parameter_batch` now
+  require spec-matched unit strings for area and volume parameters.
+  - Length: `"meters"` / `"feet"` (unchanged)
+  - Area: `"square_meters"` / `"square_feet"` (new)
+  - Volume: `"cubic_meters"` / `"cubic_feet"` (new)
+  - Passing `"meters"` for an area parameter now returns `invalid_parameter`
+    instead of silently applying the wrong conversion.
+
+### Added
+
+- `revit_apply_view_filter` MCP schema now exposes `reuseExisting` (boolean,
+  optional) — the C# command already supported it but the field was missing
+  from the TypeScript schema.
+- RGB channel validation in MCP schema: `r`, `g`, `b` now bounded `[0, 255]`
+  for both `revit_apply_view_filter` and `revit_color_override_by_param`.
+- `executionKind` field added to every entry in `GET /commands` response
+  (`ReadOnly` / `ModelWrite` / `UiAction`). Clients can now distinguish model
+  mutation from UI mutation.
+- `RevitCommandException(code, message)` — commands now throw typed domain
+  exceptions; the dispatcher preserves the `code` field in the error envelope
+  instead of collapsing everything to `command_failed`.
+- New HTTP status mappings in `StatusForResult`:
+  - `invalid_parameter`, `read_only_parameter`, `unsupported_view` → 400
+  - `ambiguous_selection` → 409
+- CI matrix: `csharp` CI job now builds and tests both R2026 (.NET 8) and
+  R2027 (.NET 10) on every pull request.
+- `BatchPolicy.ValidateBatchKinds` — pure static helper, testable without Revit.
+- New xUnit tests: `StatusForResultTests` (14 cases), `BatchPolicyTests` (7),
+  `RevitCommandExceptionTests` (4), `CommandRegistryTests` extended with
+  `executionKind` assertions. Total: **83 C# tests** (up from 46).
+
+### Fixed
+
+- README version badge updated from `v0.4.2` to `v0.5.0`; health example
+  updated from `0.4.1` to `0.5.0`.
+- `check-version.mjs` now validates the README badge and health example so
+  future version drift is caught by CI.
+- `vitest run` test script now uses explicit `--config ./vitest.config.ts
+  --root .` to avoid path-resolution failures on Windows paths with spaces.
+- MSB3277 warning suppressed in test project (harmless .NET 8 / Revit assembly
+  version conflict that polluted CI output).
+- Nice3point reference packages pinned to exact versions (`2026.4.10`,
+  `2027.0.20`) for reproducible CI builds.
+- Old stale review files (`project_review.md`, `docs/PROJECT_REVIEW.md`) removed.
+
 ## [0.5.0] — 2026-06-10: Safety, tests, CI, and production hardening
 
 ### Added — Command execution classification

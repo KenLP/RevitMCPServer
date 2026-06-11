@@ -9,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RevitMCPAddin.Commands;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("RevitMCPAddin.Tests")]
+
 namespace RevitMCPAddin.Server;
 
 /// <summary>
@@ -96,7 +98,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.5.0",
+                    ["version"] = "0.6.0",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;
@@ -115,13 +117,14 @@ public sealed class McpHttpServer
             if (method == "GET" && path == "/commands")
             {
                 var arr = new JsonArray();
-                foreach (var (name, isReadOnly, riskLevel) in _handler.Registry.Describe())
+                foreach (var (name, isReadOnly, riskLevel, executionKind) in _handler.Registry.Describe())
                 {
                     arr.Add(new JsonObject
                     {
                         ["name"] = name,
                         ["isReadOnly"] = isReadOnly,
                         ["riskLevel"] = riskLevel,
+                        ["executionKind"] = executionKind,
                     });
                 }
                 await WriteJsonAsync(response, 200, JsonResult.Success(new JsonObject
@@ -183,7 +186,7 @@ public sealed class McpHttpServer
     /// failures, the error <c>code</c> determines the status so clients can
     /// distinguish user/client errors from genuine server faults.
     /// </summary>
-    private static int StatusForResult(JsonObject result)
+    internal static int StatusForResult(JsonObject result)
     {
         if (result["ok"]?.GetValue<bool>() == true)
             return 200;
@@ -191,14 +194,17 @@ public sealed class McpHttpServer
         var code = (result["error"] as JsonObject)?["code"]?.GetValue<string>();
         return code switch
         {
-            "bad_request" or "bad_json"          => 400,
-            "unauthorized"                       => 401,
-            "unknown_command" or "not_found"     => 404,
-            "name_collision" or "system_family"  => 409,
-            "timeout" or "cancelled"             => 408,
-            // command_failed / dispatch_failed / server_error / batch_aborted
-            // and anything unrecognised fall through to 500.
-            _                                    => 500,
+            "bad_request" or "bad_json"
+              or "invalid_parameter" or "read_only_parameter"
+              or "unsupported_view"               => 400,
+            "unauthorized"                        => 401,
+            "unknown_command" or "not_found"      => 404,
+            "timeout" or "cancelled"              => 408,
+            "name_collision" or "system_family"
+              or "ambiguous_selection"            => 409,
+            // command_failed / step_failed / dispatch_failed / server_error /
+            // batch_aborted and anything unrecognised fall through to 500.
+            _                                     => 500,
         };
     }
 

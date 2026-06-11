@@ -38,6 +38,18 @@ if (!changelog.includes(`## [${expected}]`)) {
   errors.push(`CHANGELOG.md missing entry for [${expected}]`);
 }
 
+const readme = readFileSync(join(root, 'README.md'), 'utf8');
+const readmeBadge = readme.match(/\*\*v(\d+\.\d+\.\d+)\*\*/);
+if (!readmeBadge) {
+  errors.push('README.md: could not find **vX.Y.Z** version badge');
+} else if (readmeBadge[1] !== expected) {
+  errors.push(`README.md badge "v${readmeBadge[1]}" != package.json "${expected}"`);
+}
+const readmeHealth = readme.match(/version\s*:\s*(\d+\.\d+\.\d+)/);
+if (readmeHealth && readmeHealth[1] !== expected) {
+  errors.push(`README.md health example version "${readmeHealth[1]}" != package.json "${expected}"`);
+}
+
 if (errors.length > 0) {
   console.error('Version inconsistencies found:');
   for (const e of errors) console.error(`  - ${e}`);

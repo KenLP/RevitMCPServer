@@ -97,4 +97,17 @@ public class CommandRegistryTests
         Assert.Contains(entries, e => e.Name == "test_read" && e.IsReadOnly);
         Assert.Contains(entries, e => e.Name == "test_write" && !e.IsReadOnly);
     }
+
+    [Fact]
+    public void Describe_includes_executionKind()
+    {
+        var reg = new CommandRegistry();
+        reg.Register(new ReadCmd());
+        reg.Register(new WriteCmd());
+        reg.Register(new UiCmd());
+        var entries = reg.Describe().ToList();
+        Assert.Contains(entries, e => e.Name == "test_read"  && e.ExecutionKind == "ReadOnly");
+        Assert.Contains(entries, e => e.Name == "test_write" && e.ExecutionKind == "ModelWrite");
+        Assert.Contains(entries, e => e.Name == "test_ui"    && e.ExecutionKind == "UiAction");
+    }
 }

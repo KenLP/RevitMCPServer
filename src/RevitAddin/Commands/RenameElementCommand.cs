@@ -36,7 +36,7 @@ public sealed class RenameElementCommand : IRevitCommand
         var newName = P.Str(ctx.Parameters, "name");
 
         var element = doc.GetElement(id)
-            ?? throw new InvalidOperationException($"Element {id.Value} not found.");
+            ?? throw new RevitCommandException("not_found", $"Element {id.Value} not found.");
 
         // ── Family rename ───────────────────────────────────────────────
         if (element is Family family)
@@ -57,7 +57,7 @@ public sealed class RenameElementCommand : IRevitCommand
     private static JsonNode RenameFamily(Family family, string newName, Document doc)
     {
         if (!family.IsEditable)
-            throw new InvalidOperationException(
+            throw new RevitCommandException("name_collision",
                 $"Cannot rename system family '{family.Name}' (IsEditable=false). " +
                 "System families (Basic Wall, Floor, etc.) have fixed names.");
 

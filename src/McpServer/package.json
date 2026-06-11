@@ -1,6 +1,6 @@
 {
   "name": "revit-mcp-server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "MCP server (stdio) that bridges Claude Desktop to a Revit addin via HTTP.",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "vitest run",
+    "test": "vitest run --config ./vitest.config.ts --root .",
     "test:watch": "vitest"
   },
   "dependencies": {

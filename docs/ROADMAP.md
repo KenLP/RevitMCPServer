@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.5.0
+## Current status — v0.6.0
 
 | Phase | Version | Status |
 |---|---|---|
@@ -13,6 +13,7 @@
 | Test & CI foundation (Vitest, xUnit, GitHub Actions) | v0.5.0 | ✅ Done |
 | Revit hardening (unit conversion, view guards, family candidates) | v0.5.0 | ✅ Done |
 | Release tooling (build script, install/uninstall, compat matrix, troubleshooting) | v0.5.0 | ✅ Done |
+| Correctness & API hardening (batch policy, spec-aware units, domain errors, CI R2027) | v0.6.0 | ✅ Done |
 
 ## Near-term backlog
 

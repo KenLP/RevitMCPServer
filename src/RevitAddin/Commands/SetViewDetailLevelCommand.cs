@@ -43,8 +43,8 @@ public sealed class SetViewDetailLevelCommand : IRevitCommand
         {
             var id = new ElementId(P.Long(p, "viewId"));
             return doc.GetElement(id) as View
-                ?? throw new InvalidOperationException($"View {id.Value} not found.");
+                ?? throw new RevitCommandException("not_found", $"View {id.Value} not found.");
         }
-        return doc.ActiveView ?? throw new InvalidOperationException("No active view.");
+        return doc.ActiveView ?? throw new RevitCommandException("not_found", "No active view.");
     }
 }

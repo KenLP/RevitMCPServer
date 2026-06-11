@@ -13,10 +13,11 @@ public sealed class CommandRegistry
 
     public IEnumerable<string> Names => _commands.Keys;
 
-    public IEnumerable<(string Name, bool IsReadOnly, string RiskLevel)> Describe()
+    public IEnumerable<(string Name, bool IsReadOnly, string RiskLevel, string ExecutionKind)> Describe()
     {
         foreach (var kv in _commands)
-            yield return (kv.Key, kv.Value.IsReadOnly, kv.Value.RiskLevel);
+            yield return (kv.Key, kv.Value.IsReadOnly, kv.Value.RiskLevel,
+                          ((IRevitCommand)kv.Value).Execution.ToString());
     }
 
     public void RegisterDefaults()

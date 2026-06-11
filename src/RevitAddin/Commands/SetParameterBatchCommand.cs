@@ -48,13 +48,13 @@ public sealed class SetParameterBatchCommand : IRevitCommand
             try
             {
                 var element = doc.GetElement(new ElementId(idValue))
-                    ?? throw new InvalidOperationException($"Element {idValue} not found.");
+                    ?? throw new RevitCommandException("not_found", $"Element {idValue} not found.");
 
                 var param = element.LookupParameter(paramName)
-                    ?? throw new InvalidOperationException($"Parameter '{paramName}' not found.");
+                    ?? throw new RevitCommandException("not_found", $"Parameter '{paramName}' not found on element {idValue}.");
 
                 if (param.IsReadOnly)
-                    throw new InvalidOperationException($"Parameter '{paramName}' is read-only.");
+                    throw new RevitCommandException("read_only_parameter", $"Parameter '{paramName}' is read-only.");
 
                 SetValue(param, valueNode, units);
                 succeeded++;
@@ -118,7 +118,7 @@ public sealed class SetParameterBatchCommand : IRevitCommand
                 param.Set(new ElementId(idVal));
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported storage type: {param.StorageType}");
+                throw new RevitCommandException("invalid_parameter", $"Unsupported storage type: {param.StorageType}");
         }
     }
 }

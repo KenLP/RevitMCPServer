@@ -120,4 +120,4 @@ Diagnostic-only commands (`ping`, `get_revit_version`) work without an open proj
 - **Revit addin logs:** Check the Revit journal file at `%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit <version>\Journals\`.
 - **MCP server logs:** Claude Desktop captures stderr. Find logs in `%APPDATA%\Claude\logs\` (Windows).
 - **Health check:** `curl http://127.0.0.1:7891/health` returns `{"ok":true,"service":"revit-mcp-addin","version":"...","authEnabled":true/false}` when the addin is running.
-- **Command list:** `curl http://127.0.0.1:7891/commands` (with auth header) lists all registered commands and their risk levels.
+- **Command list:** `curl http://127.0.0.1:7891/commands` (with auth header) lists all registered commands with `name`, `isReadOnly`, `riskLevel`, and `executionKind` (`ReadOnly` / `ModelWrite` / `UiAction`).

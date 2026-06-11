@@ -26,19 +26,26 @@ jobs:
       - run: npm test
 
   csharp:
-    name: C# build & test
+    name: C# build & test (R${{ matrix.revit }})
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - revit: 2026
+            dotnet: '8.0.x'
+          - revit: 2027
+            dotnet: '10.0.x'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ matrix.dotnet }}
       - name: Restore
-        run: dotnet restore src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj
+        run: dotnet restore src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj -p:RevitVersion=${{ matrix.revit }}
       - name: Build (no Revit deploy)
-        run: dotnet build src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-restore -p:DeployToRevit=false
+        run: dotnet build src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-restore -p:RevitVersion=${{ matrix.revit }} -p:DeployToRevit=false
       - name: Test
-        run: dotnet test src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-build -p:DeployToRevit=false --logger "console;verbosity=normal"
+        run: dotnet test src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-build -p:RevitVersion=${{ matrix.revit }} -p:DeployToRevit=false --logger "console;verbosity=normal"
 
   version-check:
     name: Version consistency
