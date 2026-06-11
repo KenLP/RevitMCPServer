@@ -39,7 +39,7 @@ public sealed class MirrorElementCommand : IRevitCommand
         var origin = P.Xyz(p, "origin", units);
         var normal = P.Xyz(p, "normal", "feet"); // unitless direction
         if (normal.GetLength() < 1e-9)
-            throw new System.ArgumentException("Normal vector must be non-zero.");
+            throw new RevitCommandException("invalid_parameter", "Normal vector must be non-zero.");
 
         var plane = Plane.CreateByNormalAndOrigin(normal.Normalize(), origin);
         var copy = P.BoolOr(p, "copy", true);

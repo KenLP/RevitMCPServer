@@ -25,7 +25,7 @@ public sealed class CreateOpeningInWallCommand : IRevitCommand
 
         var wallId = new ElementId(P.Long(p, "wallId"));
         var wall = doc.GetElement(wallId) as Wall
-            ?? throw new System.InvalidOperationException($"Element {wallId.Value} is not a Wall.");
+            ?? throw new RevitCommandException("invalid_parameter", $"Element {wallId.Value} is not a Wall.");
 
         var lower = P.Xyz(p, "lower", units);
         var upper = P.Xyz(p, "upper", units);

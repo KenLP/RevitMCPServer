@@ -27,7 +27,7 @@ public sealed class CreateCeilingCommand : IRevitCommand
 
         var pts = P.XyzList(p, "profile", units);
         if (pts.Count < 3)
-            throw new System.ArgumentException("Ceiling profile must have at least 3 points.");
+            throw new RevitCommandException("invalid_parameter", "Ceiling profile must have at least 3 points.");
 
         var level = CreateWallCommand.ResolveLevel(doc, P.StrOrNull(p, "levelName"));
         var ceilingType = ResolveCeilingType(doc, P.StrOrNull(p, "ceilingTypeName"));
@@ -39,7 +39,7 @@ public sealed class CreateCeilingCommand : IRevitCommand
             var bRaw = pts[(i + 1) % pts.Count];
             var b = new XYZ(bRaw.X, bRaw.Y, level.Elevation);
             if (a.DistanceTo(b) < 1e-6)
-                throw new System.ArgumentException($"Profile segment {i} has zero length.");
+                throw new RevitCommandException("invalid_parameter", $"Profile segment {i} has zero length.");
             loop.Append(Line.CreateBound(a, b));
         }
 
@@ -60,8 +60,8 @@ public sealed class CreateCeilingCommand : IRevitCommand
             .Cast<CeilingType>();
         if (string.IsNullOrWhiteSpace(name))
             return query.FirstOrDefault()
-                ?? throw new System.InvalidOperationException("No CeilingType in the document.");
+                ?? throw new RevitCommandException("not_found", "No CeilingType in the document.");
         return query.FirstOrDefault(t => t.Name == name)
-            ?? throw new System.InvalidOperationException($"CeilingType '{name}' not found.");
+            ?? throw new RevitCommandException("not_found", $"CeilingType '{name}' not found.");
     }
 }

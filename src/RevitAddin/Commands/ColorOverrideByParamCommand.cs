@@ -36,7 +36,7 @@ public sealed class ColorOverrideByParamCommand : IRevitCommand
 
         var catName = P.Str(p, "category");
         if (!Enum.TryParse<BuiltInCategory>(catName, true, out var bic))
-            throw new ArgumentException($"Unknown BuiltInCategory '{catName}'.");
+            throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{catName}'.");
 
         var paramName = P.Str(p, "parameterName");
         var colorMapNode = P.Obj(p, "colorMap");

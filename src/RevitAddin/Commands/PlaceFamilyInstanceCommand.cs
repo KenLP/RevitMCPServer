@@ -55,7 +55,7 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         var matches = query.Take(11).ToList();
 
         if (matches.Count == 0)
-            throw new InvalidOperationException(
+            throw new RevitCommandException("not_found",
                 $"No FamilySymbol found (family='{familyName ?? "*"}', " +
                 $"type='{typeName ?? "*"}', category='{catName ?? "*"}').");
 

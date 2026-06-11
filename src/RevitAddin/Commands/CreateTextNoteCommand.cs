@@ -32,7 +32,7 @@ public sealed class CreateTextNoteCommand : IRevitCommand
         var viewId = p["viewId"] is not null
             ? new ElementId(P.Long(p, "viewId"))
             : doc.ActiveView?.Id
-            ?? throw new System.InvalidOperationException("No active view.");
+            ?? throw new RevitCommandException("not_found", "No active view.");
 
         var width = P.DblOr(p, "width", 0.5) * scale;
 
@@ -41,7 +41,7 @@ public sealed class CreateTextNoteCommand : IRevitCommand
             .FirstElementId();
 
         if (textTypeId == ElementId.InvalidElementId)
-            throw new System.InvalidOperationException("No TextNoteType in document.");
+            throw new RevitCommandException("not_found", "No TextNoteType in document.");
 
         var options = new TextNoteOptions(textTypeId)
         {

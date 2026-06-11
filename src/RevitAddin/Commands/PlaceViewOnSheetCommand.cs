@@ -25,7 +25,7 @@ public sealed class PlaceViewOnSheetCommand : IRevitCommand
         var viewId = new ElementId(P.Long(p, "viewId"));
 
         if (!Viewport.CanAddViewToSheet(doc, sheetId, viewId))
-            throw new System.InvalidOperationException(
+            throw new RevitCommandException("invalid_parameter",
                 "Cannot add this view to the sheet — it may already be on another sheet or be a parent view.");
 
         var location = p["location"] is JsonObject loc

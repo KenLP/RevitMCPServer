@@ -34,7 +34,7 @@ public sealed class DeleteElementsCommand : IRevitCommand
             ids.Add(new ElementId(n.GetValue<long>()));
         }
         if (ids.Count == 0)
-            throw new System.ArgumentException("'ids' must contain at least one ElementId.");
+            throw new RevitCommandException("invalid_parameter", "'ids' must contain at least one ElementId.");
 
         var deleted = doc.Delete(ids);
 

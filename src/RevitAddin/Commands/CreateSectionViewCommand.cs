@@ -32,7 +32,7 @@ public sealed class CreateSectionViewCommand : IRevitCommand
         var origin = P.Xyz(p, "origin", units);
         var dir = P.Xyz(p, "direction", "feet"); // direction is unitless
         if (dir.GetLength() < 1e-9)
-            throw new System.ArgumentException("Direction vector must be non-zero.");
+            throw new RevitCommandException("invalid_parameter", "Direction vector must be non-zero.");
         dir = dir.Normalize();
 
         var depth = P.DblOr(p, "depth", 10) * scale;

@@ -57,7 +57,7 @@ public sealed class RenameElementCommand : IRevitCommand
     private static JsonNode RenameFamily(Family family, string newName, Document doc)
     {
         if (!family.IsEditable)
-            throw new RevitCommandException("name_collision",
+            throw new RevitCommandException("system_family",
                 $"Cannot rename system family '{family.Name}' (IsEditable=false). " +
                 "System families (Basic Wall, Floor, etc.) have fixed names.");
 
@@ -74,7 +74,7 @@ public sealed class RenameElementCommand : IRevitCommand
                        && f.FamilyCategory?.Id == cat.Id
                        && string.Equals(f.Name, newName, StringComparison.OrdinalIgnoreCase));
             if (duplicate)
-                throw new ArgumentException(
+                throw new RevitCommandException("name_collision",
                     $"A family named '{newName}' already exists in category '{cat.Name}'.");
         }
 
@@ -112,7 +112,7 @@ public sealed class RenameElementCommand : IRevitCommand
             .Any(s => s.Id != symbol.Id
                    && string.Equals(s.Name, newName, StringComparison.OrdinalIgnoreCase));
         if (duplicate)
-            throw new ArgumentException(
+            throw new RevitCommandException("name_collision",
                 $"A type named '{newName}' already exists in family '{family.Name}'.");
 
         var oldName = symbol.Name;
@@ -161,7 +161,7 @@ public sealed class RenameElementCommand : IRevitCommand
         foreach (var ch in IllegalChars)
         {
             if (name.Contains(ch))
-                throw new ArgumentException(
+                throw new RevitCommandException("invalid_chars",
                     $"Name contains illegal character '{ch}'. " +
                     @"Revit disallows: \ : { } [ ] | ; < > ? * ~");
         }

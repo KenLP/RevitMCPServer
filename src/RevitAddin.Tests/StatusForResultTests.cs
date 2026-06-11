@@ -24,6 +24,7 @@ public class StatusForResultTests
     [InlineData("invalid_parameter",   400)]
     [InlineData("read_only_parameter", 400)]
     [InlineData("unsupported_view",    400)]
+    [InlineData("invalid_chars",       400)]
     public void Client_errors_return_400(string code, int expected)
         => Assert.Equal(expected, McpHttpServer.StatusForResult(Err(code)));
 

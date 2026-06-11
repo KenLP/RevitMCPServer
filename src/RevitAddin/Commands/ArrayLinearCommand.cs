@@ -34,7 +34,7 @@ public sealed class ArrayLinearCommand : IRevitCommand
         }
 
         var count = P.Int(p, "count");
-        if (count < 1) throw new System.ArgumentException("Count must be >= 1.");
+        if (count < 1) throw new RevitCommandException("invalid_parameter", "Count must be >= 1.");
 
         var spacing = P.Xyz(p, "spacing", units);
         var allNewIds = new JsonArray();

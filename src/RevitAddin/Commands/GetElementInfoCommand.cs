@@ -20,7 +20,7 @@ public sealed class GetElementInfoCommand : IRevitCommand
         var idValue = P.Long(ctx.Parameters, "id");
 
         var element = doc.GetElement(new ElementId(idValue))
-            ?? throw new System.InvalidOperationException($"No element with id {idValue}.");
+            ?? throw new RevitCommandException("not_found", $"No element with id {idValue}.");
 
         var paramsArray = new JsonArray();
         foreach (Parameter p in element.Parameters)

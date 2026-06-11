@@ -24,7 +24,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Str_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Str(Empty(), "name"));
+        => Assert.Throws<RevitCommandException>(() => P.Str(Empty(), "name"));
 
     [Fact]
     public void StrOrNull_returns_value_when_present()
@@ -42,7 +42,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Dbl_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Dbl(Empty(), "v"));
+        => Assert.Throws<RevitCommandException>(() => P.Dbl(Empty(), "v"));
 
     [Fact]
     public void DblOr_returns_value_when_present()
@@ -60,7 +60,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Int_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Int(Empty(), "n"));
+        => Assert.Throws<RevitCommandException>(() => P.Int(Empty(), "n"));
 
     [Fact]
     public void IntOr_returns_value_when_present()
@@ -87,8 +87,9 @@ public class ParamUtilTests
     [Fact]
     public void ColorByte_over_255_throws()
     {
-        var ex = Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<RevitCommandException>(() =>
             P.ColorByte(J("r", (JsonNode)256), "r", 0));
+        Assert.Equal("bad_request", ex.Code);
         Assert.Contains("0-255", ex.Message);
         Assert.Contains("256", ex.Message);
     }
@@ -96,7 +97,7 @@ public class ParamUtilTests
     [Fact]
     public void ColorByte_negative_throws()
     {
-        var ex = Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<RevitCommandException>(() =>
             P.ColorByte(J("r", (JsonNode)(-1)), "r", 0));
         Assert.Contains("0-255", ex.Message);
     }
@@ -113,7 +114,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Long_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Long(Empty(), "id"));
+        => Assert.Throws<RevitCommandException>(() => P.Long(Empty(), "id"));
 
     // ── Bool ─────────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Obj_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Obj(Empty(), "inner"));
+        => Assert.Throws<RevitCommandException>(() => P.Obj(Empty(), "inner"));
 
     [Fact]
     public void Arr_returns_array()
@@ -149,7 +150,7 @@ public class ParamUtilTests
 
     [Fact]
     public void Arr_throws_when_missing()
-        => Assert.Throws<ArgumentException>(() => P.Arr(Empty(), "items"));
+        => Assert.Throws<RevitCommandException>(() => P.Arr(Empty(), "items"));
 
     // ── Constants & Units ────────────────────────────────────────────────────
 

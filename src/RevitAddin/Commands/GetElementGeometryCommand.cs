@@ -20,7 +20,7 @@ public sealed class GetElementGeometryCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var id = new ElementId(P.Long(ctx.Parameters, "id"));
         var element = doc.GetElement(id)
-            ?? throw new System.InvalidOperationException($"Element {id.Value} not found.");
+            ?? throw new RevitCommandException("not_found", $"Element {id.Value} not found.");
 
         BoundingBoxXYZ? bbox = null;
         try { bbox = element.get_BoundingBox(null); } catch { }

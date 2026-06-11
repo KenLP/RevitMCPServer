@@ -21,10 +21,10 @@ public sealed class GetParameterCommand : IRevitCommand
         var paramName = P.Str(ctx.Parameters, "parameterName");
 
         var element = doc.GetElement(id)
-            ?? throw new System.InvalidOperationException($"No element with id {id.Value}.");
+            ?? throw new RevitCommandException("not_found", $"No element with id {id.Value}.");
 
         var param = element.LookupParameter(paramName)
-            ?? throw new System.InvalidOperationException($"Parameter '{paramName}' not found on element {id.Value}.");
+            ?? throw new RevitCommandException("not_found", $"Parameter '{paramName}' not found on element {id.Value}.");
 
         return new JsonObject
         {

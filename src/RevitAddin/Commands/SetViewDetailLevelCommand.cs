@@ -25,7 +25,7 @@ public sealed class SetViewDetailLevelCommand : IRevitCommand
         var view = ResolveView(doc, ctx, p);
         var levelStr = P.Str(p, "detailLevel");
         if (!Enum.TryParse<ViewDetailLevel>(levelStr, true, out var level))
-            throw new ArgumentException($"Unknown detail level '{levelStr}'. Use Coarse, Medium, or Fine.");
+            throw new RevitCommandException("invalid_parameter", $"Unknown detail level '{levelStr}'. Use Coarse, Medium, or Fine.");
 
         view.DetailLevel = level;
 

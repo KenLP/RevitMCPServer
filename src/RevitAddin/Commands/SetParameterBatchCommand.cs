@@ -33,7 +33,7 @@ public sealed class SetParameterBatchCommand : IRevitCommand
         var ids = P.Arr(p, "ids");
         var paramName = P.Str(p, "parameterName");
         var valueNode = p["value"]
-            ?? throw new ArgumentException("Missing required parameter 'value'.");
+            ?? throw new RevitCommandException("bad_request", "Missing required parameter 'value'.");
         var atomic = P.BoolOr(p, "atomic", false);
         var units = P.StrOrNull(p, "units") ?? "internal";
 
@@ -59,12 +59,26 @@ public sealed class SetParameterBatchCommand : IRevitCommand
                 SetValue(param, valueNode, units);
                 succeeded++;
             }
+            catch (RevitCommandException ex)
+            {
+                if (atomic)
+                    throw new RevitCommandException(ex.Code,
+                        $"Atomic batch aborted: element {idValue}: {ex.Message}");
+
+                failed++;
+                errors.Add(new JsonObject
+                {
+                    ["id"] = idValue,
+                    ["code"] = ex.Code,
+                    ["error"] = ex.Message,
+                });
+            }
             catch (Exception ex)
             {
                 // Atomic mode: abort immediately so the surrounding transaction
                 // rolls back and the call reports ok:false (all-or-nothing).
                 if (atomic)
-                    throw new InvalidOperationException(
+                    throw new RevitCommandException("command_failed",
                         $"Atomic batch aborted: element {idValue}: {ex.Message}");
 
                 failed++;

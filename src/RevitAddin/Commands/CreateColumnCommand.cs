@@ -71,7 +71,7 @@ public sealed class CreateColumnCommand : IRevitCommand
             query = query.Where(s => s.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
         return query.FirstOrDefault()
-            ?? throw new InvalidOperationException(
+            ?? throw new RevitCommandException("not_found",
                 $"No FamilySymbol found for family='{familyName}', type='{typeName}'.");
     }
 }

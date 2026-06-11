@@ -25,7 +25,7 @@ public sealed class MoveElementCommand : IRevitCommand
 
         var id = new ElementId(P.Long(p, "id"));
         var element = doc.GetElement(id)
-            ?? throw new System.InvalidOperationException($"No element with id {id.Value}.");
+            ?? throw new RevitCommandException("not_found", $"No element with id {id.Value}.");
 
         var translation = P.Xyz(p, "translation", units);
 

@@ -28,6 +28,13 @@ if (!tsMatch) {
   errors.push(`index.ts version "${tsMatch[1]}" != package.json "${expected}"`);
 }
 
+const startupLogMatch = indexTs.match(/\[revit-mcp-server\] v([0-9]+\.[0-9]+\.[0-9]+) connected to Revit/);
+if (!startupLogMatch) {
+  errors.push('Could not find startup log version in src/McpServer/src/index.ts');
+} else if (startupLogMatch[1] !== expected) {
+  errors.push(`index.ts startup log "v${startupLogMatch[1]}" != package.json "${expected}"`);
+}
+
 if (!csMatch) {
   errors.push('Could not find version in src/RevitAddin/Server/McpHttpServer.cs');
 } else if (csMatch[1] !== expected) {

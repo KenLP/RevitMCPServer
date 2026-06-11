@@ -34,7 +34,7 @@ public sealed class SetParameterCommand : IRevitCommand
         var idValue = P.Long(p, "id");
         var paramName = P.Str(p, "parameterName");
         var valueNode = p["value"]
-            ?? throw new ArgumentException("Missing required parameter 'value'.");
+            ?? throw new RevitCommandException("bad_request", "Missing required parameter 'value'.");
         var units = P.StrOrNull(p, "units") ?? "internal";
 
         var element = doc.GetElement(new ElementId(idValue))
@@ -117,46 +117,45 @@ public sealed class SetParameterCommand : IRevitCommand
 
     /// <summary>
     /// Convert a user-supplied double to Revit internal units based on the
-    /// parameter's spec type.  Dimensionless specs (ratio, slope, etc.) are
-    /// never converted.  Unrecognised measurable specs require units:"internal".
+    /// parameter's spec type.  The branching decision (which unit, or fail
+    /// closed) lives in the pure, unit-tested <see cref="UnitConversionPolicy"/>;
+    /// this method only does the Revit-coupled work of classifying the
+    /// <c>ForgeTypeId</c> and calling <c>UnitUtils.ConvertToInternalUnits</c>.
     /// </summary>
     internal static double ConvertToInternal(Parameter param, double value, string units,
         out bool conversionApplied)
     {
         conversionApplied = false;
-        if (string.Equals(units, "internal", StringComparison.OrdinalIgnoreCase)) return value;
 
-        var specType = param.Definition.GetDataType();
-        if (!UnitUtils.IsMeasurableSpec(specType)) return value;
-
-        bool metric = units.Equals("meters",       StringComparison.OrdinalIgnoreCase)
-                   || units.Equals("square_meters", StringComparison.OrdinalIgnoreCase)
-                   || units.Equals("cubic_meters",  StringComparison.OrdinalIgnoreCase);
-        bool imperial = units.Equals("feet",         StringComparison.OrdinalIgnoreCase)
-                     || units.Equals("square_feet",  StringComparison.OrdinalIgnoreCase)
-                     || units.Equals("cubic_feet",   StringComparison.OrdinalIgnoreCase);
-
-        ForgeTypeId? unitTypeId;
-        if (specType == SpecTypeId.Length)
-            unitTypeId = metric ? UnitTypeId.Meters : imperial ? UnitTypeId.Feet : null;
-        else if (specType == SpecTypeId.Area)
-            unitTypeId = metric ? UnitTypeId.SquareMeters : imperial ? UnitTypeId.SquareFeet : null;
-        else if (specType == SpecTypeId.Volume)
-            unitTypeId = metric ? UnitTypeId.CubicMeters : imperial ? UnitTypeId.CubicFeet : null;
-        else
-            // Measurable spec not supported for auto-conversion (angle, force, …).
-            // Return as-is; the caller should use units:"internal".
-            return value;
-
-        if (unitTypeId is null)
-            throw new RevitCommandException("invalid_parameter",
-                $"Parameter '{param.Definition.Name}' has spec '{specType}' but units '{units}' is not compatible. " +
-                "Use 'meters'/'feet' for length, 'square_meters'/'square_feet' for area, " +
-                "'cubic_meters'/'cubic_feet' for volume, or 'internal'.");
+        var spec = ClassifySpec(param.Definition.GetDataType());
+        var choice = UnitConversionPolicy.Decide(spec, units, param.Definition.Name);
+        if (choice == UnitChoice.NoConversion) return value;
 
         conversionApplied = true;
-        return UnitUtils.ConvertToInternalUnits(value, unitTypeId);
+        return UnitUtils.ConvertToInternalUnits(value, ToUnitTypeId(choice));
     }
+
+    /// <summary>Maps a Revit <c>ForgeTypeId</c> spec to the testable <see cref="UnitSpec"/>.</summary>
+    private static UnitSpec ClassifySpec(ForgeTypeId specType)
+    {
+        if (!UnitUtils.IsMeasurableSpec(specType)) return UnitSpec.Dimensionless;
+        if (specType == SpecTypeId.Length) return UnitSpec.Length;
+        if (specType == SpecTypeId.Area)   return UnitSpec.Area;
+        if (specType == SpecTypeId.Volume) return UnitSpec.Volume;
+        return UnitSpec.OtherMeasurable;
+    }
+
+    private static ForgeTypeId ToUnitTypeId(UnitChoice choice) => choice switch
+    {
+        UnitChoice.Meters       => UnitTypeId.Meters,
+        UnitChoice.Feet         => UnitTypeId.Feet,
+        UnitChoice.SquareMeters => UnitTypeId.SquareMeters,
+        UnitChoice.SquareFeet   => UnitTypeId.SquareFeet,
+        UnitChoice.CubicMeters  => UnitTypeId.CubicMeters,
+        UnitChoice.CubicFeet    => UnitTypeId.CubicFeet,
+        _ => throw new RevitCommandException("invalid_parameter",
+            $"Internal error: unmapped UnitChoice '{choice}'."),
+    };
 
     private static string? SafeAsValueString(Parameter p)
     {

@@ -45,8 +45,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- README version badge updated from `v0.4.2` to `v0.5.0`; health example
-  updated from `0.4.1` to `0.5.0`.
+- README version badge updated from `v0.5.0` to `v0.6.0`; health example
+  updated from `0.5.0` to `0.6.0`.
 - `check-version.mjs` now validates the README badge and health example so
   future version drift is caught by CI.
 - `vitest run` test script now uses explicit `--config ./vitest.config.ts

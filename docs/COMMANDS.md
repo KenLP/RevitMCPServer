@@ -165,6 +165,7 @@ Params:
 - `id` *(long, required)*
 - `parameterName` *(string, required)*
 - `value` *(string | number | bool | { id: long }, required)*
+- `units` *(`"internal"` | `"meters"` | `"feet"` | `"square_meters"` | `"square_feet"` | `"cubic_meters"` | `"cubic_feet"`, optional, default `"internal"`)*
 
 The value is auto-coerced to the parameter's `StorageType`:
 
@@ -172,14 +173,24 @@ The value is auto-coerced to the parameter's `StorageType`:
 |--------------|--------------------------------|
 | `String`     | string                         |
 | `Integer`    | int — or bool (Yes/No params)  |
-| `Double`     | number (already in feet/Revit internal units!) |
+| `Double`     | number, with optional unit conversion (see below) |
 | `ElementId`  | long, or `{ "id": long }`      |
 
-> ⚠️ **Length values are NOT auto-converted.** Pass already-converted feet,
-> or use a dedicated geometry command. Reason: parameter unit type discovery
-> is non-trivial and unsafe to guess.
+**Unit conversion for `Double` parameters:**
 
-Data: `written` (Revit's `Parameter.Set` return value), `newValueString`.
+When `units` is not `"internal"`, the value is converted to Revit internal units
+(decimal feet for length) using the parameter's spec type:
+
+| Parameter spec | Accepted `units` values |
+|----------------|------------------------|
+| Length         | `"meters"`, `"feet"` |
+| Area           | `"square_meters"`, `"square_feet"` |
+| Volume         | `"cubic_meters"`, `"cubic_feet"` |
+| Dimensionless  | conversion never applied |
+| Other measurable (angle, force, …) | must use `"internal"` — `invalid_parameter` otherwise |
+
+Data: `written` (Revit's `Parameter.Set` return value), `newValueString`,
+`inputUnits` (the `units` value used), `unitConversionApplied` (bool).
 
 ### `delete_elements`
 Params: `ids` *(long[], required, ≥1)*.
@@ -278,7 +289,22 @@ and reports `hadFailures: true`.
 Returns `{ ok, service, version }`. No active document required.
 
 ### `GET /commands`
-Lists every registered command with `isReadOnly` flag and `riskLevel`
-(`read` | `low` | `medium` | `high`) — useful for AI clients that want
+Lists every registered command with `isReadOnly` flag, `riskLevel`
+(`read` | `low` | `medium` | `high`), and `executionKind`
+(`ReadOnly` | `ModelWrite` | `UiAction`) — useful for AI clients that want
 to discover the available surface and build per-tool permission policies
 at runtime.
+
+```jsonc
+{
+  "ok": true,
+  "data": {
+    "count": 60,
+    "commands": [
+      { "name": "ping",           "isReadOnly": true,  "riskLevel": "read",   "executionKind": "ReadOnly"   },
+      { "name": "set_parameter",  "isReadOnly": false, "riskLevel": "medium", "executionKind": "ModelWrite" },
+      { "name": "open_view",      "isReadOnly": false, "riskLevel": "low",    "executionKind": "UiAction"   }
+    ]
+  }
+}
+```

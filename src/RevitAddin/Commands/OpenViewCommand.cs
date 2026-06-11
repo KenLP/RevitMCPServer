@@ -22,7 +22,7 @@ public sealed class OpenViewCommand : IRevitCommand
         var viewId = new ElementId(P.Long(ctx.Parameters, "viewId"));
 
         var view = doc.GetElement(viewId) as View
-            ?? throw new System.InvalidOperationException($"View {viewId.Value} not found.");
+            ?? throw new RevitCommandException("not_found", $"View {viewId.Value} not found.");
 
         uiDoc.ActiveView = view;
 

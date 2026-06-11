@@ -26,7 +26,7 @@ public sealed class CreateScheduleCommand : IRevitCommand
 
         var catName = P.Str(p, "category");
         if (!Enum.TryParse<BuiltInCategory>(catName, true, out var bic))
-            throw new ArgumentException($"Unknown BuiltInCategory '{catName}'.");
+            throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{catName}'.");
 
         var schedule = ViewSchedule.CreateSchedule(doc, new ElementId(bic));
 

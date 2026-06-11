@@ -448,7 +448,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.5.0 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.6.0 connected to Revit addin at ${REVIT_BASE_URL}`);
 
   // Startup connectivity probe — log diagnostics but never crash.
   const health = await checkRevitHealth();

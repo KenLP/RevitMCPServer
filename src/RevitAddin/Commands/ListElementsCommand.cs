@@ -28,7 +28,7 @@ public sealed class ListElementsCommand : IRevitCommand
         if (!string.IsNullOrWhiteSpace(categoryName))
         {
             if (!Enum.TryParse<BuiltInCategory>(categoryName, ignoreCase: true, out var bic))
-                throw new ArgumentException($"Unknown BuiltInCategory '{categoryName}'.");
+                throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{categoryName}'.");
             collector = collector.OfCategory(bic);
         }
 

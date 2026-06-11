@@ -26,7 +26,7 @@ public sealed class CreateGridCommand : IRevitCommand
         var start = P.Xyz(p, "start", units);
         var end = P.Xyz(p, "end", units);
         if (start.DistanceTo(end) < 1e-6)
-            throw new System.ArgumentException("Start and end points are coincident.");
+            throw new RevitCommandException("invalid_parameter", "Start and end points are coincident.");
 
         // Grids are flat in plan — force Z=0.
         var line = Line.CreateBound(

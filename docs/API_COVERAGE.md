@@ -19,7 +19,7 @@ So the realistic strategies are:
 |---|---|---|---|
 | **Curated tools** (one `IRevitCommand` per common op) | Type-safe, validated, observable, undoable, documented | Linear effort per tool — coverage grows slowly | ✅ Primary |
 | **Introspection tools** (`list_categories`, `list_levels`, `list_wall_types`, …) | Lets the AI *discover* what is in the doc instead of guessing names | Doesn't help with operations the AI hasn't seen before | ✅ Secondary |
-| **Generic query DSL** (e.g. JSON-encoded filtered element queries with category + parameter predicates) | Covers a lot of read-side use cases with one tool | Have to design the DSL, easy to footgun | ⚠️ Phase 3 (`find_elements`) |
+| **Generic query DSL** (e.g. JSON-encoded filtered element queries with category + parameter predicates) | Covers a lot of read-side use cases with one tool | Have to design the DSL, easy to footgun | ✅ `find_elements` implemented |
 | **Code eval** (accept arbitrary C# / Python and run inside Revit) | Total coverage in one tool | ⚠️ Massive blast radius — AI errors can corrupt models, no validation, no undo grouping, no rate limiting, hard to audit | ❌ Out of scope |
 
 The original `revit-mcp` did the eval approach. We deliberately didn't —
@@ -27,64 +27,115 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## What "good enough" coverage looks like
+## Current command surface (v0.6.0)
 
-Phase 2 covers ~15 commands. The 80/20 sweet spot for AEC workflows is
-roughly **40-60 curated commands** + introspection. Here's the roadmap of
-the next operations to wrap, in priority order:
+**60 commands** across read, write, and UI categories.
 
-### Phase 3 — high-value writes (next)
+### Implemented — Read / Introspection
 
-- `set_parameter_batch` — set the same parameter on N elements in one call.
-- `find_elements` — generic query: filter by category + parameter equality
-  / range, return ids and a small projection. Single command that covers
-  most read use cases.
-- `place_family_instance` — `Document.Create.NewFamilyInstance(...)`. Big
-  one. Must handle the host/level/view variants.
-- `create_sheet` + `place_view_on_sheet` (`ViewSheet.Create`,
-  `Viewport.Create`).
-- `apply_view_filter` (`ParameterFilterElement` + `View.SetFilterOverrides`).
-- `color_override_by_param` — split a category by a parameter and apply
-  per-bucket `OverrideGraphicSettings`.
-- `create_room` (`Document.Create.NewRoom`) + `tag_rooms`.
-- `create_dimension` (linear dim from two element references).
-- `transform_elements` — bulk move/rotate/array.
-- `purge_unused` — equivalent of the Purge dialog for cleanup.
+| Command | Notes |
+|---|---|
+| `ping` | Health check + active doc title |
+| `get_revit_version` | Revit version, build, language |
+| `get_document_info` | File path, phases, project info |
+| `list_elements` | Filter by category, optional limit |
+| `get_element_info` | All parameters + bbox |
+| `get_element_geometry` | Solid/curve geometry as JSON |
+| `get_parameter` | Single parameter read |
+| `find_elements` | Generic query: category + parameter predicates |
+| `list_levels` | All Levels, sorted by elevation |
+| `list_wall_types` | All WallTypes |
+| `list_floor_types` | All FloorTypes |
+| `list_categories` | Categories used in doc with counts |
+| `list_families` | Families by category |
+| `list_family_types` | Types within a family |
+| `list_materials` | All materials |
+| `list_phases` | All phases |
+| `list_rooms` | All rooms with area, level, phase |
+| `list_sheets` | All sheets |
+| `list_view_templates` | View templates |
+| `get_views` | All views with type/template/discipline |
+| `get_active_view` | Current UI view |
+| `get_selected_elements` | UIDocument selection |
+| `get_linked_files` | Linked Revit files |
 
-### Phase 4 — discoverability / introspection
+### Implemented — Model Writes
 
-- `get_categories_schema` — for a given category, return its parameter
-  definitions (name, group, storage type, unit type, builtin/instance).
-  Lets the AI know what `set_parameter` calls are valid before trying.
-- `get_views` — list all views with type / template / discipline.
-- `get_active_view` — what view is the user looking at right now.
-- `get_selected_elements` — pull from `UIDocument.Selection`. Closes the
-  loop with the user's manual interaction.
-- `get_element_geometry` — extract solids/curves as JSON. Enables
-  geometric reasoning without round-tripping the whole DWG/IFC.
+| Command | Notes |
+|---|---|
+| `create_wall` | Single straight wall |
+| `create_floor` | From closed polygonal profile |
+| `create_ceiling` | From closed polygonal profile |
+| `create_level` | Level at given elevation |
+| `create_grid` | Straight grid line |
+| `create_column` | Structural or architectural column |
+| `create_beam` | Structural beam between two points |
+| `create_room` | Room by point on level |
+| `create_sheet` | New sheet with title block |
+| `create_schedule` | ViewSchedule for a category |
+| `create_3d_view` | Named 3D view |
+| `create_floor_plan_view` | Floor plan for a level |
+| `create_section_view` | Section view |
+| `create_text_note` | Text note in a view |
+| `create_opening_in_wall` | Rectangular opening |
+| `set_parameter` | Single param on one element (with unit conversion) |
+| `set_parameter_batch` | Same param on N elements |
+| `delete_elements` | Delete by ids |
+| `move_element` | Translate by vector |
+| `copy_element` | Copy with offset |
+| `rotate_element` | Rotate around axis |
+| `mirror_element` | Mirror across axis |
+| `array_linear` | Linear array |
+| `rename_element` | Family, FamilySymbol, or generic element |
+| `place_family_instance` | `Document.Create.NewFamilyInstance` |
+| `place_view_on_sheet` | Add viewport to sheet |
+| `group_elements` | Group selection |
+| `ungroup_elements` | Ungroup |
+| `tag_element` | Tag an element in a view |
+| `apply_view_filter` | ParameterFilterElement + View.SetFilterOverrides |
+| `color_override_by_param` | Per-bucket color overrides by parameter value |
+| `hide_elements_in_view` | Hide by ids in view |
+| `unhide_elements_in_view` | Unhide by ids in view |
+| `create_opening_in_wall` | Rectangular wall opening |
 
-### Phase 5 — analysis-side
+### Implemented — UI Actions (no model transaction)
 
-- Schedules (`ViewSchedule.CreateSchedule`).
+| Command | Notes |
+|---|---|
+| `open_view` | Activate a view in the UI |
+| `select_elements` | Set UIDocument selection |
+| `zoom_to_elements` | Fit view to element bounding box |
+| `set_view_detail_level` | Set view detail level |
+
+## Cross-version support
+
+| Version | Status |
+|---|---|
+| Revit 2026 | ✅ Supported — primary target, CI-tested |
+| Revit 2027 | ✅ Supported — CI-tested (R2027/.NET 10 matrix added in v0.6.0) |
+| Revit 2025 | ⚠️ Untested — likely works but no CI coverage |
+| Revit 2024 and earlier | ❌ Not supported (`ElementId(long)` and other API differences) |
+
+The build uses `Nice3point.Revit.Api` reference assemblies (pinned versions)
+so CI builds and tests run without Revit installed. Version-specific shims are
+handled via `<DefineConstants>REVIT2027</DefineConstants>` in the project.
+
+## Remaining roadmap
+
+### High value — next
+
+- `purge_unused` — equivalent of the Purge dialog.
+- `create_dimension` — linear dimension from two element references.
+- `get_categories_schema` — for a given category, return parameter definitions
+  (name, group, storage type, unit type, builtin/instance). Lets the AI know
+  what `set_parameter` calls are valid before trying.
+- `transform_elements` — bulk move/rotate in one call.
+
+### Analysis-side (future)
+
 - Energy / area analysis hooks.
-- Linked-file enumeration.
-
-## Cross-version (2025 / 2026 / 2027)
-
-Revit API often nudges between versions — `ElementId(int)` → `ElementId(long)`
-in 2024+, slot tweaks in `Wall.Create` overloads, etc. This MVP only targets
-**Revit 2026**. The build plan calls for `#if REVIT2025 / REVIT2026 /
-REVIT2027` shims and a CI matrix; that's Phase 3 in
-[`Revit_MCP_Server_Build_Plan.md`](../Revit_MCP_Server_Build_Plan.md).
-
-The cleanest way to add a new version target is:
-
-1. Add a new MSBuild Configuration (e.g. `Release R27`) in
-   `RevitMCPAddin.csproj` with `<DefineConstants>REVIT2027</DefineConstants>`.
-2. Wrap any signature differences with `#if REVIT2027 ... #endif`.
-3. Add a CI job that builds each configuration. The reference upstream
-   `mcp-servers-for-revit` already has this layout — fork it if you need a
-   battle-tested build matrix.
+- Structural analytical model.
+- MEP system queries.
 
 ## Why we still ship a thin tool surface
 
@@ -94,7 +145,7 @@ them**. Empirically, ~80% of "AI co-pilot for Revit" prompts boil down to:
 1. *"What's in the model?"* → introspection commands.
 2. *"Add / change / delete this element"* → creation + edit commands.
 3. *"Bulk update parameters"* → set_parameter loops.
-4. *"Make sheets, views, schedules, tags"* → Phase 3.
+4. *"Make sheets, views, schedules, tags"* → fully implemented.
 
 So the priority is **correctness, undoability, and observability** for the
 small set of commands that the AI actually reaches for, not raw count.

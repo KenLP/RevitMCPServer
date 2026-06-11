@@ -26,15 +26,15 @@ public sealed class TagElementCommand : IRevitCommand
 
         var elementId = new ElementId(P.Long(p, "elementId"));
         var element = doc.GetElement(elementId)
-            ?? throw new System.InvalidOperationException($"Element {elementId.Value} not found.");
+            ?? throw new RevitCommandException("not_found", $"Element {elementId.Value} not found.");
 
         var viewId = p["viewId"] is not null
             ? new ElementId(P.Long(p, "viewId"))
             : doc.ActiveView?.Id
-            ?? throw new System.InvalidOperationException("No active view.");
+            ?? throw new RevitCommandException("not_found", "No active view.");
 
         var view = doc.GetElement(viewId) as View
-            ?? throw new System.InvalidOperationException($"View {viewId.Value} not found.");
+            ?? throw new RevitCommandException("not_found", $"View {viewId.Value} not found.");
 
         var addLeader = P.BoolOr(p, "addLeader", false);
 

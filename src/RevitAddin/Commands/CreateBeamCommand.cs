@@ -31,7 +31,7 @@ public sealed class CreateBeamCommand : IRevitCommand
         var start = P.Xyz(p, "start", units);
         var end = P.Xyz(p, "end", units);
         if (start.DistanceTo(end) < 1e-6)
-            throw new ArgumentException("Start and end points are coincident.");
+            throw new RevitCommandException("invalid_parameter", "Start and end points are coincident.");
 
         var level = CreateWallCommand.ResolveLevel(doc, P.StrOrNull(p, "levelName"));
         var structural = P.BoolOr(p, "structural", true);
@@ -46,7 +46,7 @@ public sealed class CreateBeamCommand : IRevitCommand
                 && (string.IsNullOrWhiteSpace(P.StrOrNull(p, "familyTypeName"))
                     || s.Name.Equals(P.StrOrNull(p, "familyTypeName"), StringComparison.OrdinalIgnoreCase)))
             .FirstOrDefault()
-            ?? throw new InvalidOperationException("No beam FamilySymbol found.");
+            ?? throw new RevitCommandException("not_found", "No beam FamilySymbol found.");
 
         if (!symbol.IsActive) symbol.Activate();
 

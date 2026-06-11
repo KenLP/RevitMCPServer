@@ -196,7 +196,7 @@ public sealed class McpHttpServer
         {
             "bad_request" or "bad_json"
               or "invalid_parameter" or "read_only_parameter"
-              or "unsupported_view"               => 400,
+              or "unsupported_view" or "invalid_chars"        => 400,
             "unauthorized"                        => 401,
             "unknown_command" or "not_found"      => 404,
             "timeout" or "cancelled"              => 408,

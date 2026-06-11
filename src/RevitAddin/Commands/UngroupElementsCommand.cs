@@ -21,7 +21,7 @@ public sealed class UngroupElementsCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var groupId = new ElementId(P.Long(ctx.Parameters, "groupId"));
         var group = doc.GetElement(groupId) as Group
-            ?? throw new System.InvalidOperationException($"Element {groupId.Value} is not a Group.");
+            ?? throw new RevitCommandException("invalid_parameter", $"Element {groupId.Value} is not a Group.");
 
         var memberIds = group.UngroupMembers();
         var arr = new JsonArray();

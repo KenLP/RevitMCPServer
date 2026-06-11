@@ -27,7 +27,7 @@ public sealed class FindElementsCommand : IRevitCommand
 
         var categoryName = P.Str(p, "category");
         if (!Enum.TryParse<BuiltInCategory>(categoryName, true, out var bic))
-            throw new ArgumentException($"Unknown BuiltInCategory '{categoryName}'.");
+            throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{categoryName}'.");
 
         var collector = new FilteredElementCollector(doc)
             .OfCategory(bic)
@@ -108,7 +108,7 @@ public sealed class FindElementsCommand : IRevitCommand
             "less" or "lt" => double.TryParse(strVal, out var c) && double.TryParse(matchStr, out var d) && c < d,
             "greater_equal" or "gte" => double.TryParse(strVal, out var e) && double.TryParse(matchStr, out var f) && e >= f,
             "less_equal" or "lte" => double.TryParse(strVal, out var g) && double.TryParse(matchStr, out var h) && g <= h,
-            _ => throw new ArgumentException($"Unknown operator '{op}'."),
+            _ => throw new RevitCommandException("invalid_parameter", $"Unknown operator '{op}'."),
         };
     }
 

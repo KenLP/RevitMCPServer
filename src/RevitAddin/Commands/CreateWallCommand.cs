@@ -31,7 +31,7 @@ public sealed class CreateWallCommand : IRevitCommand
         var start = P.Xyz(p, "start", units);
         var end = P.Xyz(p, "end", units);
         if (start.DistanceTo(end) < 1e-6)
-            throw new System.ArgumentException("Start and end points are coincident.");
+            throw new RevitCommandException("invalid_parameter", "Start and end points are coincident.");
 
         var height = P.DblOr(p, "height", 3.0) * toFeet;
         var structural = P.BoolOr(p, "structural", false);
@@ -69,10 +69,10 @@ public sealed class CreateWallCommand : IRevitCommand
         if (string.IsNullOrWhiteSpace(name))
         {
             return query.OrderBy(l => l.Elevation).FirstOrDefault()
-                ?? throw new System.InvalidOperationException("No Level exists in the document.");
+                ?? throw new RevitCommandException("not_found", "No Level exists in the document.");
         }
         return query.FirstOrDefault(l => l.Name == name)
-            ?? throw new System.InvalidOperationException($"Level '{name}' not found.");
+            ?? throw new RevitCommandException("not_found", $"Level '{name}' not found.");
     }
 
     internal static WallType ResolveWallType(Document doc, string? name)
@@ -81,9 +81,9 @@ public sealed class CreateWallCommand : IRevitCommand
         if (string.IsNullOrWhiteSpace(name))
         {
             return query.FirstOrDefault()
-                ?? throw new System.InvalidOperationException("No WallType exists in the document.");
+                ?? throw new RevitCommandException("not_found", "No WallType exists in the document.");
         }
         return query.FirstOrDefault(w => w.Name == name)
-            ?? throw new System.InvalidOperationException($"WallType '{name}' not found.");
+            ?? throw new RevitCommandException("not_found", $"WallType '{name}' not found.");
     }
 }

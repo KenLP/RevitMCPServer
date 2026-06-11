@@ -47,7 +47,7 @@ public sealed class CreateFloorPlanViewCommand : IRevitCommand
             .OfClass(typeof(ViewFamilyType))
             .Cast<ViewFamilyType>()
             .FirstOrDefault(v => v.ViewFamily == family)
-            ?? throw new System.InvalidOperationException(
+            ?? throw new RevitCommandException("not_found",
                 $"No ViewFamilyType for {family} found.");
     }
 }
