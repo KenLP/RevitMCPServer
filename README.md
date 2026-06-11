@@ -111,8 +111,8 @@ Every step is copy-paste into **PowerShell** on Windows.
 
 | Tool                  | Why                                        | Download                                                       |
 | --------------------- | ------------------------------------------ | -------------------------------------------------------------- |
-| **Autodesk Revit 2026 or 2027** | The app the addin plugs into    | Autodesk account (you already have this)                       |
-| **.NET 8 SDK** (R2026) or **.NET 10 SDK** (R2027) | Compiles the C# addin | <https://dotnet.microsoft.com/download/dotnet/8.0> (or `/10.0`) |
+| **Autodesk Revit 2025/26 or 2027** | The app the addin plugs into    | Autodesk account (you already have this)                       |
+| **.NET 8 SDK** (R2025/26) or **.NET 10 SDK** (R2027) | Compiles the C# addin | <https://dotnet.microsoft.com/download/dotnet/8.0> (or `/10.0`) |
 | **Node.js 22 (LTS)**  | Runs the MCP bridge                        | <https://nodejs.org/>                                          |
 | **Git**               | Downloads this repo                        | <https://git-scm.com/download/win>                             |
 | **Claude Desktop** *(or Claude Code)* | Your MCP client              | <https://claude.ai/download>                                   |
@@ -151,7 +151,7 @@ cd RevitMCPServer
 **Close Revit first** — if Revit is running it locks the DLL and the build
 will fail.
 
-**For Revit 2026** (default):
+**For Revit 2025/26** (default):
 
 ```powershell
 cd C:\Dev\RevitMCPServer\src\RevitAddin
