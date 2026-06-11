@@ -151,7 +151,7 @@ cd RevitMCPServer
 **Close Revit first** — if Revit is running it locks the DLL and the build
 will fail.
 
-**For Revit 2026** (default):
+**For Revit 2025/26** (default):
 
 ```powershell
 cd C:\Dev\RevitMCPServer\src\RevitAddin
