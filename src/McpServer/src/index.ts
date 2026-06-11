@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.6.0 (stdio).
+ * Revit MCP Server v0.7.0 (stdio).
  *
- * 60 tools covering diagnostics, inspection, creation, editing,
- * transform, view manipulation, and batch operations.
+ * 63 tools covering diagnostics, inspection, creation, editing,
+ * transform, view manipulation, batch operations, and coordination/clash detection.
  *
- * v0.4.0 additions:
- *   - dryRun parameter on every write tool (preview without committing).
- *   - Auth token (reads from token file or env var).
- *   - Structured diffs (changeSummary + changes) in write responses.
- *   - Per-tool risk levels surfaced via GET /commands.
+ * v0.7.0 additions:
+ *   - get_linked_elements: read elements inside a linked RVT with host-coord bboxes.
+ *   - check_clearance: hard clash + clearance check, host and cross-linked-file.
+ *   - get_view_image: export any view to PNG, returned as MCP Image content.
+ *   - Revit 2025 support (Nice3point ref assemblies, CI matrix, release zip).
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -23,7 +23,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.6.0" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.7.0" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -106,7 +106,16 @@ server.tool("revit_list_view_templates", "All view templates.", {}, fwd("list_vi
 server.tool("revit_get_views", "All non-template views with type, level, scale.", {}, fwd("get_views"));
 server.tool("revit_get_active_view", "Current active view info.", {}, fwd("get_active_view"));
 server.tool("revit_get_selected_elements", "Elements currently selected by the user in Revit UI.", {}, fwd("get_selected_elements"));
-server.tool("revit_get_linked_files", "List Revit link instances.", {}, fwd("get_linked_files"));
+server.tool("revit_get_linked_files", "List Revit link instances (metadata only — id, name, load status).", {}, fwd("get_linked_files"));
+
+server.tool("revit_get_linked_elements",
+  "Read elements that live INSIDE a specific linked RVT file. Bounding boxes are transformed to host-model coordinates. Use this before check_clearance to inspect what's in a link.",
+  {
+    linkId: z.number().int().describe("ElementId of the RevitLinkInstance (from revit_get_linked_files)."),
+    category: z.string().optional().describe("BuiltInCategory name, e.g. 'OST_DuctCurves'. Omit for all elements."),
+    limit: z.number().int().min(1).max(2000).optional().describe("Max elements to return. Default 200."),
+  },
+  fwd("get_linked_elements"));
 
 server.tool("revit_get_element_geometry", "Bounding box, centroid, volume, surface area, face/solid counts.", {
   id: z.number().int(),
@@ -417,6 +426,56 @@ server.tool("revit_color_override_by_param", "Color-code elements in a view by a
 }, fwdWrite("color_override_by_param"));
 
 // ═══════════════════════════════════════════════════════════════════════════
+// COORDINATION / CLASH DETECTION
+// ═══════════════════════════════════════════════════════════════════════════
+
+const elementSetSchema = z.object({
+  source: z.enum(["host", "link"]).default("host").describe("'host' = current model, 'link' = a linked RVT file."),
+  linkId: z.number().int().optional().describe("Required when source='link'. ElementId of the RevitLinkInstance."),
+  categories: z.array(z.string()).optional().describe("BuiltInCategory names to include, e.g. ['OST_DuctCurves', 'OST_PipeCurves']. Empty = all element types."),
+  limit: z.number().int().min(1).max(2000).optional().describe("Max elements to load from this set. Default 500."),
+});
+
+server.tool("revit_check_clearance",
+  "Detect hard clashes or clearance violations between two element sets (host or linked files). " +
+  "clearanceMm=0 → hard clash (solid intersection for host-vs-host, bbox for cross-doc). " +
+  "clearanceMm>0 → flags pairs whose bounding boxes overlap after inflating setA by that margin. " +
+  "Example: setA = MEP ducts in linked file, setB = structural beams in host, clearanceMm = 50.",
+  {
+    setA: elementSetSchema,
+    setB: elementSetSchema,
+    clearanceMm: z.number().min(0).optional().describe("Clearance margin in mm. 0 = hard clash only. Default 0."),
+    maxResults: z.number().int().min(1).max(2000).optional().describe("Clash pairs cap. Default 200."),
+  },
+  fwd("check_clearance"));
+
+server.tool("revit_get_view_image",
+  "Export a Revit view to PNG and return it as an image. Omit viewId to capture the active view. " +
+  "Useful for visual coordination review — capture a section or 3D view showing potential clashes.",
+  {
+    viewId: z.number().int().optional().describe("ElementId of the view to export. Omit for active view."),
+    dpi: z.number().int().min(36).max(300).optional().describe("Image resolution (snaps to 72/150/300). Default 72."),
+  },
+  async (params) => {
+    const envelope = await callRevit("get_view_image", params);
+    if (!envelope.ok) return envelopeToToolResult(envelope);
+
+    const data = envelope.data as Record<string, unknown> | undefined;
+    const base64 = data?.imageBase64 as string | undefined;
+    if (base64) {
+      const meta = { ...data };
+      delete meta.imageBase64;
+      return {
+        content: [
+          { type: "image" as const, data: base64, mimeType: "image/png" as const },
+          { type: "text" as const, text: JSON.stringify({ ok: true, data: meta }, null, 2) },
+        ],
+      };
+    }
+    return envelopeToToolResult(envelope);
+  });
+
+// ═══════════════════════════════════════════════════════════════════════════
 // BATCH
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -448,7 +507,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.6.0 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.7.0 connected to Revit addin at ${REVIT_BASE_URL}`);
 
   // Startup connectivity probe — log diagnostics but never crash.
   const health = await checkRevitHealth();

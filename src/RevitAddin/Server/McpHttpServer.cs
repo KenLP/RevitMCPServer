@@ -98,7 +98,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.6.0",
+                    ["version"] = "0.7.0",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;

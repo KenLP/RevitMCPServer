@@ -47,7 +47,9 @@ public sealed class CommandRegistry
         Register(new GetActiveViewCommand());
         Register(new GetSelectedElementsCommand());
         Register(new GetLinkedFilesCommand());
+        Register(new GetLinkedElementsCommand());
         Register(new GetElementGeometryCommand());
+        Register(new GetViewImageCommand());
 
         // === Creation — architecture ===
         Register(new CreateWallCommand());
@@ -97,5 +99,8 @@ public sealed class CommandRegistry
         Register(new ZoomToElementsCommand());
         Register(new ApplyViewFilterCommand());
         Register(new ColorOverrideByParamCommand());
+
+        // === Coordination / clash ===
+        Register(new CheckClearanceCommand());
     }
 }

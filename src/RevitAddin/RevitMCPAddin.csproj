@@ -39,6 +39,17 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2025'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.2.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.2.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
   <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2026'">
     <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.4.10">
       <PrivateAssets>all</PrivateAssets>

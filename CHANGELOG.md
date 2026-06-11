@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-06-11: Linked-file clash detection, view image export, R2025
+
+### Added
+
+- **`revit_get_linked_elements`** — read elements from inside a linked RVT file.
+  Bounding boxes are automatically transformed to host-model coordinates.
+  Accepts `linkId` (from `revit_get_linked_files`), optional `category`, optional `limit`.
+- **`revit_check_clearance`** — detect hard clashes or clearance violations between two
+  element sets. Supports host-vs-host (uses Revit's native `ElementIntersectsElementFilter`
+  for exact solid-based detection) and cross-linked-file checks (AABB with clearance inflation).
+  Parameters: `setA`, `setB` (each specifying `source: host|link`, optional `categories`),
+  `clearanceMm` (0 = hard clash), `maxResults`.
+- **`revit_get_view_image`** — export any Revit view (or the active view) to PNG and return
+  it as an MCP `Image` content block. Accepts optional `viewId` and `dpi` (72/150/300).
+- **Revit 2025 support** — added Nice3point reference assemblies for R2025 (`net8.0-windows`,
+  port 7890). CI test matrix and release artifacts now include R2025 alongside R2026/R2027.
+  Build/deploy works without installing R2025 locally.
+- **7 new `CheckClearanceCommand.BboxIntersects` unit tests** covering overlap, separation,
+  face-touch, containment, single-axis separation, and clearance inflation.
+
+---
+
 ## [0.6.0] — 2026-06-11: Correctness, API hardening, CI R2027
 
 ### Breaking

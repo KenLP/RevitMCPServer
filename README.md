@@ -27,11 +27,12 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.6.0** — 60 C# commands + 1 batch = **61 MCP tools**.
-Supports **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
+**v0.7.0** — 63 C# commands + 1 batch = **64 MCP tools**.
+Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
-FamilySymbol rename**. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+FamilySymbol rename**, **linked-file element reading**, **clash/clearance detection**,
+**view image export**. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 | Layer        | Build target              | Status |
 | ------------ | ------------------------- | ------ |
@@ -200,7 +201,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.6.0
+   version   : 0.7.0
    authEnabled : True
    ```
 
@@ -356,7 +357,7 @@ Sanity check:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.6.0, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.7.0, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
