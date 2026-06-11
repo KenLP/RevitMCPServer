@@ -1,14 +1,14 @@
 # Revit MCP Server
 
 > A custom **Model Context Protocol** server that lets Claude (Desktop, Code,
-> or any MCP client) drive **Autodesk Revit 2026 & 2027** — read the model,
+> or any MCP client) drive **Autodesk Revit 2025, 2026 & 2027** — read the model,
 > create & edit elements, and run multi-step operations as a single undoable
 > Transaction.
 
 > Author: KenLP
 
 ```
-Claude Desktop / Claude Code  ──stdio──▶  revit-mcp-server (Node)  ──HTTP──▶  RevitMCPAddin  ──ExternalEvent + Transaction──▶  Revit 2026/2027
+Claude Desktop / Claude Code  ──stdio──▶  revit-mcp-server (Node)  ──HTTP──▶  RevitMCPAddin  ──ExternalEvent + Transaction──▶  Revit 2025/2026/2027
 ```
 
 - **C# addin** (.NET 8 for R2026, .NET 10 for R2027) runs inside Revit,
@@ -36,18 +36,21 @@ FamilySymbol rename**, **linked-file element reading**, **clash/clearance detect
 
 | Layer        | Build target              | Status |
 | ------------ | ------------------------- | ------ |
+| Revit addin  | Revit 2025 / .NET 8       | ✅ CI-tested |
 | Revit addin  | Revit 2026 / .NET 8       | ✅      |
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
-| Revit 2025   | .NET 8 (untested)         | ⏳      |
 
-## Tool surface (60 commands + 1 batch = 61 MCP tools)
+## Tool surface (63 commands + 1 batch = 64 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
 
-### Inspection / Introspection (21 read-only)
-`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry`
+### Inspection / Introspection (23 read-only)
+`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image`
+
+### Coordination / Clash (1 read-only)
+`revit_check_clearance`
 
 ### Creation: Architecture (10 write)
 `revit_create_wall` | `revit_create_floor` | `revit_create_level` | `revit_create_grid` | `revit_create_room` | `revit_create_column` | `revit_create_beam` | `revit_create_ceiling` | `revit_create_opening_in_wall` | `revit_place_family_instance`
@@ -268,7 +271,7 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
 > `REVIT_MCP_VERSION` tells the bridge which port + token file to use.
 
 Save, then **fully quit and restart Claude Desktop** (right-click tray icon →
-Quit). When it relaunches, click the 🔨 tools icon — you should see **61
+Quit). When it relaunches, click the 🔨 tools icon — you should see **64
 `revit_*` tools** (doubled if you configured two versions).
 
 ### Step 6 — Try your first prompt
@@ -310,7 +313,7 @@ Quick-reference for developers.
 |---|---|---|
 | 2026 (default) | .NET 8 SDK | `dotnet build` |
 | 2027 | .NET 10 SDK | `dotnet build -p:RevitVersion=2027` |
-| 2025 | .NET 8 SDK | `dotnet build -p:RevitVersion=2025` *(untested)* |
+| 2025 | .NET 8 SDK | `dotnet build -p:RevitVersion=2025` |
 
 ```bash
 cd src/RevitAddin
@@ -324,10 +327,9 @@ Post-build copies `RevitMCPAddin.dll` and the `.addin` manifest into
 
 > **Heads up:** close the target Revit before rebuilding — it holds the DLL open.
 
-> **Revit 2025** uses the same .NET 8 runtime as 2026, so the source *should*
-> compile with `-p:RevitVersion=2025`. This is **untested by the maintainer**
-> (no 2025 install on the dev machine). Cross-version `#if` shims are
-> planned — see [`docs/ROADMAP.md`](docs/ROADMAP.md) Phase 3.
+> **Revit 2025** uses .NET 8 (same as 2026). CI-tested via Nice3point reference
+> assemblies (v2025.2.0, port 7890). Not smoke-tested against a live R2025
+> install — see [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 
 ### 2. TypeScript MCP server
 
@@ -405,7 +407,7 @@ Two versions side-by-side (port auto-assigned):
 }
 ```
 
-Restart the client. You should see 61 `revit_*` tools per configured version.
+Restart the client. You should see 64 `revit_*` tools per configured version.
 
 ### 3. Try it
 
