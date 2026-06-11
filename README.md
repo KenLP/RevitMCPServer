@@ -111,8 +111,8 @@ Every step is copy-paste into **PowerShell** on Windows.
 
 | Tool                  | Why                                        | Download                                                       |
 | --------------------- | ------------------------------------------ | -------------------------------------------------------------- |
-| **Autodesk Revit 2026 or 2027** | The app the addin plugs into    | Autodesk account (you already have this)                       |
-| **.NET 8 SDK** (R2026) or **.NET 10 SDK** (R2027) | Compiles the C# addin | <https://dotnet.microsoft.com/download/dotnet/8.0> (or `/10.0`) |
+| **Autodesk Revit 2025, 2026 or 2027** | The app the addin plugs into | Autodesk account (you already have this)                       |
+| **.NET 8 SDK** (R2025/R2026) or **.NET 10 SDK** (R2027) | Compiles the C# addin | <https://dotnet.microsoft.com/download/dotnet/8.0> (or `/10.0`) |
 | **Node.js 22 (LTS)**  | Runs the MCP bridge                        | <https://nodejs.org/>                                          |
 | **Git**               | Downloads this repo                        | <https://git-scm.com/download/win>                             |
 | **Claude Desktop** *(or Claude Code)* | Your MCP client              | <https://claude.ai/download>                                   |
@@ -165,6 +165,13 @@ cd C:\Dev\RevitMCPServer\src\RevitAddin
 dotnet build -p:RevitVersion=2027
 ```
 
+**For Revit 2025:**
+
+```powershell
+cd C:\Dev\RevitMCPServer\src\RevitAddin
+dotnet build -p:RevitVersion=2025
+```
+
 > The csproj auto-selects .NET 8 for R2025–2026 and .NET 10 for R2027+.
 
 What this does:
@@ -172,7 +179,7 @@ What this does:
 2. Auto-copies the DLL **and** the `.addin` manifest file into
    `%APPDATA%\Autodesk\Revit\Addins\<version>\` so Revit finds it next start.
 
-If you use **both** Revit 2026 and 2027, build twice (once per version) —
+If you use multiple Revit versions, build once per version —
 each deploys to its own Addins folder.
 
 You should see `Build succeeded` at the end. If you see red errors, check:
@@ -192,10 +199,11 @@ This produces `dist/index.js` — the small Node program Claude will launch.
 
 ### Step 4 — Start Revit and verify the addin loaded
 
-1. Open Revit (2026 or 2027) → open any project (even a blank one).
-2. In PowerShell, run (use port 7891 for R2026, 7892 for R2027):
+1. Open Revit (2025, 2026 or 2027) → open any project (even a blank one).
+2. In PowerShell, run the health check for your version (port 7890 for R2025, 7891 for R2026, 7892 for R2027):
 
    ```powershell
+   Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
    Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
    Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
    ```
@@ -266,7 +274,7 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
 ```
 
 > **Important:** the path uses double backslashes (`\\`) because it's JSON.
-> Port is auto-assigned (R2026 = 7891, R2027 = 7892) — no need to set
+> Port is auto-assigned (R2025 = 7890, R2026 = 7891, R2027 = 7892) — no need to set
 > `REVIT_MCP_PORT` unless you want a custom port.
 > `REVIT_MCP_VERSION` tells the bridge which port + token file to use.
 
@@ -317,8 +325,9 @@ Quick-reference for developers.
 
 ```bash
 cd src/RevitAddin
-dotnet build                          # Revit 2026
+dotnet build                          # Revit 2026 (default)
 dotnet build -p:RevitVersion=2027     # Revit 2027
+dotnet build -p:RevitVersion=2025     # Revit 2025
 ```
 
 Post-build copies `RevitMCPAddin.dll` and the `.addin` manifest into
@@ -351,12 +360,13 @@ Open any project. The addin auto-loads and starts the HTTP listener on
 `http://127.0.0.1:7891/` (default port). On first start it generates a
 random auth token at `%APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt`.
 
-> **Running two Revit versions at once?** Each version auto-assigns its own
-> port (R2026 = 7891, R2027 = 7892). No extra config needed — just open both.
+> **Running multiple Revit versions at once?** Each version auto-assigns its own
+> port (R2025 = 7890, R2026 = 7891, R2027 = 7892). No extra config needed — just open both.
 
 Sanity check:
 
 ```powershell
+Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
 # → ok=True, service=revit-mcp-addin, version=0.7.0, authEnabled=True
