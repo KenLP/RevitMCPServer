@@ -479,6 +479,7 @@ const elementSetSchema = z.object({
   linkId: z.number().int().optional().describe("Required when source='link'. ElementId of the RevitLinkInstance."),
   categories: z.array(z.string()).optional().describe("BuiltInCategory names to include, e.g. ['OST_DuctCurves', 'OST_PipeCurves']. Empty = all element types."),
   limit: z.number().int().min(1).max(2000).optional().describe("Max elements to load from this set. Default 500."),
+  scopeId: z.number().int().optional().describe("ElementId of any spatial container — MEP Space (revit_list_spaces), Room (revit_list_rooms), Floor, equipment, or any element with a bounding box. Only elements whose centroid falls inside that element's bbox are included. Omit to check all elements of the category in the model."),
 });
 // Separate object reference for setB to prevent MCP SDK JSON Schema deduplication (setB would render as {} otherwise).
 const elementSetSchemaB = elementSetSchema.extend({});

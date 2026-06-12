@@ -112,6 +112,14 @@ public sealed class CheckClearanceCommand : IRevitCommand
         var limit = Math.Clamp(P.IntOr(setNode, "limit", 500), 1, 2000);
         var catArray = setNode["categories"] as JsonArray;
 
+        // scopeId: optional spatial container — filter elements whose centroid is inside its bbox.
+        BoundingBoxXYZ? scopeBbox = null;
+        if (setNode["scopeId"] is JsonNode scopeIdNode)
+        {
+            var scopeEl = doc.GetElement(new ElementId(scopeIdNode.GetValue<long>()));
+            scopeBbox = scopeEl?.get_BoundingBox(null);
+        }
+
         Document targetDoc;
         long? linkIdVal = null;
         Transform? transform = null;
@@ -170,6 +178,18 @@ public sealed class CheckClearanceCommand : IRevitCommand
         {
             if (count >= limit) break;
             var (bMin, bMax) = GetBboxInHostCoords(el, transform);
+
+            if (scopeBbox != null && bMin != null && bMax != null)
+            {
+                var cx = (bMin.X + bMax.X) / 2.0;
+                var cy = (bMin.Y + bMax.Y) / 2.0;
+                var cz = (bMin.Z + bMax.Z) / 2.0;
+                if (cx < scopeBbox.Min.X || cx > scopeBbox.Max.X ||
+                    cy < scopeBbox.Min.Y || cy > scopeBbox.Max.Y ||
+                    cz < scopeBbox.Min.Z || cz > scopeBbox.Max.Z)
+                    continue;
+            }
+
             items.Add(new ElementInfo(el.Id.Value, el.Name, el.Category?.Name, bMin, bMax, source, linkIdVal));
             count++;
         }
