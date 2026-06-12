@@ -27,12 +27,14 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.7.0** — 63 C# commands + 1 batch = **64 MCP tools**.
+**v0.8.0** — 67 C# commands + 1 batch = **68 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
-FamilySymbol rename**, **linked-file element reading**, **clash/clearance detection**,
-**view image export**. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+FamilySymbol rename**, **linked-file element reading**, **clash/clearance detection**
+(host + linked-file raycast, multi-point centreline sampling),
+**view image export**, **view manipulation** (duplicate, section-box, isolate),
+**MEP Space listing**. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 | Layer        | Build target              | Status |
 | ------------ | ------------------------- | ------ |
@@ -41,13 +43,13 @@ FamilySymbol rename**, **linked-file element reading**, **clash/clearance detect
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (63 commands + 1 batch = 64 MCP tools)
+## Tool surface (67 commands + 1 batch = 68 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
 
-### Inspection / Introspection (23 read-only)
-`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image`
+### Inspection / Introspection (24 read-only)
+`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_spaces` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image`
 
 ### Coordination / Clash (1 read-only)
 `revit_check_clearance`
@@ -67,8 +69,8 @@ FamilySymbol rename**, **linked-file element reading**, **clash/clearance detect
 ### Edit: Delete & Group (3 write)
 `revit_delete_elements` | `revit_group_elements` | `revit_ungroup_elements`
 
-### View Manipulation (8 write)
-`revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param`
+### View Manipulation (11 write / UI)
+`revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param` | `revit_duplicate_view` | `revit_set_section_box` | `revit_isolate_elements_in_view`
 
 ### Batch (1)
 `revit_batch` — run multiple commands inside ONE Revit Transaction (single undo entry).

@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands;
 ///                                             Reports clearanceActualMm for each hit.
 ///                                             One violation row per (setA, setB) pair that
 ///                                             falls below the threshold across any sample point.
-///                                             setB must be from host model.
+///                                             setB can be host or one linked file.
 /// </summary>
 public sealed class CheckClearanceCommand : IRevitCommand
 {
@@ -77,7 +77,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
         string method;
         if (useRaycast)
         {
-            RunRaycastClash(doc, setAItems, setBItems, clearanceMm, direction, viewIdNode, maxResults, sampleCount, clashes, seen);
+            RunRaycastClash(doc, setAItems, setBItems, setBNode, clearanceMm, direction, viewIdNode, maxResults, sampleCount, clashes, seen);
             method = "ReferenceIntersectorZ";
         }
         else if (useNative)
@@ -230,6 +230,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
     private static void RunRaycastClash(
         Document doc,
         List<ElementInfo> setA, List<ElementInfo> setB,
+        JsonObject setBNode,
         double clearanceMm, string direction,
         JsonNode? viewIdNode,
         int maxResults,
@@ -251,18 +252,39 @@ public sealed class CheckClearanceCommand : IRevitCommand
             throw new RevitCommandException("invalid_parameter",
                 "No 3D view found for axis=Z raycast. Provide viewId or open a 3D view.");
 
-        // axis=Z supports only host setB (linked setB requires RevitLinkReference handling).
         var setBHostItems = setB.Where(i => i.Source == "host").ToList();
-        if (setBHostItems.Count == 0)
-            throw new RevitCommandException("invalid_parameter",
-                "axis=Z requires setB elements from the host model (source='host').");
+        var setBLinkItems = setB.Where(i => i.Source == "link").ToList();
+        var hasLinkedB    = setBLinkItems.Count > 0;
+        var hasHostB      = setBHostItems.Count > 0;
 
-        var setBIds = setBHostItems.Select(i => new ElementId(i.Id)).ToList();
-        var setBIdSet = new HashSet<long>(setBHostItems.Select(i => i.Id));
-        var setBLookup = setBHostItems.ToDictionary(i => i.Id);
+        if (!hasHostB && !hasLinkedB)
+            throw new RevitCommandException("invalid_parameter", "setB has no elements.");
 
-        var ri = new ReferenceIntersector(setBIds, FindReferenceTarget.Face, view3d);
-        ri.FindReferencesInRevitLinks = false;
+        // ID sets for post-filtering hits
+        var setBHostIdSet   = new HashSet<long>(setBHostItems.Select(i => i.Id));
+        var setBLinkIdSet   = new HashSet<long>(setBLinkItems.Select(i => i.Id));
+        var setBLinkInstIds = new HashSet<long>(
+            setBLinkItems.Where(i => i.LinkId.HasValue).Select(i => i.LinkId!.Value));
+        var setBLookup = setB.ToDictionary(i => i.Id);
+
+        // Build ReferenceIntersector
+        ReferenceIntersector ri;
+        if (hasHostB && !hasLinkedB)
+        {
+            // Original fast path: target specific host element IDs
+            var setBHostIds = setBHostItems.Select(i => new ElementId(i.Id)).ToList();
+            ri = new ReferenceIntersector(setBHostIds, FindReferenceTarget.Face, view3d);
+            ri.FindReferencesInRevitLinks = false;
+        }
+        else
+        {
+            // Linked setB (or mixed): use category filter, post-filter by element ID.
+            // ReferenceIntersector.FindReferencesInRevitLinks = true lets the raycast
+            // penetrate into loaded linked files and return Reference.LinkedElementId.
+            var riFilter = BuildCategoryFilter(setBNode["categories"] as JsonArray);
+            ri = new ReferenceIntersector(riFilter, FindReferenceTarget.Face, view3d);
+            ri.FindReferencesInRevitLinks = hasLinkedB;
+        }
 
         var isDown = direction.Equals("below", StringComparison.OrdinalIgnoreCase);
         var rayDir = isDown ? XYZ.BasisZ.Negate() : XYZ.BasisZ;
@@ -272,12 +294,17 @@ public sealed class CheckClearanceCommand : IRevitCommand
             if (clashes.Count >= maxResults) break;
             if (aInfo.BboxMin == null || aInfo.BboxMax == null) continue;
 
-            // Sample sampleCount points along the element centerline (LocationCurve).
-            // Using the actual centerline XY + duct cross-section half-height gives correct
-            // clearance for sloped elements that span multiple floor slabs.
+            // Skip vertical elements (shaft-like ducts): dZ >> dXY
+            var dX = Math.Abs(aInfo.BboxMax.X - aInfo.BboxMin.X);
+            var dY = Math.Abs(aInfo.BboxMax.Y - aInfo.BboxMin.Y);
+            var dZ = Math.Abs(aInfo.BboxMax.Z - aInfo.BboxMin.Z);
+            var maxXY = Math.Max(dX, dY);
+            if (maxXY > 0 && dZ / maxXY > 1.5) continue;
+
+            // Sample sampleCount points along the element centreline (LocationCurve).
             var samplePoints = GetSamplePoints(doc, aInfo, isDown, sampleCount);
 
-            // Collect minimum proximity per hit floor across all sample points.
+            // Collect minimum proximity per hit setB element across all sample points.
             var bestPerFloor = new Dictionary<long, double>();
             foreach (var origin in samplePoints)
             {
@@ -286,12 +313,28 @@ public sealed class CheckClearanceCommand : IRevitCommand
                 catch { continue; }
                 if (hit == null) continue;
 
-                var hitId = hit.GetReference().ElementId.Value;
-                if (!setBIdSet.Contains(hitId)) continue;
-
+                var reference   = hit.GetReference();
                 var proximityMm = hit.Proximity * 304.8;
-                if (!bestPerFloor.TryGetValue(hitId, out var prev) || proximityMm < prev)
-                    bestPerFloor[hitId] = proximityMm;
+                long hitElementId;
+
+                if (reference.LinkedElementId != ElementId.InvalidElementId)
+                {
+                    // Hit landed inside a linked document
+                    var linkInstId = reference.ElementId.Value;
+                    var linkedElId = reference.LinkedElementId.Value;
+                    if (!setBLinkInstIds.Contains(linkInstId) || !setBLinkIdSet.Contains(linkedElId))
+                        continue;
+                    hitElementId = linkedElId;
+                }
+                else
+                {
+                    // Hit is a host element
+                    hitElementId = reference.ElementId.Value;
+                    if (!setBHostIdSet.Contains(hitElementId)) continue;
+                }
+
+                if (!bestPerFloor.TryGetValue(hitElementId, out var prev) || proximityMm < prev)
+                    bestPerFloor[hitElementId] = proximityMm;
             }
 
             // Emit one violation row per (setA, setB) pair under the threshold.
@@ -313,6 +356,25 @@ public sealed class CheckClearanceCommand : IRevitCommand
                 clashes.Add(clash);
             }
         }
+    }
+
+    private static ElementFilter BuildCategoryFilter(JsonArray? catArray)
+    {
+        if (catArray == null || catArray.Count == 0)
+            return new ElementIsElementTypeFilter(inverted: true); // all instances
+
+        var filters = new List<ElementFilter>();
+        foreach (var node in catArray)
+        {
+            if (node == null) continue;
+            if (Enum.TryParse<BuiltInCategory>(node.GetValue<string>(), ignoreCase: true, out var bic))
+                filters.Add(new ElementCategoryFilter(bic));
+        }
+        return filters.Count == 0
+            ? new ElementIsElementTypeFilter(inverted: true)
+            : filters.Count == 1
+                ? filters[0]
+                : (ElementFilter)new LogicalOrFilter(filters);
     }
 
     // Returns sample points along the element's centerline (LocationCurve) at the

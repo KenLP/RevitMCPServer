@@ -40,6 +40,7 @@ public sealed class CommandRegistry
         Register(new ListFamilyTypesCommand());
         Register(new ListSheetsCommand());
         Register(new ListRoomsCommand());
+        Register(new ListSpacesCommand());
         Register(new ListMaterialsCommand());
         Register(new ListPhasesCommand());
         Register(new ListViewTemplatesCommand());

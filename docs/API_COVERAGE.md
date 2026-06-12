@@ -29,7 +29,7 @@ Claude Desktop / Claude Code.
 
 ## Current command surface (v0.8.0)
 
-**66 commands** across read, write, UI, and coordination categories.
+**67 commands** across read, write, UI, and coordination categories.
 
 ### Implemented — Read / Introspection
 
@@ -52,6 +52,7 @@ Claude Desktop / Claude Code.
 | `list_materials` | All materials |
 | `list_phases` | All phases |
 | `list_rooms` | All rooms with area, level, phase |
+| `list_spaces` | All placed MEP Spaces (`OST_MEPSpaces`) — id, name, number, level, area (m²), volume (m³), spaceType |
 | `list_sheets` | All sheets |
 | `list_view_templates` | View templates |
 | `get_views` | All views with type/template/discipline |

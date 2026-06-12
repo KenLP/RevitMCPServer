@@ -99,6 +99,14 @@ server.tool("revit_list_family_types", "List FamilySymbols (types), optionally b
 
 server.tool("revit_list_sheets", "All sheets with number, name, viewport count.", {}, fwd("list_sheets"));
 server.tool("revit_list_rooms", "All placed rooms with area, number, level.", {}, fwd("list_rooms"));
+server.tool("revit_list_spaces",
+  "All placed MEP Spaces (OST_MEPSpaces) with area, volume, number, level. " +
+  "Use levelId (from revit_list_levels) to filter to a single level.",
+  {
+    levelId: z.number().int().optional().describe("ElementId of a Level — return only spaces on that level."),
+    limit: z.number().int().min(1).max(2000).optional().describe("Max spaces to return. Default 500."),
+  },
+  fwd("list_spaces"));
 server.tool("revit_list_materials", "All materials with class, category, color.", {}, fwd("list_materials"));
 server.tool("revit_list_phases", "All phases.", {}, fwd("list_phases"));
 server.tool("revit_list_view_templates", "All view templates.", {}, fwd("list_view_templates"));

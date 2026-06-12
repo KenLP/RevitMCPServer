@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.0 — 66 commands + 1 batch = 67 MCP tools.**
+> **v0.8.0 — 67 commands + 1 batch = 68 MCP tools.**
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -34,6 +34,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_list_family_types`         | `list_family_types`     | ✅        | FamilySymbols by family or category                       |
 | `revit_list_sheets`               | `list_sheets`           | ✅        | All sheets with number, name, viewport count              |
 | `revit_list_rooms`                | `list_rooms`            | ✅        | All placed rooms with area, number, level                 |
+| `revit_list_spaces`               | `list_spaces`           | ✅        | All placed MEP Spaces with area, volume, number, level    |
 | `revit_list_materials`            | `list_materials`        | ✅        | All materials                                             |
 | `revit_list_phases`               | `list_phases`           | ✅        | All phases                                                |
 | `revit_list_view_templates`       | `list_view_templates`   | ✅        | All view templates                                        |
@@ -171,6 +172,37 @@ Params: none. Returns name + id + family/elevation info as relevant.
 ### `list_categories`
 Params: none. Returns only categories with at least one instance, sorted by
 descending instance count. Cheaper than dumping every BuiltInCategory.
+
+### `list_spaces`
+List all **placed MEP Spaces** (`OST_MEPSpaces`) in the host document.
+
+Params:
+- `levelId` *(long, optional)* — filter to a single level (use `list_levels` to get ids).
+- `limit` *(int, optional, default 500, max 2000)*.
+
+Data:
+```jsonc
+{
+  "count": 14,
+  "spaces": [
+    {
+      "id": 838291,
+      "name": "P01 Parking Garage",
+      "number": "P01",
+      "levelId": 838100,
+      "levelName": "L1/Parking",
+      "area": 1948.5,
+      "areaM2": 181.07,
+      "volume": 17536.5,
+      "volumeM3": 496.72,
+      "spaceType": "NormalSpace"
+    }
+  ]
+}
+```
+
+> Only spaces with `Area > 0` (placed, not unplaced) are returned.
+> `area` / `volume` are in Revit internal units (ft² / ft³); `areaM2` / `volumeM3` are in m².
 
 ---
 
