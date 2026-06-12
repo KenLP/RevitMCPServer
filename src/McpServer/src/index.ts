@@ -485,11 +485,12 @@ const elementSetSchemaB = elementSetSchema.extend({});
 
 server.tool("revit_check_clearance",
   "Detect hard clashes or clearance violations between two element sets (host or linked files). " +
-  "axis='bbox' (default): inflates setA bounding boxes by clearanceMm in all directions. " +
-  "axis='Z': raycasts vertically from each setA element to find the nearest setB element; " +
-  "reports actual clearance distance — use direction='below' (MEP→floor) or 'above' (MEP→ceiling). " +
-  "clearanceMm=0 + axis='bbox' → hard clash only (solid intersection for host-vs-host). " +
-  "Example: setA = HVAC ducts in linked file, setB = floors in host, axis='Z', direction='below', clearanceMm=300.",
+  "axis='bbox' (default): inflates setA bounding boxes by clearanceMm in all directions — use for omnidirectional proximity checks (e.g. 1m clear zone around a door). " +
+  "axis='Z': fires a vertical ReferenceIntersector raycast from each setA element and automatically finds the nearest setB element directly below or above it; " +
+  "reports the actual measured clearance — use direction='below' (duct→floor below) or 'above' (duct→ceiling above). " +
+  "IMPORTANT for axis='Z': do NOT manually fetch or enumerate setB elements first — just pass a category filter in setB and let the raycast locate the nearest hit automatically. Fetching all setB elements and comparing manually is unnecessary, slow, and wrong. " +
+  "clearanceMm=0 + axis='bbox' → hard clash only. " +
+  "Example: setA = HVAC ducts (host), setB = floors in Arch link, axis='Z', direction='below', clearanceMm=2400.",
   {
     setA: elementSetSchema,
     setB: elementSetSchemaB,
