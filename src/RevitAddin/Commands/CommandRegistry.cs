@@ -95,6 +95,9 @@ public sealed class CommandRegistry
         Register(new SetViewDetailLevelCommand());
         Register(new HideElementsInViewCommand());
         Register(new UnhideElementsInViewCommand());
+        Register(new IsolateElementsInViewCommand());
+        Register(new DuplicateViewCommand());
+        Register(new SetSectionBoxCommand());
         Register(new SelectElementsCommand());
         Register(new ZoomToElementsCommand());
         Register(new ApplyViewFilterCommand());

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.7.0
+## Current status — v0.8.0
 
 | Phase | Version | Status |
 |---|---|---|
@@ -15,6 +15,7 @@
 | Release tooling (build script, install/uninstall, compat matrix, troubleshooting) | v0.5.0 | ✅ Done |
 | Correctness & API hardening (batch policy, spec-aware units, domain errors, CI R2027) | v0.6.0 | ✅ Done |
 | Linked-file element reading, clash/clearance detection, view image export, R2025 | v0.7.0 | ✅ Done |
+| View manipulation (duplicate_view, set_section_box, isolate_elements_in_view) + check_clearance Z-raycast with multi-point centreline sampling | v0.8.0 | ✅ Done |
 
 ## Near-term backlog
 
@@ -42,5 +43,5 @@
 - `get_schedule_data` — read rendered schedule rows as JSON
 - MEP element creation (`create_duct`, `create_pipe`, `create_mep_system`)
 - IFC export
-- Solid-based clearance check (upgrade `check_clearance` cross-doc path from AABB to geometry)
+- Solid-based clearance check (upgrade `check_clearance` `axis="bbox"` cross-doc path from AABB to geometry for fewer false positives)
 - Hot-reload without restarting Revit (AppDomain research)

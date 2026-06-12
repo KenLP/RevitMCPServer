@@ -396,6 +396,43 @@ server.tool("revit_unhide_elements_in_view", "Unhide elements in a view.", {
   dryRun: dryRunField,
 }, fwdWrite("unhide_elements_in_view"));
 
+server.tool("revit_isolate_elements_in_view",
+  "Temporarily isolate HOST elements in a view (cyan 'Isolate Element' mode). Pass reset=true to clear. " +
+  "NOTE: host-document elements only — cannot keep individual linked-file elements (isolating host hides the whole link). " +
+  "For a region spanning host + linked geometry, use revit_set_section_box instead.",
+  {
+    ids: idsField.optional(),
+    viewId: z.number().int().optional(),
+    reset: z.boolean().optional().describe("Clear the temporary hide/isolate state instead of isolating. Default false."),
+  },
+  fwd("isolate_elements_in_view"));
+
+server.tool("revit_duplicate_view",
+  "Duplicate a view (preserving its template, filters, and overrides). Returns the new view id. " +
+  "Use to make a throwaway inspection copy of an already-filtered view before section-boxing it.",
+  {
+    viewId: z.number().int().describe("Source view to duplicate."),
+    duplicateOption: z.enum(["Duplicate", "WithDetailing", "AsDependent"]).optional().describe("Duplicate mode. Default 'Duplicate'."),
+    newName: z.string().optional().describe("Rename the new view."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("duplicate_view"));
+
+server.tool("revit_set_section_box",
+  "Set or clear the section box of a 3D view, cropping it to a bounding region. " +
+  "Crops ALL geometry including linked files — the reliable way to isolate a clearance region spanning host + linked MEP. " +
+  "Provide min/max corners (default units 'feet', matching get_linked_elements bboxes); enable=false deactivates the box.",
+  {
+    viewId: z.number().int().optional().describe("3D view id. Defaults to active view; must be a View3D."),
+    min: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Lower corner {x,y,z}. Required unless enable=false."),
+    max: z.object({ x: z.number(), y: z.number(), z: z.number() }).optional().describe("Upper corner {x,y,z}. Required unless enable=false."),
+    units: z.enum(["feet", "mm", "meters"]).optional().describe("Units of min/max. Default 'feet'."),
+    paddingMm: z.number().optional().describe("Expand the box outward on all sides, in mm. Default 0."),
+    enable: z.boolean().optional().describe("false deactivates the section box. Default true."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("set_section_box"));
+
 server.tool("revit_select_elements", "Set the selection in Revit UI.", {
   ids: idsField,
 }, fwdWrite("select_elements"));
@@ -435,16 +472,24 @@ const elementSetSchema = z.object({
   categories: z.array(z.string()).optional().describe("BuiltInCategory names to include, e.g. ['OST_DuctCurves', 'OST_PipeCurves']. Empty = all element types."),
   limit: z.number().int().min(1).max(2000).optional().describe("Max elements to load from this set. Default 500."),
 });
+// Separate object reference for setB to prevent MCP SDK JSON Schema deduplication (setB would render as {} otherwise).
+const elementSetSchemaB = elementSetSchema.extend({});
 
 server.tool("revit_check_clearance",
   "Detect hard clashes or clearance violations between two element sets (host or linked files). " +
-  "clearanceMm=0 → hard clash (solid intersection for host-vs-host, bbox for cross-doc). " +
-  "clearanceMm>0 → flags pairs whose bounding boxes overlap after inflating setA by that margin. " +
-  "Example: setA = MEP ducts in linked file, setB = structural beams in host, clearanceMm = 50.",
+  "axis='bbox' (default): inflates setA bounding boxes by clearanceMm in all directions. " +
+  "axis='Z': raycasts vertically from each setA element to find the nearest setB element; " +
+  "reports actual clearance distance — use direction='below' (MEP→floor) or 'above' (MEP→ceiling). " +
+  "clearanceMm=0 + axis='bbox' → hard clash only (solid intersection for host-vs-host). " +
+  "Example: setA = HVAC ducts in linked file, setB = floors in host, axis='Z', direction='below', clearanceMm=300.",
   {
     setA: elementSetSchema,
-    setB: elementSetSchema,
-    clearanceMm: z.number().min(0).optional().describe("Clearance margin in mm. 0 = hard clash only. Default 0."),
+    setB: elementSetSchemaB,
+    axis: z.enum(["bbox", "Z"]).optional().describe("Clearance axis. 'bbox'=inflate AABB (default). 'Z'=vertical raycast (accurate, requires a 3D view)."),
+    direction: z.enum(["below", "above"]).optional().describe("Ray direction for axis=Z. 'below'=cast downward from setA bottom (MEP→floor). 'above'=cast upward from setA top (MEP→ceiling). Default 'below'."),
+    viewId: z.number().int().optional().describe("ElementId of a 3D view for axis=Z raycast. Uses active view if omitted."),
+    clearanceMm: z.number().min(0).optional().describe("Clearance threshold in mm. Violations reported when measured distance < clearanceMm. Default 0."),
+    sampleCount: z.number().int().min(1).max(10).optional().describe("axis=Z only: number of points sampled along each element's centreline (LocationCurve). Default 3 (start/mid/end). Increase to 5 for long sloped elements spanning multiple floor slabs."),
     maxResults: z.number().int().min(1).max(2000).optional().describe("Clash pairs cap. Default 200."),
   },
   fwd("check_clearance"));

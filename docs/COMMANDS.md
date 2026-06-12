@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.7.0 — 63 commands + 1 batch = 64 MCP tools.**
+> **v0.8.0 — 66 commands + 1 batch = 67 MCP tools.**
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -77,10 +77,13 @@ The HTTP command name is the name without the prefix (used in
 | `revit_color_override_by_param`   | `color_override_by_param`| ❌       | Per-bucket color overrides by parameter value             |
 | `revit_hide_elements_in_view`     | `hide_elements_in_view` | ❌        | Hide by ids in view                                       |
 | `revit_unhide_elements_in_view`   | `unhide_elements_in_view`| ❌       | Unhide by ids in view                                     |
+| `revit_duplicate_view`            | `duplicate_view`        | ❌        | Duplicate a view (with or without detailing / as dependent) |
+| `revit_set_section_box`           | `set_section_box`       | ❌        | Set and activate the section box on a 3D view             |
 | `revit_open_view`                 | `open_view`             | UI        | Activate a view in the UI                                 |
 | `revit_select_elements`           | `select_elements`       | UI        | Set UIDocument selection                                  |
 | `revit_zoom_to_elements`          | `zoom_to_elements`      | UI        | Fit view to element bounding box                          |
 | `revit_set_view_detail_level`     | `set_view_detail_level` | UI        | Set view detail level                                     |
+| `revit_isolate_elements_in_view`  | `isolate_elements_in_view` | UI     | Isolate (or reset) host elements in the active or given view |
 | `revit_batch`                     | (POST `/mcp/batch`)     | ❌*       | Run multiple sub-commands in one Transaction              |
 
 \* Batch is read-only iff every step is read-only. UI-only batches skip the Transaction.
@@ -332,18 +335,23 @@ Data:
 Detect hard clashes or minimum-clearance violations between two sets of
 elements. Each set can come from the host document or from a linked file.
 
-**Algorithm:**
+**Algorithm — selected with `axis` param:**
 
-| Scenario | Method |
-|---|---|
-| Both sets are host elements **and** `clearanceMm = 0` | `ElementIntersectsElementFilter` (solid-based, exact) |
-| Any other case (cross-doc, clearance > 0) | AABB inflation loop — fast, conservative |
+| `axis` | Method | Best for |
+|---|---|---|
+| `"bbox"` *(default)* | AABB inflation loop — fast, conservative | Quick cross-category sweep; may false-positive on rotated elements |
+| `"Z"` | `ReferenceIntersector` vertical raycast from element cross-section | MEP vs structural (ducts/pipes below floor slabs); XY-accurate, handles multi-block buildings |
 
 Params:
 - `setA` *(object, required)* — first element set (see below).
 - `setB` *(object, required)* — second element set (see below).
 - `clearanceMm` *(number, optional, default 0)* — required gap in mm.
   `0` = hard clash only. E.g. `50` = report any pair closer than 50 mm.
+- `axis` *(`"bbox"` | `"Z"`, optional, default `"bbox"`)* — algorithm selector.
+- `direction` *(`"below"` | `"above"`, optional, default `"below"`)* — raycast direction when `axis="Z"`. Use `"above"` to check clearance above an element (e.g. duct vs ceiling).
+- `viewId` *(long, required when `axis="Z"`)* — element id of a 3D view whose visibility determines what the raycast can hit. The view must have both element sets visible.
+- `sampleCount` *(int 1–10, optional, default 3)* — `axis="Z"` only: number of points sampled along each element's centreline (`LocationCurve`). Default `3` (start/mid/end). Increase to `5` for long sloped elements spanning multiple floor slabs.
+- `maxResults` *(int, optional, default 200)* — cap on violations returned.
 
 Each element-set object:
 ```jsonc
@@ -355,7 +363,7 @@ Each element-set object:
 }
 ```
 
-Data:
+Data (`axis="bbox"`):
 ```jsonc
 {
   "clearanceMm": 50,
@@ -373,12 +381,130 @@ Data:
 }
 ```
 
-`gapMm` is negative for hard clashes (overlap depth in mm), zero at exact
-contact, positive when a clearance gap exists (should not appear in results).
+Data (`axis="Z"`):
+```jsonc
+{
+  "clearanceMm": 150,
+  "algorithm": "raycast_Z",
+  "method": "ReferenceIntersectorZ",
+  "sampleCount": 3,
+  "setACount": 84,
+  "setBCount": 12,
+  "clashCount": 16,
+  "clashes": [
+    {
+      "elementA": { "id": 580423, "name": "Rectangular Duct : 600x400", "source": "host" },
+      "elementB": { "id": 312880, "name": "Floor : 200mm Concrete", "source": "host" },
+      "clearanceActualMm": 87.3
+    }
+  ]
+}
+```
 
-> **Note:** The AABB path uses axis-aligned bounding-box approximations —
-> it may produce false positives for rotated or curved elements. A solid-based
-> upgrade is planned for a future release.
+`gapMm` (bbox mode) is negative for hard clashes (overlap depth in mm).
+`clearanceActualMm` (Z-raycast mode) is the measured gap between the element's
+cross-section face and the hit surface.
+
+> **axis=Z notes:**
+> - Vertical elements (`dZ / max(dX,dY) > 1.5`) are automatically excluded.
+> - Requires a 3D view (`viewId`) that has both element sets visible — the
+>   raycast only hits geometry visible in that view.
+> - Uses `RBS_CURVE_HEIGHT_PARAM` / `RBS_CURVE_DIAMETER_PARAM` for accurate
+>   cross-section half-height on MEP curves, regardless of duct slope.
+>
+> **axis=bbox note:** Uses AABB approximations — may produce false positives
+> for rotated or curved elements. A solid-based upgrade is planned.
+
+---
+
+## View manipulation
+
+### `duplicate_view`
+
+Duplicate a view, optionally renaming it.
+
+Params:
+- `viewId` *(long, required)* — id of the view to duplicate.
+- `duplicateOption` *(`"Duplicate"` | `"WithDetailing"` | `"AsDependent"`, optional, default `"WithDetailing"`)* — Revit duplicate mode.
+  - `"Duplicate"` — geometry only (no annotations/tags).
+  - `"WithDetailing"` — geometry + view-specific annotations and tags.
+  - `"AsDependent"` — creates a dependent child view (crop region subset).
+- `newName` *(string, optional)* — rename the copy after creation. If omitted, Revit assigns a default name ("Copy of …").
+
+Data:
+```jsonc
+{
+  "originalViewId": 1550525,
+  "newViewId": 1551820,
+  "newViewName": "3D HVAC Clearance Check",
+  "duplicateOption": "WithDetailing"
+}
+```
+
+Error codes:
+- `not_found` — `viewId` does not exist.
+- `cannot_duplicate` — the view type does not support the requested option (e.g. `AsDependent` on a 3D view).
+
+---
+
+### `set_section_box`
+
+Set (and activate) the section-box crop on a 3D view. Pass `enable: false` to
+turn the section box off without changing its bounds.
+
+Params:
+- `viewId` *(long, required)* — must be a `View3D`.
+- `min` *({x,y,z}, required)* — minimum corner of the box.
+- `max` *({x,y,z}, required)* — maximum corner of the box.
+- `units` *(`"feet"` | `"mm"` | `"meters"`, optional, default `"feet"`)* — coordinate units.
+- `paddingMm` *(number, optional, default 0)* — uniform outward padding applied to all six faces after unit conversion.
+- `enable` *(bool, optional, default `true`)* — set `false` to disable the section box (bounds are updated but `IsSectionBoxActive` is set to `false`).
+
+Data:
+```jsonc
+{
+  "viewId": 1551820,
+  "viewName": "3D HVAC Clearance Check",
+  "sectionBoxActive": true,
+  "minFeet": { "x": 10.5, "y": 22.1, "z": -1.0 },
+  "maxFeet": { "x": 28.3, "y": 45.0, "z": 12.5 }
+}
+```
+
+> **Linked elements:** the section box crops geometry spatially — it affects
+> both host and linked content within the cropped volume. You cannot isolate
+> individual elements inside a linked file using this command; use the section
+> box as a spatial workaround.
+
+---
+
+### `isolate_elements_in_view`
+
+Isolate (or reset) elements in a view using Revit's built-in temporary
+isolation (equivalent to the "Isolate Element" UI action).
+
+Params:
+- `ids` *(long[], required unless `reset=true`)* — host element ids to isolate.
+- `viewId` *(long, optional)* — view to apply isolation in. Defaults to the
+  currently active view if omitted.
+- `reset` *(bool, optional, default `false`)* — pass `true` to exit temporary
+  isolation mode (equivalent to "Reset Temporary Hide/Isolate").
+
+Data:
+```jsonc
+{
+  "viewId": 1551820,
+  "isolatedCount": 5,
+  "reset": false
+}
+```
+
+> **Limitation:** isolation is host-document elements only. Individual elements
+> inside a linked RVT cannot be isolated — use `set_section_box` to spatially
+> crop the view to the area of interest instead.
+
+> **ExecutionKind:** `UiAction` — no model transaction is opened; the change
+> is immediately visible in the UI but is not part of the undo stack.
 
 ---
 
@@ -483,7 +609,7 @@ at runtime.
 {
   "ok": true,
   "data": {
-    "count": 63,
+    "count": 66,
     "commands": [
       { "name": "ping",           "isReadOnly": true,  "riskLevel": "read",   "executionKind": "ReadOnly"   },
       { "name": "set_parameter",  "isReadOnly": false, "riskLevel": "medium", "executionKind": "ModelWrite" },

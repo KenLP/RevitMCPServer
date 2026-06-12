@@ -11,16 +11,30 @@ namespace RevitMCPAddin.Commands;
 /// Supports host-only and cross-linked-file checks.
 ///
 /// Params:
-///   - setA:  { source: "host"|"link", linkId?: long, categories?: string[], limit?: int }
-///   - setB:  same structure
-///   - clearanceMm: double, optional, default 0 (= hard clash only).
-///             When > 0, flags any pair whose bounding boxes overlap after inflating
-///             setA bboxes by this margin in all directions.
-///   - maxResults: int, optional, default 200.
+///   - setA:        { source: "host"|"link", linkId?: long, categories?: string[], limit?: int }
+///   - setB:        same structure
+///   - axis:        "bbox" (default) | "Z"
+///   - direction:   "below" (default) | "above"  — only used when axis="Z"
+///   - viewId:      ElementId of a View3D for raycast — required when axis="Z"
+///   - clearanceMm: double, optional, default 0.
+///                  bbox mode: flags pairs whose AABB overlaps after inflating setA by this margin.
+///                  Z mode:    flags pairs where measured vertical distance < clearanceMm.
+///   - sampleCount: int, optional, default 3 (range 1–10). axis=Z only.
+///                  Number of points sampled along the element's centerline (LocationCurve).
+///                  Use 3 for most cases; increase to 5 for long sloped elements spanning
+///                  multiple floor slabs.  Falls back to a single bbox-centre point for
+///                  elements without a LocationCurve.
+///   - maxResults:  int, optional, default 200.
 ///
-/// Method:
-///   - host-vs-host + clearanceMm = 0: Revit's ElementIntersectsElementFilter (exact, solid-based).
-///   - all other cases: AABB overlap with clearance inflation (conservative, cross-doc safe).
+/// Methods:
+///   - axis=bbox, host-vs-host, clearanceMm=0: ElementIntersectsElementFilter (exact solid-based).
+///   - axis=bbox, otherwise:                   AABB inflation (conservative, cross-doc safe).
+///   - axis=Z:                                 ReferenceIntersector vertical raycast per setA element.
+///                                             Samples sampleCount points along the centerline.
+///                                             Reports clearanceActualMm for each hit.
+///                                             One violation row per (setA, setB) pair that
+///                                             falls below the threshold across any sample point.
+///                                             setB must be from host model.
 /// </summary>
 public sealed class CheckClearanceCommand : IRevitCommand
 {
@@ -42,6 +56,10 @@ public sealed class CheckClearanceCommand : IRevitCommand
         var clearanceMm = P.DblOr(p, "clearanceMm", 0.0);
         var maxResults = Math.Clamp(P.IntOr(p, "maxResults", 200), 1, 2000);
         var clearanceFt = clearanceMm / 304.8;
+        var axis = p["axis"]?.GetValue<string>() ?? "bbox";
+        var direction = p["direction"]?.GetValue<string>() ?? "below";
+        var viewIdNode = p["viewId"];
+        var sampleCount = Math.Clamp(P.IntOr(p, "sampleCount", 3), 1, 10);
 
         var setAItems = CollectItems(doc, setANode);
         var setBItems = CollectItems(doc, setBNode);
@@ -49,22 +67,39 @@ public sealed class CheckClearanceCommand : IRevitCommand
         var sourceA = setANode["source"]?.GetValue<string>() ?? "host";
         var sourceB = setBNode["source"]?.GetValue<string>() ?? "host";
         var bothHost = sourceA == "host" && sourceB == "host";
-        var useNative = bothHost && clearanceMm == 0.0;
+
+        var useRaycast = axis.Equals("Z", StringComparison.OrdinalIgnoreCase);
+        var useNative = !useRaycast && bothHost && clearanceMm == 0.0;
 
         var clashes = new JsonArray();
         var seen = new HashSet<(long, long)>();
 
-        if (useNative)
+        string method;
+        if (useRaycast)
+        {
+            RunRaycastClash(doc, setAItems, setBItems, clearanceMm, direction, viewIdNode, maxResults, sampleCount, clashes, seen);
+            method = "ReferenceIntersectorZ";
+        }
+        else if (useNative)
+        {
             RunNativeClash(doc, setAItems, setBItems, maxResults, clashes, seen);
+            method = "ElementIntersectsElementFilter";
+        }
         else
+        {
             RunBboxClash(setAItems, setBItems, clearanceFt, maxResults, clashes, seen);
+            method = "BoundingBoxIntersection";
+        }
 
         return new JsonObject
         {
             ["clashCount"] = clashes.Count,
             ["clearanceMm"] = clearanceMm,
             ["limited"] = clashes.Count >= maxResults,
-            ["method"] = useNative ? "ElementIntersectsElementFilter" : "BoundingBoxIntersection",
+            ["method"] = method,
+            ["axis"] = axis,
+            ["direction"] = useRaycast ? direction : null,
+            ["sampleCount"] = useRaycast ? sampleCount : (int?)null,
             ["clashes"] = clashes,
         };
     }
@@ -190,6 +225,145 @@ public sealed class CheckClearanceCommand : IRevitCommand
             }
             catch { /* element has no solid geometry — skip */ }
         }
+    }
+
+    private static void RunRaycastClash(
+        Document doc,
+        List<ElementInfo> setA, List<ElementInfo> setB,
+        double clearanceMm, string direction,
+        JsonNode? viewIdNode,
+        int maxResults,
+        int sampleCount,
+        JsonArray clashes, HashSet<(long, long)> seen)
+    {
+        // Resolve View3D — required by ReferenceIntersector.
+        View3D? view3d = null;
+        if (viewIdNode != null)
+            view3d = doc.GetElement(new ElementId(viewIdNode.GetValue<long>())) as View3D;
+        if (view3d == null)
+            view3d = doc.ActiveView as View3D;
+        if (view3d == null)
+            view3d = new FilteredElementCollector(doc)
+                .OfClass(typeof(View3D))
+                .Cast<View3D>()
+                .FirstOrDefault(v => !v.IsTemplate);
+        if (view3d == null)
+            throw new RevitCommandException("invalid_parameter",
+                "No 3D view found for axis=Z raycast. Provide viewId or open a 3D view.");
+
+        // axis=Z supports only host setB (linked setB requires RevitLinkReference handling).
+        var setBHostItems = setB.Where(i => i.Source == "host").ToList();
+        if (setBHostItems.Count == 0)
+            throw new RevitCommandException("invalid_parameter",
+                "axis=Z requires setB elements from the host model (source='host').");
+
+        var setBIds = setBHostItems.Select(i => new ElementId(i.Id)).ToList();
+        var setBIdSet = new HashSet<long>(setBHostItems.Select(i => i.Id));
+        var setBLookup = setBHostItems.ToDictionary(i => i.Id);
+
+        var ri = new ReferenceIntersector(setBIds, FindReferenceTarget.Face, view3d);
+        ri.FindReferencesInRevitLinks = false;
+
+        var isDown = direction.Equals("below", StringComparison.OrdinalIgnoreCase);
+        var rayDir = isDown ? XYZ.BasisZ.Negate() : XYZ.BasisZ;
+
+        foreach (var aInfo in setA)
+        {
+            if (clashes.Count >= maxResults) break;
+            if (aInfo.BboxMin == null || aInfo.BboxMax == null) continue;
+
+            // Sample sampleCount points along the element centerline (LocationCurve).
+            // Using the actual centerline XY + duct cross-section half-height gives correct
+            // clearance for sloped elements that span multiple floor slabs.
+            var samplePoints = GetSamplePoints(doc, aInfo, isDown, sampleCount);
+
+            // Collect minimum proximity per hit floor across all sample points.
+            var bestPerFloor = new Dictionary<long, double>();
+            foreach (var origin in samplePoints)
+            {
+                ReferenceWithContext? hit;
+                try { hit = ri.FindNearest(origin, rayDir); }
+                catch { continue; }
+                if (hit == null) continue;
+
+                var hitId = hit.GetReference().ElementId.Value;
+                if (!setBIdSet.Contains(hitId)) continue;
+
+                var proximityMm = hit.Proximity * 304.8;
+                if (!bestPerFloor.TryGetValue(hitId, out var prev) || proximityMm < prev)
+                    bestPerFloor[hitId] = proximityMm;
+            }
+
+            // Emit one violation row per (setA, setB) pair under the threshold.
+            foreach (var (hitFloorId, proximityMm) in bestPerFloor)
+            {
+                if (clashes.Count >= maxResults) break;
+                if (proximityMm >= clearanceMm) continue;
+                if (!seen.Add(MakeKey(aInfo.Id, hitFloorId))) continue;
+
+                setBLookup.TryGetValue(hitFloorId, out var bInfo);
+                if (bInfo == null)
+                {
+                    var el = doc.GetElement(new ElementId(hitFloorId));
+                    bInfo = new ElementInfo(hitFloorId, el?.Name ?? "", el?.Category?.Name, null, null, "host", null);
+                }
+
+                var clash = MakeClashResult(aInfo, bInfo, "clearance_violation");
+                clash["clearanceActualMm"] = Math.Round(proximityMm, 1);
+                clashes.Add(clash);
+            }
+        }
+    }
+
+    // Returns sample points along the element's centerline (LocationCurve) at the
+    // duct's bottom face (isDown=true) or top face (isDown=false).
+    // Falls back to a single bbox-centre point for elements without a LocationCurve.
+    private static List<XYZ> GetSamplePoints(Document doc, ElementInfo info, bool isDown, int sampleCount)
+    {
+        var halfH = GetHalfSectionHeight(doc, info);
+
+        try
+        {
+            var el = doc.GetElement(new ElementId(info.Id));
+            if (el?.Location is LocationCurve lc && lc.Curve.IsBound)
+            {
+                var curve = lc.Curve;
+                var pts = new List<XYZ>(sampleCount);
+                for (var i = 0; i < sampleCount; i++)
+                {
+                    var t = sampleCount == 1 ? 0.5 : (double)i / (sampleCount - 1);
+                    var pt = curve.Evaluate(t, true); // normalized parameter [0..1]
+                    pts.Add(new XYZ(pt.X, pt.Y, isDown ? pt.Z - halfH : pt.Z + halfH));
+                }
+                return pts;
+            }
+        }
+        catch { /* fall through */ }
+
+        // Fallback: single point from bbox centre / bottom / top.
+        var originZ = isDown ? info.BboxMin!.Z : info.BboxMax!.Z;
+        return new List<XYZ>
+        {
+            new XYZ(
+                (info.BboxMin!.X + info.BboxMax!.X) / 2.0,
+                (info.BboxMin!.Y + info.BboxMax!.Y) / 2.0,
+                originZ)
+        };
+    }
+
+    // Returns the half-height of the element's cross-section (perpendicular to its axis).
+    // Reads RBS duct/pipe parameters for MEPCurves; falls back to half the bbox Z extent.
+    private static double GetHalfSectionHeight(Document doc, ElementInfo info)
+    {
+        if (doc.GetElement(new ElementId(info.Id)) is MEPCurve mep)
+        {
+            var hp = mep.get_Parameter(BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
+            if (hp?.HasValue == true) return hp.AsDouble() / 2.0;
+
+            var dp = mep.get_Parameter(BuiltInParameter.RBS_CURVE_DIAMETER_PARAM);
+            if (dp?.HasValue == true) return dp.AsDouble() / 2.0;
+        }
+        return (info.BboxMax!.Z - info.BboxMin!.Z) / 2.0;
     }
 
     private static void RunBboxClash(

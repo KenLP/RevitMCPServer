@@ -27,9 +27,9 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.7.0)
+## Current command surface (v0.8.0)
 
-**63 commands** across read, write, UI, and coordination categories.
+**66 commands** across read, write, UI, and coordination categories.
 
 ### Implemented — Read / Introspection
 
@@ -99,12 +99,14 @@ Claude Desktop / Claude Code.
 | `hide_elements_in_view` | Hide by ids in view |
 | `unhide_elements_in_view` | Unhide by ids in view |
 | `create_opening_in_wall` | Rectangular wall opening |
+| `duplicate_view` | Duplicate a view (Duplicate / WithDetailing / AsDependent modes) |
+| `set_section_box` | Set and activate section-box crop on a 3D view |
 
 ### Implemented — Coordination / Clash Detection
 
 | Command | Notes |
 |---|---|
-| `check_clearance` | Hard clash (`ElementIntersectsElementFilter`, solid-based) for host-vs-host; AABB + clearance inflation for cross-linked-file checks |
+| `check_clearance` | Two algorithms: `axis="bbox"` (AABB inflation, conservative) and `axis="Z"` (`ReferenceIntersector` vertical raycast, XY-accurate). Z-mode supports multi-point centreline sampling (`sampleCount`, default 3) and handles sloped MEP elements and multi-block buildings correctly. |
 
 ### Implemented — UI Actions (no model transaction)
 
@@ -114,6 +116,7 @@ Claude Desktop / Claude Code.
 | `select_elements` | Set UIDocument selection |
 | `zoom_to_elements` | Fit view to element bounding box |
 | `set_view_detail_level` | Set view detail level |
+| `isolate_elements_in_view` | Isolate (or reset) host elements in a view — UiAction, no transaction |
 
 ## Cross-version support
 
