@@ -481,6 +481,19 @@ const elementSetSchema = z.object({
   limit: z.number().int().min(1).max(2000).optional().describe("Max elements to load from this set. Default 500."),
   scopeId: z.number().int().optional().describe("ElementId of any spatial container — MEP Space (revit_list_spaces), Room (revit_list_rooms), Floor, equipment, or any element with a bounding box. Only elements whose centroid falls inside that element's bbox are included. Omit to check all elements of the category in the model."),
 });
+server.tool("revit_override_element_graphics",
+  "Apply per-element color and fill overrides to specific elements in a view. " +
+  "Use to highlight violations (e.g. red for clashing furniture, gray for doors). " +
+  "Pass reset=true to clear overrides. Works on any element type in any view.",
+  {
+    viewId: z.number().int().describe("ElementId of the view to override in."),
+    elementIds: z.array(z.number().int()).min(1).describe("Element IDs to override."),
+    color: z.object({ r: z.number().int().min(0).max(255), g: z.number().int().min(0).max(255), b: z.number().int().min(0).max(255) }).optional().describe("RGB color. Default red (255,0,0)."),
+    transparency: z.number().int().min(0).max(100).optional().describe("Surface transparency 0–100%. Default 0."),
+    reset: z.boolean().optional().describe("If true, clear all overrides for the given elements. Default false."),
+  },
+  fwdWrite("override_element_graphics"));
+
 // Separate object reference for setB to prevent MCP SDK JSON Schema deduplication (setB would render as {} otherwise).
 const elementSetSchemaB = elementSetSchema.extend({});
 

@@ -104,6 +104,8 @@ public sealed class CommandRegistry
         Register(new ApplyViewFilterCommand());
         Register(new ColorOverrideByParamCommand());
 
+        Register(new OverrideElementGraphicsCommand());
+
         // === Coordination / clash ===
         Register(new CheckClearanceCommand());
     }
