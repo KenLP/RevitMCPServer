@@ -238,6 +238,18 @@ public sealed class McpHttpServer
         var parameters = envelope["params"] as JsonObject;
         var dryRun = ParseDryRun(request, envelope);
 
+        // "batch" is not a registered IRevitCommand — it is a transport-level
+        // dispatch primitive.  When a client posts  POST /mcp {command:"batch"}
+        // (e.g. bim-orchestrator strips the revit_ prefix from revit_batch),
+        // we parse the steps from params and delegate to the batch handler so
+        // that both POST /mcp (with command:"batch") and POST /mcp/batch are
+        // equivalent.  This closes the stdio ↔ HTTP parity gap.
+        if (string.Equals(commandName, "batch", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleSingleAsBatchAsync(request, response, parameters, dryRun).ConfigureAwait(false);
+            return;
+        }
+
         JsonObject result;
         try
         {
@@ -249,6 +261,75 @@ public sealed class McpHttpServer
         }
 
         await WriteJsonAsync(response, StatusForResult(result), result).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Handles POST /mcp {command:"batch", params:{steps:[...], stopOnError?:bool}}
+    /// by parsing the steps from params and routing to <see cref="HandleBatchAsync"/>.
+    /// Keeps stdio ↔ HTTP-direct parity: the orchestrator strips the revit_ prefix
+    /// and always posts to /mcp, never to /mcp/batch.
+    /// </summary>
+    private async Task HandleSingleAsBatchAsync(
+        HttpListenerRequest request,
+        HttpListenerResponse response,
+        JsonObject? parameters,
+        bool dryRun)
+    {
+        var (steps, stopOnError, error) = ParseBatchParams(parameters);
+        if (error is not null)
+        {
+            await WriteJsonAsync(response, 400,
+                JsonResult.Error("bad_request", error))
+                .ConfigureAwait(false);
+            return;
+        }
+
+        JsonObject result;
+        try
+        {
+            result = await _handler.EnqueueBatchAsync(steps!, stopOnError, dryRun).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            result = JsonResult.Error("dispatch_failed", ex.Message, ex.GetType().FullName);
+        }
+
+        await WriteJsonAsync(response, StatusForResult(result), result).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parses the steps array and stopOnError flag from the <c>params</c> object of a
+    /// POST /mcp {command:"batch"} request.  Exposed as <c>internal</c> for unit testing
+    /// without spinning up an HttpListener.
+    /// Returns (steps, stopOnError, null) on success, or (null, _, errorMessage) on failure.
+    /// </summary>
+    internal static (List<BatchStep>? Steps, bool StopOnError, string? Error)
+        ParseBatchParams(JsonObject? parameters)
+    {
+        if (parameters?["steps"] is not JsonArray stepsArray)
+            return (null, true, "Batch command requires params.steps array.");
+
+        var stopOnError = parameters["stopOnError"]?.GetValue<bool>() ?? true;
+        var steps = new List<BatchStep>(stepsArray.Count);
+
+        foreach (var node in stepsArray)
+        {
+            if (node is not JsonObject step)
+                return (null, stopOnError, "Each step must be an object.");
+
+            var name = step["command"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(name))
+                return (null, stopOnError, "Each step must have a 'command' field.");
+
+            var paramsObj = step["params"] as JsonObject;
+            var detachedParams = paramsObj is null
+                ? new JsonObject()
+                : JsonNode.Parse(paramsObj.ToJsonString())!.AsObject();
+
+            steps.Add(new BatchStep(name!, detachedParams));
+        }
+
+        return (steps, stopOnError, null);
     }
 
     private async Task HandleBatchAsync(HttpListenerRequest request, HttpListenerResponse response)
