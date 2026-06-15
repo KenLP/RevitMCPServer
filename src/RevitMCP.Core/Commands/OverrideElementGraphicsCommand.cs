@@ -7,9 +7,10 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Apply per-element graphic overrides (color, transparency) to specific elements in a view.
+/// Only works for elements in the host model. Linked-file elements are skipped.
 /// Params:
 ///   viewId      long, required — ElementId of the view.
-///   elementIds  long[], required — elements to override.
+///   elementIds  long[], required — host-model elements to override.
 ///   color       { r, g, b } object, optional — projection + surface fill color. Default red (255,0,0).
 ///   transparency int 0–100, optional — surface transparency %. Default 0.
 ///   reset       bool, optional — if true, clear overrides instead of applying. Default false.

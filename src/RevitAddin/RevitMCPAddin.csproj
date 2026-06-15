@@ -72,6 +72,10 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RevitMCP.Core\RevitMCP.Core.csproj" />
+  </ItemGroup>
+
   <!-- After build, copy the DLL + manifest into the per-user Revit Addins folder
        so Revit picks it up on the next launch.  Disable with -p:DeployToRevit=false -->
   <Target Name="DeployToRevitAddinsFolder" AfterTargets="Build"
@@ -79,13 +83,19 @@
     <MakeDir Directories="$(RevitAddinFolder)" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
           DestinationFolder="$(RevitAddinFolder)" />
+    <!-- NEW: ship the extracted Core classlib alongside the addin -->
+    <Copy SourceFiles="$(TargetDir)RevitMCP.Core.dll"
+          DestinationFolder="$(RevitAddinFolder)" />
+    <Copy SourceFiles="$(TargetDir)RevitMCP.Core.pdb"
+          DestinationFolder="$(RevitAddinFolder)"
+          Condition="Exists('$(TargetDir)RevitMCP.Core.pdb')" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb"
           DestinationFolder="$(RevitAddinFolder)"
           Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\RevitMCPAddin.addin"
           DestinationFolder="$(RevitAddinFolder)" />
     <Message Importance="high"
-             Text="Deployed RevitMCPAddin to $(RevitAddinFolder)" />
+             Text="Deployed RevitMCPAddin (+ RevitMCP.Core) to $(RevitAddinFolder)" />
   </Target>
 
 </Project>

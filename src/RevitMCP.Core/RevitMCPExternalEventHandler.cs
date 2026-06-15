@@ -39,7 +39,7 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
         _registry = registry;
     }
 
-    internal void AttachExternalEvent(ExternalEvent externalEvent)
+    public void AttachExternalEvent(ExternalEvent externalEvent)
     {
         _externalEvent = externalEvent;
     }
