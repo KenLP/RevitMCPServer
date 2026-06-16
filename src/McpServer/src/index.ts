@@ -2,13 +2,16 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 66 tools covering diagnostics, inspection, creation, editing,
+ * 69 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
  *   - change_element_type: swap wall/floor/family type of any element.
  *   - apply_view_template: apply or remove a view template from a view.
  *   - copy_parameters: copy parameter values from one element to many targets.
+ *   - configure_schedule: add filters, sort/group fields, export to CSV.
+ *   - set_level_elevation: change level elevation (meters / feet / mm).
+ *   - export_view_pdf: export a view or sheet to PDF.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -581,6 +584,62 @@ server.tool("revit_copy_parameters",
     dryRun: dryRunField,
   },
   fwdWrite("copy_parameters"));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EDIT — SCHEDULE / LEVEL / PDF EXPORT
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool("revit_configure_schedule",
+  "Add filters, sort fields, and grouping to an existing ViewSchedule, and optionally export it to CSV. " +
+  "Use revit_create_schedule to create the schedule first, then call this to configure it. " +
+  "Use revit_list_sheets or revit_get_views to find schedule ids.",
+  {
+    scheduleId: z.number().int().describe("ElementId of the ViewSchedule."),
+    clearFilters: z.boolean().optional().describe("Remove all existing filters before adding new ones. Default false."),
+    clearSortFields: z.boolean().optional().describe("Remove all existing sort/group fields before adding new ones. Default false."),
+    filters: z.array(z.object({
+      field: z.string().describe("Schedule field name (e.g. 'Area', 'Level', 'Mark')."),
+      operator: z.enum([
+        "equals", "not_equals", "greater", "greater_equal", "less", "less_equal",
+        "contains", "not_contains", "begins_with", "ends_with", "has_value", "has_no_value",
+      ]).optional().describe("Filter operator. Default 'equals'."),
+      value: z.string().optional().describe("Filter value (not used for has_value / has_no_value)."),
+    })).optional().describe("Filters to add to the schedule."),
+    sortFields: z.array(z.object({
+      field: z.string().describe("Schedule field name to sort/group by."),
+      ascending: z.boolean().optional().describe("Sort ascending. Default true."),
+      groupBy: z.boolean().optional().describe("Add a group header row for each distinct value. Default false."),
+    })).optional().describe("Sort and group fields to add."),
+    exportCsv: z.boolean().optional().describe("Export the schedule to CSV and include the content in the response."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("configure_schedule"));
+
+server.tool("revit_set_level_elevation",
+  "Change the elevation of a Level element. All hosted elements (floors, ceilings, MEP) move with it. " +
+  "Use revit_list_levels to find level ids.",
+  {
+    id: z.number().int().describe("ElementId of the Level."),
+    elevation: z.number().describe("New elevation value."),
+    units: z.enum(["meters", "feet", "mm", "internal"]).optional()
+      .describe("Units for the elevation value. Default 'meters'. 'internal' = Revit internal feet."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("set_level_elevation"));
+
+server.tool("revit_export_view_pdf",
+  "Export a view or sheet to a PDF file on disk. " +
+  "Returns the output file path and size. Use revit_get_views or revit_list_sheets to find view ids.",
+  {
+    viewId: z.number().int().optional().describe("ElementId of the view or sheet. Defaults to the active view."),
+    outputFolder: z.string().optional().describe("Folder path for the PDF. Defaults to Documents folder."),
+    fileName: z.string().optional().describe("File name without extension. Defaults to view name + timestamp."),
+    rasterQuality: z.enum(["Low", "Medium", "High", "Presentation"]).optional()
+      .describe("Raster image quality. Default 'Medium'."),
+    colorMode: z.enum(["Color", "Grayscale", "BlackLine"]).optional()
+      .describe("Color mode. Default 'Color'."),
+  },
+  fwd("export_view_pdf"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BATCH

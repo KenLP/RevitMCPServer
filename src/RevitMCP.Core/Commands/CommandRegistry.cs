@@ -81,6 +81,9 @@ public sealed class CommandRegistry
         Register(new CopyParametersCommand());
         Register(new ChangeElementTypeCommand());
         Register(new ApplyViewTemplateCommand());
+        Register(new ConfigureScheduleCommand());
+        Register(new SetLevelElevationCommand());
+        Register(new ExportViewPdfCommand());
 
         // === Edit — transform ===
         Register(new MoveElementCommand());
