@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.7.0 (stdio).
+ * Revit MCP Server v0.8.0 (stdio).
  *
- * 63 tools covering diagnostics, inspection, creation, editing,
+ * 66 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, batch operations, and coordination/clash detection.
  *
- * v0.7.0 additions:
- *   - get_linked_elements: read elements inside a linked RVT with host-coord bboxes.
- *   - check_clearance: hard clash + clearance check, host and cross-linked-file.
- *   - get_view_image: export any view to PNG, returned as MCP Image content.
- *   - Revit 2025 support (Nice3point ref assemblies, CI matrix, release zip).
+ * v0.8.0 additions:
+ *   - change_element_type: swap wall/floor/family type of any element.
+ *   - apply_view_template: apply or remove a view template from a view.
+ *   - copy_parameters: copy parameter values from one element to many targets.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -23,7 +22,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.7.0" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.0" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -544,6 +543,46 @@ server.tool("revit_get_view_image",
   });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// EDIT — TYPE / TEMPLATE / PARAMETER COPY
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool("revit_change_element_type",
+  "Swap the type of an element (e.g. change a wall from 'Generic - 200mm' to 'Generic - 300mm', " +
+  "or change a door family symbol). Uses revit_list_family_types / revit_list_wall_types to find valid typeId values. " +
+  "Returns old and new type info.",
+  {
+    id: z.number().int().describe("ElementId of the element to change."),
+    typeId: z.number().int().describe("ElementId of the target type (WallType, FloorType, FamilySymbol, …)."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("change_element_type"));
+
+server.tool("revit_apply_view_template",
+  "Apply or remove a view template from a view. " +
+  "Provide templateId (ElementId) or templateName; omit both (or pass templateId=-1) to remove the current template. " +
+  "Use revit_list_view_templates to discover available templates.",
+  {
+    viewId: z.number().int().describe("ElementId of the view to modify."),
+    templateId: z.number().int().optional().describe("ElementId of the view template. Pass -1 to remove."),
+    templateName: z.string().optional().describe("Template name (case-insensitive). Alternative to templateId."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("apply_view_template"));
+
+server.tool("revit_copy_parameters",
+  "Copy parameter values from a source element to one or more target elements. " +
+  "Only writable parameters with matching storage types on both elements are copied. " +
+  "Useful for stamping Mark, Comments, or custom instance parameters across many elements at once.",
+  {
+    sourceId: z.number().int().describe("ElementId of the source element."),
+    targetIds: idsField.describe("ElementIds of target elements."),
+    parameterNames: z.array(z.string()).optional()
+      .describe("Parameter names to copy. Omit to copy all writable parameters found on both elements."),
+    dryRun: dryRunField,
+  },
+  fwdWrite("copy_parameters"));
+
+// ═══════════════════════════════════════════════════════════════════════════
 // BATCH
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -575,7 +614,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.7.0 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.0 connected to Revit addin at ${REVIT_BASE_URL}`);
 
   // Startup connectivity probe — log diagnostics but never crash.
   const health = await checkRevitHealth();

@@ -98,7 +98,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.7.0",
+                    ["version"] = "0.8.0",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;
@@ -196,7 +196,8 @@ public sealed class McpHttpServer
         {
             "bad_request" or "bad_json"
               or "invalid_parameter" or "read_only_parameter"
-              or "unsupported_view" or "invalid_chars"        => 400,
+              or "unsupported_view" or "invalid_chars"
+              or "wrong_element_type"                         => 400,
             "unauthorized"                        => 401,
             "unknown_command" or "not_found"      => 404,
             "timeout" or "cancelled"              => 408,

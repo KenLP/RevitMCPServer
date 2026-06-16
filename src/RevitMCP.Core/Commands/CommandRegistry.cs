@@ -78,6 +78,9 @@ public sealed class CommandRegistry
         Register(new SetParameterCommand());
         Register(new SetParameterBatchCommand());
         Register(new RenameElementCommand());
+        Register(new CopyParametersCommand());
+        Register(new ChangeElementTypeCommand());
+        Register(new ApplyViewTemplateCommand());
 
         // === Edit — transform ===
         Register(new MoveElementCommand());
