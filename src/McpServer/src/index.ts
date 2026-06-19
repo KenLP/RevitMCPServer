@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 69 tools covering diagnostics, inspection, creation, editing,
+ * 70 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -584,6 +584,25 @@ server.tool("revit_copy_parameters",
     dryRun: dryRunField,
   },
   fwdWrite("copy_parameters"));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROOM CONTAINMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool("revit_get_element_rooms",
+  "Get room containment for one or more family instances (doors, windows, furniture, fixtures, etc.). " +
+  "Returns room / fromRoom / toRoom — each { id, name, number } or null. " +
+  "Uses the Revit API's phase-dependent FamilyInstance.get_Room/get_FromRoom/get_ToRoom, " +
+  "NOT centroid-in-bbox — authoritative for wall-hosted elements (doors/windows) whose centroid " +
+  "lies inside the wall between two rooms. " +
+  "fromRoom + toRoom apply to boundary connectors (OST_Doors, OST_Windows). " +
+  "room applies to point-located elements (OST_Furniture, OST_PlumbingFixtures, OST_LightingFixtures, etc.). " +
+  "Non-family-instance elements return null for all fields. " +
+  "Use revit_list_rooms to discover room ids/names in the model.",
+  {
+    ids: idsField.describe("ElementIds to query. 1–N elements per call."),
+  },
+  fwd("get_element_rooms"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EDIT — SCHEDULE / LEVEL / PDF EXPORT

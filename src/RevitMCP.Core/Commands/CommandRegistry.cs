@@ -30,6 +30,7 @@ public sealed class CommandRegistry
         // === Inspection / introspection ===
         Register(new ListElementsCommand());
         Register(new GetElementInfoCommand());
+        Register(new GetElementRoomsCommand());
         Register(new FindElementsCommand());
         Register(new GetParameterCommand());
         Register(new ListLevelsCommand());
