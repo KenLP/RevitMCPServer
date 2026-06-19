@@ -15,7 +15,10 @@
 | Release tooling (build script, install/uninstall, compat matrix, troubleshooting) | v0.5.0 | ✅ Done |
 | Correctness & API hardening (batch policy, spec-aware units, domain errors, CI R2027) | v0.6.0 | ✅ Done |
 | Linked-file element reading, clash/clearance detection, view image export, R2025 | v0.7.0 | ✅ Done |
-| View manipulation (duplicate_view, set_section_box, isolate_elements_in_view) + check_clearance Z-raycast with multi-point centreline sampling + linked-file setB support + list_spaces (MEP Spaces) + create_3d_view duplicate-active-3D behaviour | v0.8.0 | ✅ Done |
+| View manipulation (duplicate_view, set_section_box, isolate_elements_in_view) + check_clearance Z-raycast with multi-point centreline sampling + linked-file setB support + list_spaces (MEP Spaces) + create_3d_view + RevitMCP.Core classlib extraction | v0.8.0 | ✅ Done |
+| Element type swapping (change_element_type), view template application, parameter copy across elements | v0.8.0 | ✅ Done |
+| Schedule config (filters/sort/group/CSV), level elevation editing, PDF export | v0.8.0 | ✅ Done |
+| Room containment — phase-aware FromRoom/ToRoom/Room batch lookup for family instances | v0.8.0 | ✅ Done |
 
 ## Near-term backlog
 

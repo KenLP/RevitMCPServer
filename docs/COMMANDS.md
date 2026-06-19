@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.0 — 67 commands + 1 batch = 68 MCP tools.**
+> **v0.8.0 — 69 commands + 1 batch = 70 MCP tools.**
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -45,6 +45,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_linked_elements`       | `get_linked_elements`   | ✅        | Elements inside a linked RVT (bboxes in host coords)      |
 | `revit_check_clearance`           | `check_clearance`       | ✅        | Hard clash + clearance check, host and cross-linked-file  |
 | `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block       |
+| `revit_get_element_rooms`         | `get_element_rooms`     | ✅        | Room containment for family instances — Room/FromRoom/ToRoom per element (batch) |
 | `revit_create_wall`               | `create_wall`           | ❌        | Single straight wall                                      |
 | `revit_create_floor`              | `create_floor`          | ❌        | Floor from a closed polygonal profile                     |
 | `revit_create_ceiling`            | `create_ceiling`        | ❌        | Ceiling from a closed polygonal profile                   |
@@ -65,6 +66,12 @@ The HTTP command name is the name without the prefix (used in
 | `revit_set_parameter`             | `set_parameter`         | ❌        | Set one parameter on one element (with unit conversion)   |
 | `revit_set_parameter_batch`       | `set_parameter_batch`   | ❌        | Same parameter on N elements (atomic or best-effort)      |
 | `revit_rename_element`            | `rename_element`        | ❌        | Family, FamilySymbol, or generic element                  |
+| `revit_change_element_type`       | `change_element_type`   | ❌        | Swap element type (wall type, floor type, family symbol)  |
+| `revit_apply_view_template`       | `apply_view_template`   | ❌        | Apply or remove a view template; lookup by id or name     |
+| `revit_copy_parameters`           | `copy_parameters`       | ❌        | Copy parameter values from source element to N targets    |
+| `revit_configure_schedule`        | `configure_schedule`    | ❌        | Add filters, sort/group fields to a schedule; CSV export  |
+| `revit_set_level_elevation`       | `set_level_elevation`   | ❌        | Change Level elevation (meters / feet / mm / internal)    |
+| `revit_export_view_pdf`           | `export_view_pdf`       | ✅        | Export view or sheet to PDF on disk                       |
 | `revit_delete_elements`           | `delete_elements`       | ❌        | Delete by ids                                             |
 | `revit_move_element`              | `move_element`          | ❌        | Translate by vector                                       |
 | `revit_copy_element`              | `copy_element`          | ❌        | Copy with offset                                          |
@@ -317,6 +324,155 @@ Error codes:
 - `system_family` — cannot rename built-in families (Basic Wall, Floor, etc.).
 - `name_collision` — a Family/Type with the same name already exists.
 - `invalid_chars` — name contains `\ : { } [ ] | ; < > ? * ~`.
+
+---
+
+## Room containment
+
+### `get_element_rooms`
+
+Get room containment for one or more family instances using Revit's phase-aware API —
+authoritative for wall-hosted elements (doors/windows) whose centroid lies inside the
+wall between two rooms.
+
+Params:
+- `ids` *(long[], required)* — ElementIds to query. Accepts 1–N ids in one call.
+
+Data:
+```jsonc
+{
+  "count": 2,
+  "elements": [
+    {
+      "id": 631418,
+      "phaseId": 118390,
+      "room":     null,
+      "fromRoom": { "id": 830936, "name": "Parking Garage P01", "number": "P01" },
+      "toRoom":   { "id": 826376, "name": "Stair S1",           "number": "S1"  }
+    },
+    {
+      "id": 738550,
+      "phaseId": 118390,
+      "room":     { "id": 828508, "name": "Café 101", "number": "101" },
+      "fromRoom": null,
+      "toRoom":   null
+    }
+  ]
+}
+```
+
+- `fromRoom` + `toRoom` apply to **boundary connectors** (Doors, Windows, openings).
+- `room` applies to **point-located elements** (Furniture, Plumbing Fixtures,
+  Lighting Fixtures, Mechanical/Electrical Equipment, etc.).
+- Any field is `null` when the side is exterior, the region is unbounded, or the
+  family's Room Calculation Point is disabled.
+- `phaseId` is the phase used for resolution (element's `Phase Created` parameter,
+  falling back to the document's last phase).
+- Non-FamilyInstance elements (walls, floors, …) return all fields null.
+
+> Use `revit_list_rooms` to discover room ids, names, and numbers in the model.
+
+---
+
+## Element type, templates & parameter copy
+
+### `change_element_type`
+
+Swap the type of an element (e.g. change a wall from Generic-200mm to Generic-300mm,
+or change a door family symbol).
+
+Params:
+- `id` *(long, required)* — ElementId of the element to change.
+- `typeId` *(long, required)* — ElementId of the target type. Use
+  `revit_list_wall_types`, `revit_list_floor_types`, or `revit_list_family_types`
+  to find valid type ids.
+- `dryRun` *(bool, optional)*.
+
+Data: `id`, `oldTypeId`, `oldTypeName`, `newTypeId`, `newTypeName`, `changeSummary`.
+
+Error codes:
+- `wrong_element_type` → 400 — the target type is not valid for this element.
+
+### `apply_view_template`
+
+Apply or remove a view template from a view.
+
+Params:
+- `viewId` *(long, required)*.
+- `templateId` *(long, optional)* — ElementId of the view template. Pass `-1` to remove.
+- `templateName` *(string, optional)* — case-insensitive name lookup (alternative to `templateId`).
+- `dryRun` *(bool, optional)*.
+
+Data: `viewId`, `viewName`, `oldTemplateId`, `newTemplateId`, `newTemplateName`, `changeSummary`.
+
+### `copy_parameters`
+
+Copy parameter values from a source element to N target elements in one call.
+
+Params:
+- `sourceId` *(long, required)* — element to copy from.
+- `targetIds` *(long[], required)* — elements to copy to.
+- `parameterNames` *(string[], optional)* — names to copy. Omit to copy all writable
+  parameters with matching name and StorageType on both elements.
+- `dryRun` *(bool, optional)*.
+
+Data: `sourceId`, `paramsCopied`, `targets[]` (each: `targetId`, `ok`, `paramsCopied`, `failures?`).
+
+---
+
+## Schedule configuration
+
+### `configure_schedule`
+
+Add filters and sort/group fields to an existing ViewSchedule.
+
+Params:
+- `scheduleId` *(long, required)* — use `revit_list_sheets` or `revit_get_views` to find ids.
+- `clearFilters` *(bool, optional)* — remove all existing filters first.
+- `clearSortFields` *(bool, optional)* — remove all existing sort/group fields first.
+- `filters` *(array, optional)* — each item: `{ field, operator?, value? }`.
+  `operator`: `equals` | `not_equals` | `greater` | `greater_equal` | `less` |
+  `less_equal` | `contains` | `not_contains` | `begins_with` | `ends_with` |
+  `has_value` | `has_no_value`. Default `"equals"`.
+- `sortFields` *(array, optional)* — each item: `{ field, ascending?, groupBy? }`.
+  `groupBy: true` adds a group-header row for each distinct value.
+- `exportCsv` *(bool, optional)* — export the schedule to CSV and return content in response.
+- `dryRun` *(bool, optional)*.
+
+Data: `scheduleId`, `scheduleName`, `filtersAdded`, `sortFieldsAdded`, optional `csvContent`, optional `warnings`.
+
+---
+
+## Level elevation
+
+### `set_level_elevation`
+
+Change the elevation of a Level element.
+
+Params:
+- `id` *(long, required)* — use `revit_list_levels` to find level ids.
+- `elevation` *(number, required)* — new elevation value.
+- `units` *(`"meters"` | `"feet"` | `"mm"` | `"internal"`, optional, default `"meters"`)*.
+
+Data: `id`, `name`, `oldElevationM`, `newElevationM`, `oldElevationFt`, `newElevationFt`, `changeSummary`.
+
+---
+
+## PDF export
+
+### `export_view_pdf`
+
+Export a view or sheet to a PDF file on disk.
+
+Params:
+- `viewId` *(long, optional)* — defaults to the active view.
+- `outputFolder` *(string, optional)* — defaults to the user's Documents folder.
+- `fileName` *(string, optional)* — base name without `.pdf` extension. Defaults to
+  view name + timestamp.
+- `rasterQuality` *(`"Low"` | `"Medium"` | `"High"` | `"Presentation"`, optional, default `"Medium"`)*.
+- `colorMode` *(`"Color"` | `"Grayscale"` | `"BlackLine"`, optional, default `"Color"`)*.
+
+Data: `viewId`, `viewName`, `outputPath`, `fileSizeBytes`, `rasterQuality`, `colorMode`.
 
 ---
 

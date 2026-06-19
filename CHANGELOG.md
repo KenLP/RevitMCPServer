@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-06-19: Type change, view templates, parameter copy, schedule/PDF/level, room containment
+
+### Added
+
+- **`revit_change_element_type`** — swap the type of any element (wall type, floor
+  type, family symbol) using `Element.ChangeTypeId`. Validates against the element's
+  own allowed types; returns old and new type info. Error code `wrong_element_type` → 400.
+- **`revit_apply_view_template`** — apply or remove a view template from a view.
+  Accepts `templateId` (ElementId) or `templateName` (case-insensitive lookup). Pass
+  `templateId: -1` to remove the current template. Use `revit_list_view_templates` to
+  discover available templates.
+- **`revit_copy_parameters`** — copy parameter values from a source element to N target
+  elements in one call. Matches by name and StorageType; only writable, non-None
+  parameters are copied. Returns per-target success/failure detail.
+- **`revit_configure_schedule`** — add filters and sort/group fields to an existing
+  ViewSchedule; supports `clearFilters` / `clearSortFields` to reset first. Optional
+  `exportCsv: true` exports the schedule and returns CSV content in the response.
+  Uses `ScheduleField.FieldId` for phase-aware resolution; fields are added as hidden
+  columns automatically when first referenced.
+- **`revit_set_level_elevation`** — change the elevation of a Level element. Supports
+  `"meters"`, `"feet"`, `"mm"`, and `"internal"` units. Returns old and new elevation
+  in both m and ft.
+- **`revit_export_view_pdf`** — export any view or sheet to PDF on disk via
+  `Document.Export(folder, viewIds, PDFExportOptions)`. Accepts `outputFolder`,
+  `fileName`, `rasterQuality` (Low / Medium / High / Presentation), `colorMode`
+  (Color / Grayscale / BlackLine). Returns output path and file size.
+- **`revit_get_element_rooms`** — get room containment for one or more family instances
+  in a single batch call. Uses `FamilyInstance.get_Room(Phase)` / `get_FromRoom(Phase)`
+  / `get_ToRoom(Phase)` — phase-dependent and authoritative, not centroid-in-bbox.
+  `fromRoom` + `toRoom` for boundary connectors (Doors, Windows); `room` for
+  point-located elements (Furniture, Fixtures, lighting, plumbing, …). Each room is
+  `{ id, name, number }` or null. Phase resolved from the element's `PHASE_CREATED`
+  parameter. Verified live on Revit 2027 Snowdon Towers Architectural.
+- **`RevitMCP.Core` class library** extracted from `RevitMCPAddin` — all
+  `IRevitCommand` implementations now live in a separate classlib for cleaner project
+  boundaries and faster incremental builds.
+- `wrong_element_type` added to the 400 group in `StatusForResult()`.
+
+---
+
 ## [0.7.0] — 2026-06-11: Linked-file clash detection, view image export, R2025
 
 ### Added
