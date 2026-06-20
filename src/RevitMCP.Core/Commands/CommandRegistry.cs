@@ -73,7 +73,13 @@ public sealed class CommandRegistry
         Register(new Create3DViewCommand());
         Register(new CreateScheduleCommand());
         Register(new TagElementCommand());
+        Register(new TagAllInViewCommand());
+        Register(new CreateAlignedDimensionCommand());
+        Register(new CreateSpotElevationCommand());
         Register(new CreateTextNoteCommand());
+
+        // === Annotation — query ===
+        Register(new GetTagsInViewCommand());
 
         // === Edit — parameters ===
         Register(new SetParameterCommand());

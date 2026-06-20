@@ -2,8 +2,8 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 70 tools covering diagnostics, inspection, creation, editing,
- * transform, view manipulation, batch operations, and coordination/clash detection.
+ * 74 tools covering diagnostics, inspection, creation, editing,
+ * transform, view manipulation, annotation, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
  *   - change_element_type: swap wall/floor/family type of any element.
@@ -286,6 +286,49 @@ server.tool("revit_create_text_note", "Create a TextNote in a view.", {
   units: unitsField,
   dryRun: dryRunField,
 }, fwdWrite("create_text_note"));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ANNOTATION — TAGGING / DIMENSIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool("revit_tag_all_in_view", "Tag all (untagged) elements of a category in a view — mirrors Revit's 'Tag All Not Tagged'. Returns tagged/skipped/failed counts.", {
+  category: z.string().describe("Category display name, e.g. 'Doors', 'Windows', 'Rooms'."),
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
+  leader: z.boolean().optional().describe("Add leader line to each tag. Default false."),
+  skipTagged: z.boolean().optional().describe("Skip elements that already have a tag. Default true."),
+  dryRun: dryRunField,
+}, fwdWrite("tag_all_in_view"));
+
+server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain between two or more element references. Walls use face references (exterior by default); Grids, columns, and family instances use element references.", {
+  references: z.array(z.object({
+    elementId: z.number().int(),
+    side: z.enum(["exterior", "interior", "auto"]).optional()
+      .describe("For walls: 'exterior' (default) or 'interior' face. Other elements: ignored."),
+  })).min(2).describe("Ordered list of references to dimension between."),
+  line: z.object({
+    start: xyz,
+    end: xyz,
+  }).describe("Position and direction of the dimension line in the view."),
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_aligned_dimension"));
+
+server.tool("revit_create_spot_elevation", "Place a spot elevation symbol on an upward-facing face (Floor, Slab, Roof, Topography). Returns the spot dimension id and elevation in meters.", {
+  elementId: z.number().int().describe("Element with an upward-facing face to spot."),
+  point: xyz.describe("Position on/above the face where the leader touches (model coordinates)."),
+  textOffset: z.object({ x: z.number(), y: z.number() }).optional()
+    .describe("Offset from point to symbol. Default: 0.5 m in X."),
+  hasLeader: z.boolean().optional().describe("Show leader line. Default true."),
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_spot_elevation"));
+
+server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
+  category: z.string().optional().describe("Filter by tagged element category name, e.g. 'Doors'."),
+}, fwd("get_tags_in_view"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EDIT — PARAMETERS
