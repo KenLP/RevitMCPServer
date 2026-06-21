@@ -64,7 +64,7 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
                 ?? throw new RevitCommandException("not_found", $"Element {eid.Value} not found.");
 
             var side = refObj["side"]?.GetValue<string>() ?? "auto";
-            refArray.Append(GetReference(element, side));
+            refArray.Append(GetReference(element, side, view));
         }
 
         var dim = doc.Create.NewDimension(view, dimLine, refArray);
@@ -80,7 +80,7 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
         };
     }
 
-    private static Reference GetReference(Element element, string side)
+    private static Reference GetReference(Element element, string side, View view)
     {
         if (element is Wall wall)
         {
@@ -93,7 +93,57 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
                     $"Wall {wall.Id.Value} has no {side} face reference.");
         }
 
-        // Grid, column, FamilyInstance, structural framing, etc.
+        if (element is Grid grid)
+        {
+            // Pass view context — required for Grid geometry references to be valid
+            // Note: DetailLevel must NOT be set when View is specified (Revit uses the view's level)
+            var viewOpts = new Options
+            {
+                View = view,
+                ComputeReferences = true,
+            };
+            var gridGeom = grid.get_Geometry(viewOpts);
+            if (gridGeom is not null)
+            {
+                foreach (var gObj in gridGeom)
+                {
+                    if (gObj is Curve curve && curve.Reference is not null)
+                        return curve.Reference;
+                    if (gObj is GeometryInstance gi)
+                        foreach (var g2 in gi.GetInstanceGeometry())
+                            if (g2 is Curve c2 && c2.Reference is not null)
+                                return c2.Reference;
+                }
+            }
+            throw new RevitCommandException("not_found",
+                $"Grid {grid.Id.Value} ({grid.Name}) has no dimensionable curve reference in view {view.Id.Value}.");
+        }
+
+        if (element is ReferencePlane rp)
+            return rp.GetReference();
+
+        // FamilyInstance / column / beam — face reference
+        var opts = new Options
+        {
+            View = view,
+            ComputeReferences = true,
+        };
+        var geom = element.get_Geometry(opts);
+        if (geom is not null)
+        {
+            foreach (var gObj in geom)
+            {
+                if (gObj is Solid solid)
+                    foreach (Face face in solid.Faces)
+                        if (face.Reference is not null) return face.Reference;
+                if (gObj is GeometryInstance gi)
+                    foreach (var g2 in gi.GetInstanceGeometry())
+                        if (g2 is Solid s2)
+                            foreach (Face f in s2.Faces)
+                                if (f.Reference is not null) return f.Reference;
+            }
+        }
+
         return new Reference(element);
     }
 }

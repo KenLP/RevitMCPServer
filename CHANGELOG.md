@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-06-21: Annotation — tagging
+
+### Added
+
+- **`revit_tag_all_in_view`** — tag all untagged elements of a category in a view
+  (mirrors Revit's "Tag All Not Tagged"). Accepts `category` (display name, e.g. `"Doors"`),
+  optional `viewId`, `leader` (bool), `skipTagged` (bool, default true).
+  Returns `{ tagged, skipped, failed, tags: [{tagId, elementId}] }`.
+  Tested live on Revit 2026 (tagged 3 Doors in L1 - Architectural).
+- **`revit_get_tags_in_view`** — list all `IndependentTag` elements in a view.
+  Optional `category` filter. Returns `{ viewId, count, tags: [{tagId, elementId,
+  category, hasLeader, tagText, location}] }`.
+  Tested live: correctly returned 3 Door tags with tagText `"100"`, `"101"`, `"102"`.
+
+### Notes
+
+- `create_aligned_dimension` and `create_spot_elevation` are implemented in C# but
+  hidden from the MCP tool surface pending Revit API reference fixes. They remain
+  callable via direct HTTP if needed. Dimension works wall-to-wall; grid references
+  in mixed `ReferenceArray` are not yet resolved.
+
+---
+
 ## [0.8.0] — 2026-06-19: Type change, view templates, parameter copy, schedule/PDF/level, room containment
 
 ### Added

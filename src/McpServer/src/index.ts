@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 74 tools covering diagnostics, inspection, creation, editing,
+ * 72 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -299,31 +299,9 @@ server.tool("revit_tag_all_in_view", "Tag all (untagged) elements of a category 
   dryRun: dryRunField,
 }, fwdWrite("tag_all_in_view"));
 
-server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain between two or more element references. Walls use face references (exterior by default); Grids, columns, and family instances use element references.", {
-  references: z.array(z.object({
-    elementId: z.number().int(),
-    side: z.enum(["exterior", "interior", "auto"]).optional()
-      .describe("For walls: 'exterior' (default) or 'interior' face. Other elements: ignored."),
-  })).min(2).describe("Ordered list of references to dimension between."),
-  line: z.object({
-    start: xyz,
-    end: xyz,
-  }).describe("Position and direction of the dimension line in the view."),
-  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
-  units: unitsField,
-  dryRun: dryRunField,
-}, fwdWrite("create_aligned_dimension"));
+// revit_create_aligned_dimension — hidden pending grid-reference fix (wall-to-wall works, mixed wall+grid refs broken in NewDimension API)
 
-server.tool("revit_create_spot_elevation", "Place a spot elevation symbol on an upward-facing face (Floor, Slab, Roof, Topography). Returns the spot dimension id and elevation in meters.", {
-  elementId: z.number().int().describe("Element with an upward-facing face to spot."),
-  point: xyz.describe("Position on/above the face where the leader touches (model coordinates)."),
-  textOffset: z.object({ x: z.number(), y: z.number() }).optional()
-    .describe("Offset from point to symbol. Default: 0.5 m in X."),
-  hasLeader: z.boolean().optional().describe("Show leader line. Default true."),
-  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
-  units: unitsField,
-  dryRun: dryRunField,
-}, fwdWrite("create_spot_elevation"));
+// revit_create_spot_elevation — hidden pending origin-projection fix (origin must lie exactly on face; auto-projection not yet implemented)
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),

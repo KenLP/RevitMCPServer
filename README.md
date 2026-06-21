@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.0** — 69 C# commands + 1 batch = **70 MCP tools**.
+**v0.8.1** — 71 C# commands (+ 2 hidden pending API fixes) + 1 batch = **72 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -37,7 +37,8 @@ FamilySymbol rename**, **linked-file element reading**, **clash/clearance detect
 **MEP Space listing**, **element type swapping**, **view template application**,
 **parameter copy across elements**, **schedule filters/sort/CSV export**,
 **level elevation editing**, **PDF export**, **room containment** (phase-aware
-`FromRoom`/`ToRoom`/`Room` batch lookup for doors, furniture, fixtures).
+`FromRoom`/`ToRoom`/`Room` batch lookup for doors, furniture, fixtures),
+**annotation tagging** (tag single element, tag-all-not-tagged by category, list tags in view).
 See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 | Layer        | Build target              | Status |
@@ -47,7 +48,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (69 commands + 1 batch = 70 MCP tools)
+## Tool surface (71 commands + 1 batch = 72 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -63,6 +64,9 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ### Creation: Documentation (8 write)
 `revit_create_sheet` | `revit_place_view_on_sheet` | `revit_create_floor_plan_view` | `revit_create_section_view` | `revit_create_3d_view` | `revit_create_schedule` | `revit_tag_element` | `revit_create_text_note`
+
+### Annotation (2 read/write)
+`revit_tag_all_in_view` | `revit_get_tags_in_view`
 
 ### Edit: Parameters, Types & Naming (7 write)
 `revit_set_parameter` | `revit_set_parameter_batch` | `revit_rename_element` | `revit_change_element_type` | `revit_apply_view_template` | `revit_copy_parameters` | `revit_configure_schedule`

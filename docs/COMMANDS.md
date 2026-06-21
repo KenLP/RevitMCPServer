@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.0 — 69 commands + 1 batch = 70 MCP tools.**
+> **v0.8.1 — 71 commands + 1 batch = 72 MCP tools.**
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -81,6 +81,8 @@ The HTTP command name is the name without the prefix (used in
 | `revit_group_elements`            | `group_elements`        | ❌        | Group selection                                           |
 | `revit_ungroup_elements`          | `ungroup_elements`      | ❌        | Ungroup                                                   |
 | `revit_tag_element`               | `tag_element`           | ❌        | Tag an element in a view                                  |
+| `revit_tag_all_in_view`           | `tag_all_in_view`       | ❌        | Tag all untagged elements of a category in a view         |
+| `revit_get_tags_in_view`          | `get_tags_in_view`      | ✅        | List all IndependentTag elements in a view (optional category filter) |
 | `revit_apply_view_filter`         | `apply_view_filter`     | ❌        | ParameterFilterElement + SetFilterOverrides               |
 | `revit_color_override_by_param`   | `color_override_by_param`| ❌       | Per-bucket color overrides by parameter value             |
 | `revit_hide_elements_in_view`     | `hide_elements_in_view` | ❌        | Hide by ids in view                                       |
