@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] — 2026-06-22: Model health report
+
+### Added
+
+- **`revit_get_model_health`** — one-shot, read-only model quality report. Aggregates
+  the metrics a BIM manager checks when judging a model, in a single call:
+  - **Warnings**: total, error count, and top-N groups by description.
+  - **File**: size (MB), worksharing status, workset count. Size is `null` for cloud
+    models (`IsModelInCloud`) — reported in `notes`.
+  - **Elements**: total count, distinct categories, top-N categories by instance count.
+  - **Families**: loadable vs in-place, imported vs linked CAD instances, raster images.
+  - **Groups**: model/detail group instances, single-instance group types.
+  - **Views**: total views, sheets, placeable views, views not placed on any sheet.
+  - **Complexity**: levels, grids, design options, reference planes (+ unnamed).
+  - **Purgeable**: `Document.GetUnusedElements` count — only when `deep=true`
+    (single-pass estimate; skipped by default as it is slow on large models).
+  - **Scorecard**: letter grade (A–F), 0–100 score, and a list of flagged issues
+    with severity. Thresholds are tunable constants in `GetModelHealthCommand`.
+
+  Params: `deep` (bool, default false), `topN` (int, default 10).
+  Tested live on Revit 2027 (Snowdon Towers sample): grade A/95, 90 warnings,
+  42,901 elements, 633 purgeable.
+
+---
+
 ## [0.8.1] — 2026-06-21: Annotation — tagging
 
 ### Added

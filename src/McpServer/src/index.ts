@@ -2,8 +2,8 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 72 tools covering diagnostics, inspection, creation, editing,
- * transform, view manipulation, annotation, batch operations, and coordination/clash detection.
+ * 73 tools covering diagnostics, inspection, creation, editing,
+ * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
  *   - change_element_type: swap wall/floor/family type of any element.
@@ -114,6 +114,18 @@ server.tool("revit_list_phases", "All phases.", {}, fwd("list_phases"));
 server.tool("revit_list_view_templates", "All view templates.", {}, fwd("list_view_templates"));
 
 server.tool("revit_get_views", "All non-template views with type, level, scale.", {}, fwd("get_views"));
+
+server.tool("revit_get_model_health",
+  "One-shot model health report (read-only). Aggregates the metrics a BIM manager checks to judge model quality: " +
+  "warnings (count + top groups), file size, imported vs linked CAD, in-place families, model/detail groups, " +
+  "views not on sheets, element counts by category, and complexity counts (levels, grids, design options, reference planes). " +
+  "Returns a scorecard with a letter grade (A-F), a 0-100 score, and flagged issues. " +
+  "Use this for a quick 'is this model healthy?' overview before deeper work.",
+  {
+    deep: z.boolean().optional().describe("Also run the purge scan (Document.GetUnusedElements). Slower on large models. Default false."),
+    topN: z.number().int().min(1).max(50).optional().describe("How many top warning groups / categories to list. Default 10."),
+  },
+  fwd("get_model_health"));
 server.tool("revit_get_active_view", "Current active view info.", {}, fwd("get_active_view"));
 server.tool("revit_get_selected_elements", "Elements currently selected by the user in Revit UI.", {}, fwd("get_selected_elements"));
 server.tool("revit_get_linked_files", "List Revit link instances (metadata only — id, name, load status).", {}, fwd("get_linked_files"));
