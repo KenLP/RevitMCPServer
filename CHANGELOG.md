@@ -20,14 +20,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - **`revit_get_model_health`** enhanced:
   - New **`imports`** section: imported vs linked CAD (with "in views" subcount),
     imported PDFs + raster images (`imagesAndPdfs`), RVT link instances/types,
-    point clouds. Imported CAD (not linked) is flagged.
+    point clouds. Imported (non-linked) CAD is flagged (any > 0, warning); imported
+    images/PDFs are flagged as info (any > 0).
   - **`warnings.perThousandElements`** — warnings-per-1000-elements ratio, reported
     for context (no published industry standard, so not scored).
   - **`file.worksets` / `file.emptyWorksets`** — workset summary; empty worksets flagged.
   - **`file.isModelInCloud`** — makes it explicit when file size is `null` because the
     model is cloud-hosted (the Revit API exposes no on-disk size for cloud models).
-  - Warning threshold raised 100 → **300** (`warnings_high`), aligning with the common
-    "keep warnings under 300" performance guidance; `warnings_critical` stays 1000.
+  - Thresholds aligned to published guidance: warnings high **300** / critical 1000;
+    file size flag at **~500 MB** (recommended max 400-500); any imported CAD flagged.
   - Per-family file sizes are intentionally **not** measured (no Revit API for a loaded
     family's size; would require EditFamily+save per family) — noted in `notes`.
 

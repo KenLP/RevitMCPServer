@@ -39,7 +39,7 @@ public sealed class GetModelHealthCommand : IRevitCommand
     private const int    WarningsCritical    = 1000;  // > this → -25
     private const int    InPlaceHigh         = 20;    // > this → -10
     private const double UnusedViewRatioHigh = 0.50;  // notOnSheet/placeable > this → -10
-    private const double FileLargeMB         = 300.0; // > this → -10 (split into linked models beyond ~300-500 MB)
+    private const double FileLargeMB         = 500.0; // > this → -10 (recommended max ~400-500 MB; split into linked models)
     private const int    PurgeableHigh       = 1000;  // > this → -5 (deep only)
 
     public JsonNode? Execute(CommandContext ctx)
@@ -114,7 +114,7 @@ public sealed class GetModelHealthCommand : IRevitCommand
         };
 
         if (sizeMB is double mb && mb > FileLargeMB)
-            Flag("file_large", "warning", $"File is {mb} MB (> {FileLargeMB} MB — consider splitting into linked models).", 10);
+            Flag("file_large", "warning", $"File is {mb} MB (recommended max ~400-500 MB — consider splitting into linked models).", 10);
         if (worksetEmpty is int we && we > 0)
             Flag("empty_worksets", "info", $"{we} workset(s) contain no elements — candidates to remove.", 5);
 
@@ -227,7 +227,10 @@ public sealed class GetModelHealthCommand : IRevitCommand
 
         if (cadImported > 0)
             Flag("imported_cad", "warning",
-                $"{cadImported} imported CAD instance(s) (not linked) — embeds DWG/DXF geometry in the model.", 15);
+                $"{cadImported} imported CAD instance(s) (not linked) — embeds DWG/DXF geometry in the model; prefer linking.", 15);
+        if (imagesAndPdfs > 0)
+            Flag("imported_images_pdfs", "info",
+                $"{imagesAndPdfs} imported image/PDF instance(s) in the model.", 5);
 
         // ── Groups ───────────────────────────────────────────────────────────────
         var groups = new FilteredElementCollector(doc).OfClass(typeof(Group)).Cast<Group>().ToList();
@@ -306,7 +309,8 @@ public sealed class GetModelHealthCommand : IRevitCommand
         // Family file sizes (>1-3 MB) are NOT measured: the Revit API exposes no
         // size for a loaded family; the only way is EditFamily + save per family,
         // which is far too slow to run over a whole model. Spot-check externally.
-        notes.Add("Per-family file sizes are not measured (no Revit API for loaded-family size; would require EditFamily+save per family).");
+        notes.Add("Per-family file sizes are not measured (no Revit API for a loaded family's size; would require EditFamily+save per family). " +
+                  "Guideline if checking externally: loadable family > 5 MB watch, > 10 MB needs justification.");
 
         // ── Scorecard ──────────────────────────────────────────────────────────────
         score = Math.Clamp(score, 0, 100);

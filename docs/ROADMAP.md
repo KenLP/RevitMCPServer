@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.0
+## Current status — v0.8.3
 
 | Phase | Version | Status |
 |---|---|---|
@@ -19,6 +19,9 @@
 | Element type swapping (change_element_type), view template application, parameter copy across elements | v0.8.0 | ✅ Done |
 | Schedule config (filters/sort/group/CSV), level elevation editing, PDF export | v0.8.0 | ✅ Done |
 | Room containment — phase-aware FromRoom/ToRoom/Room batch lookup for family instances | v0.8.0 | ✅ Done |
+| Annotation — tag_all_in_view, get_tags_in_view (create_aligned_dimension / create_spot_elevation hidden pending API fixes) | v0.8.1 | ✅ Done |
+| Model health report — get_model_health one-shot scorecard (warnings, file size, imports/links, families, groups, unused views, purgeable) | v0.8.2 | ✅ Done |
+| Workset audit (get_worksets) + model-health enrichment (imports/links section, warning/element ratio, worksets, isModelInCloud) | v0.8.3 | ✅ Done |
 
 ## Near-term backlog
 

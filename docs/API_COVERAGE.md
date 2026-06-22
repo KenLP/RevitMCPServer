@@ -27,9 +27,10 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.0)
+## Current command surface (v0.8.3)
 
-**67 commands** across read, write, UI, and coordination categories.
+**73 commands** across read, write, UI, and coordination categories
+(+ 2 hidden pending API fixes: `create_aligned_dimension`, `create_spot_elevation`).
 
 ### Implemented — Read / Introspection
 
@@ -61,6 +62,11 @@ Claude Desktop / Claude Code.
 | `get_linked_files` | Linked Revit files — list instances with metadata |
 | `get_linked_elements` | Read elements **inside** a linked RVT; bboxes in host coords |
 | `get_view_image` | Export any view to PNG; returns base64 + MCP Image content |
+| `get_element_rooms` | Phase-aware Room/FromRoom/ToRoom containment for family instances (batch) |
+| `export_view_pdf` | Export a view or sheet to PDF on disk |
+| `get_tags_in_view` | List IndependentTag elements in a view (optional category filter) |
+| `get_model_health` | One-shot health scorecard: warnings (+ /1000-element ratio), file size, imports/links, families, groups, unused views, worksets, purgeable |
+| `get_worksets` | User worksets with per-workset element counts; flags empty worksets and default "Workset1" |
 
 ### Implemented — Model Writes
 
