@@ -53,6 +53,7 @@ public sealed class CommandRegistry
         Register(new GetElementGeometryCommand());
         Register(new GetViewImageCommand());
         Register(new GetModelHealthCommand());
+        Register(new GetWorksetsCommand());
 
         // === Creation — architecture ===
         Register(new CreateWallCommand());

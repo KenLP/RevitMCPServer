@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.2** — 72 C# commands (+ 2 hidden pending API fixes) + 1 batch = **73 MCP tools**.
+**v0.8.3** — 73 C# commands (+ 2 hidden pending API fixes) + 1 batch = **74 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -39,8 +39,10 @@ FamilySymbol rename**, **linked-file element reading**, **clash/clearance detect
 **level elevation editing**, **PDF export**, **room containment** (phase-aware
 `FromRoom`/`ToRoom`/`Room` batch lookup for doors, furniture, fixtures),
 **annotation tagging** (tag single element, tag-all-not-tagged by category, list tags in view),
-**model health report** (one-shot scorecard: warnings, file size, imported CAD, in-place
-families, groups, unused views, purgeable elements).
+**model health report** (one-shot scorecard: warnings + warning/element ratio, file size,
+imported/linked CAD, PDF/raster, RVT links, point clouds, in-place families, groups,
+unused views, purgeable elements), **workset audit** (per-workset element counts, empty-workset
+detection).
 See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 | Layer        | Build target              | Status |
@@ -50,13 +52,13 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (72 commands + 1 batch = 73 MCP tools)
+## Tool surface (73 commands + 1 batch = 74 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
 
-### Inspection / Introspection (26 read-only)
-`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_spaces` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image` | `revit_get_element_rooms` | `revit_export_view_pdf` | `revit_get_model_health`
+### Inspection / Introspection (27 read-only)
+`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_spaces` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image` | `revit_get_element_rooms` | `revit_export_view_pdf` | `revit_get_model_health` | `revit_get_worksets`
 
 ### Coordination / Clash (1 read-only)
 `revit_check_clearance`

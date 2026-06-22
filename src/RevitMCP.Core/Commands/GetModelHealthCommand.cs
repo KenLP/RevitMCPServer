@@ -9,12 +9,19 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// One-shot model health report — aggregates the metrics a BIM manager checks
-/// when judging model quality: warnings, file size, imported CAD, in-place
-/// families, groups, unused views, purgeable elements, and complexity counts.
+/// when judging model quality: warnings, file size, imported/linked CAD, RVT
+/// links, point clouds, in-place families, groups, unused views, worksets,
+/// purgeable elements, and complexity counts.
 ///
 /// Read-only.  Returns a structured report plus a scorecard (grade + flags).
 /// Every metric is wrapped defensively: a failure in one section degrades to a
 /// note instead of failing the whole report.
+///
+/// Thresholds below are seeded from published Revit best-practice guidance
+/// (file size &lt; 300-500 MB; warnings &lt; 300 for performance, 0 critical;
+/// in-place families minimised; empty worksets are a smell).  There is no
+/// industry-standard warnings/element ratio, so that value is reported for
+/// context but not scored.
 ///
 /// Params:
 ///   - deep:  bool (default false).  When true, also runs the purge scan
@@ -28,11 +35,11 @@ public sealed class GetModelHealthCommand : IRevitCommand
     public bool IsReadOnly => true;
 
     // ── Scorecard thresholds (tune here) ─────────────────────────────────────
-    private const int    WarningsHigh        = 100;   // > this → -10
+    private const int    WarningsHigh        = 300;   // > this → -10 (common "keep under 300" guidance)
     private const int    WarningsCritical    = 1000;  // > this → -25
     private const int    InPlaceHigh         = 20;    // > this → -10
     private const double UnusedViewRatioHigh = 0.50;  // notOnSheet/placeable > this → -10
-    private const double FileLargeMB         = 300.0; // > this → -10
+    private const double FileLargeMB         = 300.0; // > this → -10 (split into linked models beyond ~300-500 MB)
     private const int    PurgeableHigh       = 1000;  // > this → -5 (deep only)
 
     public JsonNode? Execute(CommandContext ctx)
@@ -57,24 +64,41 @@ public sealed class GetModelHealthCommand : IRevitCommand
             score -= penalty;
         }
 
-        // ── File ─────────────────────────────────────────────────────────────
+        // ── File & worksets ──────────────────────────────────────────────────
+        bool inCloud = false;
+        try { inCloud = doc.IsModelInCloud; } catch { /* property best-effort */ }
+
         double? sizeMB = null;
         try
         {
-            if (!string.IsNullOrEmpty(doc.PathName) && !doc.IsModelInCloud && File.Exists(doc.PathName))
+            if (!string.IsNullOrEmpty(doc.PathName) && !inCloud && File.Exists(doc.PathName))
                 sizeMB = Math.Round(new FileInfo(doc.PathName).Length / 1048576.0, 1);
         }
         catch { /* size best-effort */ }
         if (sizeMB is null)
-            notes.Add("File size unavailable (model not saved locally, cloud model, or path unresolved).");
+            notes.Add(inCloud
+                ? "File size unavailable: model is cloud-hosted (Autodesk Docs / BIM 360) — the Revit API exposes no on-disk size for cloud models. Open a local .rvt to see size."
+                : "File size unavailable: model not saved to a local/resolvable path.");
 
         int? worksetCount = null;
+        int? worksetEmpty = null;
         if (doc.IsWorkshared)
         {
             try
             {
-                worksetCount = new FilteredWorksetCollector(doc)
-                    .OfKind(WorksetKind.UserWorkset).ToWorksets().Count;
+                var wsList = new FilteredWorksetCollector(doc)
+                    .OfKind(WorksetKind.UserWorkset).ToWorksets();
+                worksetCount = wsList.Count;
+                int empty = 0;
+                foreach (var ws in wsList)
+                {
+                    int n = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementWorksetFilter(ws.Id))
+                        .GetElementCount();
+                    if (n == 0) empty++;
+                }
+                worksetEmpty = empty;
             }
             catch { /* workset enumeration best-effort */ }
         }
@@ -83,12 +107,16 @@ public sealed class GetModelHealthCommand : IRevitCommand
         {
             ["title"] = doc.Title,
             ["sizeMB"] = sizeMB,
+            ["isModelInCloud"] = inCloud,
             ["isWorkshared"] = doc.IsWorkshared,
             ["worksets"] = worksetCount,
+            ["emptyWorksets"] = worksetEmpty,
         };
 
         if (sizeMB is double mb && mb > FileLargeMB)
-            Flag("file_large", "warning", $"File is {mb} MB (> {FileLargeMB} MB).", 10);
+            Flag("file_large", "warning", $"File is {mb} MB (> {FileLargeMB} MB — consider splitting into linked models).", 10);
+        if (worksetEmpty is int we && we > 0)
+            Flag("empty_worksets", "info", $"{we} workset(s) contain no elements — candidates to remove.", 5);
 
         // ── Warnings (the single most important health signal) ─────────────────
         var warnings = doc.GetWarnings();
@@ -134,6 +162,11 @@ public sealed class GetModelHealthCommand : IRevitCommand
         foreach (var kv in catCounts.OrderByDescending(k => k.Value.Count).Take(topN))
             topCats.Add(new JsonObject { ["category"] = kv.Value.Name, ["count"] = kv.Value.Count });
 
+        // Warnings-per-element ratio — reported for context (no published standard).
+        warnObj["perThousandElements"] = totalElements > 0
+            ? Math.Round(warnTotal * 1000.0 / totalElements, 2)
+            : 0;
+
         var elemObj = new JsonObject
         {
             ["total"] = totalElements,
@@ -141,37 +174,60 @@ public sealed class GetModelHealthCommand : IRevitCommand
             ["topCategories"] = topCats,
         };
 
-        // ── Families & imports ──────────────────────────────────────────────────
+        // ── Families ────────────────────────────────────────────────────────────
         var families = new FilteredElementCollector(doc)
             .OfClass(typeof(Family)).Cast<Family>().ToList();
         int famTotal = families.Count;
         int famInPlace = families.Count(f => f.IsInPlace);
-
-        var imports = new FilteredElementCollector(doc)
-            .OfClass(typeof(ImportInstance)).Cast<ImportInstance>().ToList();
-        int cadLinked = imports.Count(i => i.IsLinked);
-        int cadImported = imports.Count(i => !i.IsLinked);
-
-        int rasterImages = 0;
-        try { rasterImages = new FilteredElementCollector(doc).OfClass(typeof(ImageInstance)).GetElementCount(); }
-        catch { /* image enumeration best-effort */ }
 
         var famObj = new JsonObject
         {
             ["totalFamilies"] = famTotal,
             ["loadable"] = famTotal - famInPlace,
             ["inPlace"] = famInPlace,
-            ["importedCadInstances"] = cadImported,
-            ["linkedCadInstances"] = cadLinked,
-            ["rasterImages"] = rasterImages,
+        };
+        if (famInPlace > InPlaceHigh)
+            Flag("inplace_families_high", "warning",
+                $"{famInPlace} in-place families (> {InPlaceHigh}).", 10);
+
+        // ── Imports & links (CAD, PDF/images, RVT links, point clouds) ───────────
+        var imports = new FilteredElementCollector(doc)
+            .OfClass(typeof(ImportInstance)).Cast<ImportInstance>().ToList();
+        int cadLinked = imports.Count(i => i.IsLinked);
+        int cadImported = imports.Count(i => !i.IsLinked);
+        int cadImportedInViews = imports.Count(i => !i.IsLinked && i.ViewSpecific);
+
+        int imagesAndPdfs = 0;   // imported raster images AND imported PDFs both become ImageInstance
+        try { imagesAndPdfs = new FilteredElementCollector(doc).OfClass(typeof(ImageInstance)).GetElementCount(); }
+        catch { /* image enumeration best-effort */ }
+
+        int rvtLinkInstances = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount();
+        int rvtLinkTypes = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).GetElementCount();
+
+        int pointClouds = 0;
+        try
+        {
+            pointClouds = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_PointClouds)
+                .WhereElementIsNotElementType()
+                .GetElementCount();
+        }
+        catch { /* point cloud enumeration best-effort */ }
+
+        var importsObj = new JsonObject
+        {
+            ["cadImported"] = cadImported,
+            ["cadImportedInViews"] = cadImportedInViews,
+            ["cadLinked"] = cadLinked,
+            ["imagesAndPdfs"] = imagesAndPdfs,
+            ["rvtLinkInstances"] = rvtLinkInstances,
+            ["rvtLinkTypes"] = rvtLinkTypes,
+            ["pointClouds"] = pointClouds,
         };
 
         if (cadImported > 0)
             Flag("imported_cad", "warning",
-                $"{cadImported} imported CAD instance(s) (not linked) — embeds DWG geometry in the model.", 15);
-        if (famInPlace > InPlaceHigh)
-            Flag("inplace_families_high", "warning",
-                $"{famInPlace} in-place families (> {InPlaceHigh}).", 10);
+                $"{cadImported} imported CAD instance(s) (not linked) — embeds DWG/DXF geometry in the model.", 15);
 
         // ── Groups ───────────────────────────────────────────────────────────────
         var groups = new FilteredElementCollector(doc).OfClass(typeof(Group)).Cast<Group>().ToList();
@@ -247,6 +303,11 @@ public sealed class GetModelHealthCommand : IRevitCommand
             notes.Add("Purgeable scan skipped (pass deep=true to include — can be slow on large models).");
         }
 
+        // Family file sizes (>1-3 MB) are NOT measured: the Revit API exposes no
+        // size for a loaded family; the only way is EditFamily + save per family,
+        // which is far too slow to run over a whole model. Spot-check externally.
+        notes.Add("Per-family file sizes are not measured (no Revit API for loaded-family size; would require EditFamily+save per family).");
+
         // ── Scorecard ──────────────────────────────────────────────────────────────
         score = Math.Clamp(score, 0, 100);
         string grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
@@ -263,6 +324,7 @@ public sealed class GetModelHealthCommand : IRevitCommand
             ["warnings"] = warnObj,
             ["elements"] = elemObj,
             ["families"] = famObj,
+            ["imports"] = importsObj,
             ["groups"] = groupObj,
             ["views"] = viewObj,
             ["complexity"] = complexityObj,

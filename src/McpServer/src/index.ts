@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.0 (stdio).
  *
- * 73 tools covering diagnostics, inspection, creation, editing,
+ * 74 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -126,6 +126,14 @@ server.tool("revit_get_model_health",
     topN: z.number().int().min(1).max(50).optional().describe("How many top warning groups / categories to list. Default 10."),
   },
   fwd("get_model_health"));
+
+server.tool("revit_get_worksets",
+  "List user worksets with per-workset element counts (read-only). " +
+  "Flags empty worksets (no instances) and un-renamed defaults ('Workset1'). " +
+  "Returns isWorkshared, count, emptyCount, and per-workset details (name, elementCount, isEmpty, isOpen, owner). " +
+  "For a non-workshared model returns isWorkshared=false.",
+  {},
+  fwd("get_worksets"));
 server.tool("revit_get_active_view", "Current active view info.", {}, fwd("get_active_view"));
 server.tool("revit_get_selected_elements", "Elements currently selected by the user in Revit UI.", {}, fwd("get_selected_elements"));
 server.tool("revit_get_linked_files", "List Revit link instances (metadata only — id, name, load status).", {}, fwd("get_linked_files"));

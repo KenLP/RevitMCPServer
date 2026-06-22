@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.2 — 72 commands + 1 batch = 73 MCP tools.**
+> **v0.8.3 — 73 commands + 1 batch = 74 MCP tools.**
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -46,7 +46,8 @@ The HTTP command name is the name without the prefix (used in
 | `revit_check_clearance`           | `check_clearance`       | ✅        | Hard clash + clearance check, host and cross-linked-file  |
 | `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block       |
 | `revit_get_element_rooms`         | `get_element_rooms`     | ✅        | Room containment for family instances — Room/FromRoom/ToRoom per element (batch) |
-| `revit_get_model_health`          | `get_model_health`      | ✅        | One-shot model health scorecard: warnings, file size, imported CAD, in-place families, groups, unused views, purgeable |
+| `revit_get_model_health`          | `get_model_health`      | ✅        | One-shot model health scorecard: warnings (+ /1000-element ratio), file size, imports/links (CAD, PDF, RVT, point cloud), in-place families, groups, unused views, worksets, purgeable |
+| `revit_get_worksets`              | `get_worksets`          | ✅        | User worksets with per-workset element counts; flags empty worksets and default 'Workset1' name |
 | `revit_create_wall`               | `create_wall`           | ❌        | Single straight wall                                      |
 | `revit_create_floor`              | `create_floor`          | ❌        | Floor from a closed polygonal profile                     |
 | `revit_create_ceiling`            | `create_ceiling`        | ❌        | Ceiling from a closed polygonal profile                   |

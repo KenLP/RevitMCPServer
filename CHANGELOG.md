@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] — 2026-06-22: Model health — worksets, imports/links, warning ratio
+
+### Added
+
+- **`revit_get_worksets`** — list user worksets with per-workset element counts.
+  Flags empty worksets (no instances) and the un-renamed default `"Workset1"`.
+  Returns `{ isWorkshared, count, emptyCount, worksets: [{id, name, elementCount,
+  isEmpty, isOpen, isEditable, isVisibleByDefault, owner, isDefaultName}] }`.
+  Non-workshared models return `isWorkshared=false`.
+  Tested live on Revit 2027 (4 worksets, "Workset1" correctly flagged).
+
+### Changed
+
+- **`revit_get_model_health`** enhanced:
+  - New **`imports`** section: imported vs linked CAD (with "in views" subcount),
+    imported PDFs + raster images (`imagesAndPdfs`), RVT link instances/types,
+    point clouds. Imported CAD (not linked) is flagged.
+  - **`warnings.perThousandElements`** — warnings-per-1000-elements ratio, reported
+    for context (no published industry standard, so not scored).
+  - **`file.worksets` / `file.emptyWorksets`** — workset summary; empty worksets flagged.
+  - **`file.isModelInCloud`** — makes it explicit when file size is `null` because the
+    model is cloud-hosted (the Revit API exposes no on-disk size for cloud models).
+  - Warning threshold raised 100 → **300** (`warnings_high`), aligning with the common
+    "keep warnings under 300" performance guidance; `warnings_critical` stays 1000.
+  - Per-family file sizes are intentionally **not** measured (no Revit API for a loaded
+    family's size; would require EditFamily+save per family) — noted in `notes`.
+
+---
+
 ## [0.8.2] — 2026-06-22: Model health report
 
 ### Added
