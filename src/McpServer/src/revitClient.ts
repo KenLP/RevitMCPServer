@@ -11,6 +11,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
+import { randomUUID } from "node:crypto";
 
 const REVIT_HOST = process.env.REVIT_MCP_HOST ?? "127.0.0.1";
 const REVIT_VERSION = process.env.REVIT_MCP_VERSION ?? "2026";
@@ -94,9 +95,11 @@ async function postJson(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
+    const headers = buildHeaders();
+    headers["x-request-id"] = randomUUID();
     const res = await fetch(`${BASE}${path}`, {
       method: "POST",
-      headers: buildHeaders(),
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });

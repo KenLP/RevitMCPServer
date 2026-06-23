@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] — 2026-06-23: Truth gate + observability & limits
+
+### Fixed
+
+- **Version drift**: `package.json` / `index.ts` / `McpHttpServer.cs` `/health` all
+  lagged at `0.8.0` while docs claimed `0.8.3`; README health examples still showed
+  `0.7.0`. All version strings now converge (single value, gated by CI).
+- **Tool-count drift**: docs claimed **74** MCP tools while the code exposed **80**
+  (79 commands + 1 batch; 81 C# commands registered, 2 hidden). README/COMMANDS/
+  API_COVERAGE corrected; `revit_override_element_graphics` was missing from the
+  README tool list.
+
+### Added (P0 — truth gate)
+
+- **`scripts/check-version.mjs`** now also verifies the tool/command inventory:
+  counts `server.tool(...)` (TS) and `Register(new ...)` (C#), enforces the invariant
+  *exposed commands − hidden + 1 batch = MCP tools*, and fails CI if the README
+  headline counts disagree. Counts can no longer silently drift.
+
+### Added (P1 — observability & limits)
+
+- **Request correlation ID** on every HTTP request (`X-Request-Id`, generated if the
+  client doesn't supply one) — returned as a response header and included in logs.
+- **Structured request log** (one JSON line per request): timestamp, requestId,
+  method, path, command, ok, errorCode, HTTP status, durationMs. Written under
+  `%LOCALAPPDATA%\RevitMCP\logs\`.
+- **Limits / backpressure**: max request body size, max batch steps, and a cap on
+  concurrent in-flight requests (returns `overloaded` → HTTP 503 with retry hint).
+- **`GET /stats`** endpoint: total/success/failed request counts, in-flight count,
+  average and peak duration.
+
+---
+
 ## [0.8.3] — 2026-06-22: Model health — worksets, imports/links, warning ratio
 
 ### Added

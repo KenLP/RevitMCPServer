@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -32,10 +33,16 @@ namespace RevitMCPAddin.Server;
 /// </summary>
 public sealed class McpHttpServer
 {
+    // ── Limits / backpressure ────────────────────────────────────────────────
+    private const long MaxRequestBytes = 1_048_576; // 1 MB request body cap
+    private const int  MaxBatchSteps   = 200;        // steps per batch cap
+    private const int  MaxInFlight     = 32;         // concurrent /mcp requests cap
+
     private readonly int _port;
     private readonly RevitMCPExternalEventHandler _handler;
     private readonly string? _authToken;
     private readonly HttpListener _listener = new();
+    private readonly ServerMetrics _metrics = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -91,6 +98,13 @@ public sealed class McpHttpServer
             var path = request.Url?.AbsolutePath ?? "";
             var method = request.HttpMethod;
 
+            // Correlation id: honour a client-supplied X-Request-Id, else mint one.
+            // Echoed on the response and threaded into the request log.
+            var requestId = request.Headers["X-Request-Id"];
+            if (string.IsNullOrWhiteSpace(requestId))
+                requestId = Guid.NewGuid().ToString("N").Substring(0, 12);
+            try { response.Headers["X-Request-Id"] = requestId; } catch { }
+
             // Health endpoint is auth-exempt so clients can detect the addin.
             if (method == "GET" && path == "/health")
             {
@@ -98,7 +112,7 @@ public sealed class McpHttpServer
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.8.0",
+                    ["version"] = "0.8.4",
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;
@@ -135,15 +149,54 @@ public sealed class McpHttpServer
                 return;
             }
 
-            if (method == "POST" && path == "/mcp")
+            if (method == "GET" && path == "/stats")
             {
-                await HandleSingleAsync(request, response).ConfigureAwait(false);
+                await WriteJsonAsync(response, 200, JsonResult.Success(_metrics.Snapshot()))
+                    .ConfigureAwait(false);
                 return;
             }
 
-            if (method == "POST" && path == "/mcp/batch")
+            if (method == "POST" && (path == "/mcp" || path == "/mcp/batch"))
             {
-                await HandleBatchAsync(request, response).ConfigureAwait(false);
+                // Backpressure: shed load instead of unbounded queue growth.
+                if (_metrics.InFlight >= MaxInFlight)
+                {
+                    _metrics.RecordRejected();
+                    try { response.Headers["Retry-After"] = "1"; } catch { }
+                    await WriteJsonAsync(response, 503,
+                        JsonResult.Error("overloaded",
+                            $"Server busy ({_metrics.InFlight} requests in flight). Retry shortly."))
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                _metrics.IncInFlight();
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    if (path == "/mcp")
+                        await HandleSingleAsync(request, response).ConfigureAwait(false);
+                    else
+                        await HandleBatchAsync(request, response).ConfigureAwait(false);
+                }
+                finally
+                {
+                    sw.Stop();
+                    _metrics.DecInFlight();
+                    var ok = response.StatusCode == 200;
+                    _metrics.Record(ok, sw.ElapsedMilliseconds);
+                    RequestLog.Write(new JsonObject
+                    {
+                        ["ts"] = DateTime.Now.ToString("o"),
+                        ["requestId"] = requestId,
+                        ["method"] = method,
+                        ["path"] = path,
+                        ["status"] = response.StatusCode,
+                        ["ok"] = ok,
+                        ["durationMs"] = sw.ElapsedMilliseconds,
+                        ["inFlight"] = _metrics.InFlight,
+                    });
+                }
                 return;
             }
 
@@ -197,12 +250,15 @@ public sealed class McpHttpServer
             "bad_request" or "bad_json"
               or "invalid_parameter" or "read_only_parameter"
               or "unsupported_view" or "invalid_chars"
+              or "too_many_steps"
               or "wrong_element_type"                         => 400,
             "unauthorized"                        => 401,
             "unknown_command" or "not_found"      => 404,
             "timeout" or "cancelled"              => 408,
             "name_collision" or "system_family"
               or "ambiguous_selection"            => 409,
+            "payload_too_large"                   => 413,
+            "overloaded"                          => 503,
             // command_failed / step_failed / dispatch_failed / server_error /
             // batch_aborted and anything unrecognised fall through to 500.
             _                                     => 500,
@@ -310,6 +366,9 @@ public sealed class McpHttpServer
         if (parameters?["steps"] is not JsonArray stepsArray)
             return (null, true, "Batch command requires params.steps array.");
 
+        if (stepsArray.Count > MaxBatchSteps)
+            return (null, true, $"Batch has {stepsArray.Count} steps; the maximum is {MaxBatchSteps}.");
+
         var stopOnError = parameters["stopOnError"]?.GetValue<bool>() ?? true;
         var steps = new List<BatchStep>(stepsArray.Count);
 
@@ -343,6 +402,15 @@ public sealed class McpHttpServer
             await WriteJsonAsync(response, 400,
                 JsonResult.Error("bad_request",
                     "Body must contain a 'steps' array."))
+                .ConfigureAwait(false);
+            return;
+        }
+
+        if (stepsArray.Count > MaxBatchSteps)
+        {
+            await WriteJsonAsync(response, 400,
+                JsonResult.Error("too_many_steps",
+                    $"Batch has {stepsArray.Count} steps; the maximum is {MaxBatchSteps}."))
                 .ConfigureAwait(false);
             return;
         }
@@ -399,6 +467,16 @@ public sealed class McpHttpServer
 
     private static async Task<JsonObject?> ReadJsonObjectAsync(HttpListenerRequest request, HttpListenerResponse response)
     {
+        // Reject oversized bodies up-front when the client declares Content-Length.
+        if (request.ContentLength64 > MaxRequestBytes)
+        {
+            await WriteJsonAsync(response, 413,
+                JsonResult.Error("payload_too_large",
+                    $"Request body {request.ContentLength64} bytes exceeds the {MaxRequestBytes}-byte limit."))
+                .ConfigureAwait(false);
+            return null;
+        }
+
         // JSON is canonically UTF-8 (RFC 8259). HttpListenerRequest.ContentEncoding
         // falls back to Encoding.Default when Content-Type omits charset, which has
         // bitten us with mojibake (em-dash, §) on requests where the client sent
@@ -406,6 +484,16 @@ public sealed class McpHttpServer
         string body;
         using (var reader = new StreamReader(request.InputStream, Encoding.UTF8))
             body = await reader.ReadToEndAsync().ConfigureAwait(false);
+
+        // Backstop for chunked requests (Content-Length unknown / -1).
+        if (Encoding.UTF8.GetByteCount(body) > MaxRequestBytes)
+        {
+            await WriteJsonAsync(response, 413,
+                JsonResult.Error("payload_too_large",
+                    $"Request body exceeds the {MaxRequestBytes}-byte limit."))
+                .ConfigureAwait(false);
+            return null;
+        }
 
         try
         {

@@ -174,6 +174,20 @@ public class BatchFromSingleCommandTests
         Assert.Contains("object", error);
     }
 
+    [Fact]
+    public void Too_many_steps_returns_error()
+    {
+        var steps = new JsonArray();
+        for (var i = 0; i < 201; i++) // exceeds MaxBatchSteps (200)
+            steps.Add(Step("ping"));
+
+        var (parsed, _, error) = McpHttpServer.ParseBatchParams(Params(steps));
+
+        Assert.Null(parsed);
+        Assert.NotNull(error);
+        Assert.Contains("maximum", error);
+    }
+
     // ── Orchestrator contract ────────────────────────────────────────────────
 
     [Fact]

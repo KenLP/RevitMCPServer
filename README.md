@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.3** — 73 C# commands (+ 2 hidden pending API fixes) + 1 batch = **74 MCP tools**.
+**v0.8.4** — 81 C# commands (79 exposed as MCP tools + 2 hidden) + 1 batch tool = **80 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (73 commands + 1 batch = 74 MCP tools)
+## Tool surface (79 commands + 1 batch = 80 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -84,8 +84,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ### Edit: Delete & Group (3 write)
 `revit_delete_elements` | `revit_group_elements` | `revit_ungroup_elements`
 
-### View Manipulation (11 write / UI)
-`revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param` | `revit_duplicate_view` | `revit_set_section_box` | `revit_isolate_elements_in_view`
+### View Manipulation (12 write / UI)
+`revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param` | `revit_override_element_graphics` | `revit_duplicate_view` | `revit_set_section_box` | `revit_isolate_elements_in_view`
 
 ### Batch (1)
 `revit_batch` — run multiple commands inside ONE Revit Transaction (single undo entry).
@@ -229,7 +229,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.7.0
+   version   : 0.8.4
    authEnabled : True
    ```
 
@@ -386,7 +386,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.7.0, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.4, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

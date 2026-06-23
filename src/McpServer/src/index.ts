@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.0 (stdio).
+ * Revit MCP Server v0.8.4 (stdio).
  *
  * 74 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -25,7 +25,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.0" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.4" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -733,7 +733,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.0 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.4 connected to Revit addin at ${REVIT_BASE_URL}`);
 
   // Startup connectivity probe — log diagnostics but never crash.
   const health = await checkRevitHealth();

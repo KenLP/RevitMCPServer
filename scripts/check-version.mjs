@@ -57,10 +57,52 @@ if (readmeHealth && readmeHealth[1] !== expected) {
   errors.push(`README.md health example version "${readmeHealth[1]}" != package.json "${expected}"`);
 }
 
+// ── Tool / command inventory consistency ────────────────────────────────────
+// Single source of truth: the actual code. We count the real declarations and
+// fail if the docs (or the TS↔C# surfaces) disagree, so the counts can never
+// silently drift again.
+const registry = readFileSync(
+  join(root, 'src/RevitMCP.Core/Commands/CommandRegistry.cs'), 'utf8');
+
+// MCP tools = active server.tool("name", ...) calls in index.ts (allow digits, e.g. create_3d_view)
+const toolCount = [...indexTs.matchAll(/server\.tool\(\s*"([a-z0-9_]+)"/g)].length;
+
+// C# commands = Register(new XxxCommand()) calls in the registry
+const registerCount = (registry.match(/Register\(new\s+\w+\(\)\)/g) || []).length;
+
+// Hidden = tools implemented in C# but commented out of the MCP surface in index.ts
+const hiddenCount = (indexTs.match(/^\s*\/\/\s*revit_[a-z0-9_]+.*hidden/gim) || []).length;
+
+// Structural invariant: exposed C# commands (registered − hidden) + 1 batch
+// transport tool must equal the number of MCP tools exposed in index.ts.
+const expectedTools = registerCount - hiddenCount + 1;
+if (toolCount !== expectedTools) {
+  errors.push(
+    `Tool/command drift: index.ts exposes ${toolCount} MCP tools, but ` +
+    `${registerCount} registered − ${hiddenCount} hidden + 1 batch = ${expectedTools}`);
+}
+
+// README headline claims must match reality.
+const readmeTools = readme.match(/(\d+)\s+MCP tools/);
+if (!readmeTools) {
+  errors.push('README.md: could not find an "N MCP tools" claim');
+} else if (Number(readmeTools[1]) !== toolCount) {
+  errors.push(`README.md claims ${readmeTools[1]} MCP tools but index.ts exposes ${toolCount}`);
+}
+
+const readmeCmds = readme.match(/(\d+)\s+C# commands/);
+if (!readmeCmds) {
+  errors.push('README.md: could not find an "N C# commands" claim');
+} else if (Number(readmeCmds[1]) !== registerCount) {
+  errors.push(`README.md claims ${readmeCmds[1]} C# commands but the registry has ${registerCount}`);
+}
+
 if (errors.length > 0) {
-  console.error('Version inconsistencies found:');
+  console.error('Consistency check failed:');
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);
 }
 
-console.log(`All version references consistent: ${expected}`);
+console.log(
+  `All consistent: v${expected}, ${toolCount} MCP tools, ` +
+  `${registerCount} C# commands (${hiddenCount} hidden).`);

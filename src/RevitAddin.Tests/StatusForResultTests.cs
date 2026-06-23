@@ -25,8 +25,17 @@ public class StatusForResultTests
     [InlineData("read_only_parameter", 400)]
     [InlineData("unsupported_view",    400)]
     [InlineData("invalid_chars",       400)]
+    [InlineData("too_many_steps",      400)]
     public void Client_errors_return_400(string code, int expected)
         => Assert.Equal(expected, McpHttpServer.StatusForResult(Err(code)));
+
+    [Fact]
+    public void PayloadTooLarge_returns_413()
+        => Assert.Equal(413, McpHttpServer.StatusForResult(Err("payload_too_large")));
+
+    [Fact]
+    public void Overloaded_returns_503()
+        => Assert.Equal(503, McpHttpServer.StatusForResult(Err("overloaded")));
 
     [Fact]
     public void Unauthorized_returns_401()

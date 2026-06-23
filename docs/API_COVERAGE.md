@@ -29,8 +29,9 @@ Claude Desktop / Claude Code.
 
 ## Current command surface (v0.8.3)
 
-**73 commands** across read, write, UI, and coordination categories
-(+ 2 hidden pending API fixes: `create_aligned_dimension`, `create_spot_elevation`).
+**81 commands** registered (79 exposed as MCP tools + 2 hidden pending API fixes:
+`create_aligned_dimension`, `create_spot_elevation`) across read, write, UI, and
+coordination categories. With the batch transport tool that is **80 MCP tools**.
 
 ### Implemented — Read / Introspection
 
