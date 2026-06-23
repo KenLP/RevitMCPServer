@@ -92,6 +92,32 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
+### Tool profiles (token efficiency)
+
+Exposing all 80 tools to every conversation costs tokens and degrades tool-selection
+accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
+the groups you need; `core` (ping, doc/element info, find, batch) is always included.
+Unset = all tools (default, backward compatible).
+
+| Profile | Tools | For |
+| ------- | ----- | --- |
+| `core` | 7 (always on) | ping, document/element info, find, batch |
+| `inspection` | 21 | `list_*` / `get_*` read-only queries |
+| `model-health` | 2 | `get_model_health`, `get_worksets` |
+| `coordination` | 1 | `check_clearance` |
+| `architecture` | 10 | wall/floor/level/grid/room/column/beam/ceiling/opening/family |
+| `documentation` | 13 | sheets, views, schedules, tags, text, PDF |
+| `editing` | 15 | parameters, type swap, transform, delete, group |
+| `view` | 11 | open/hide/isolate/filter/override/section-box |
+
+```jsonc
+// e.g. a documentation-only client (exposes 20 tools instead of 80):
+{ "mcpServers": { "revit": {
+  "command": "node", "args": ["dist/index.js"],
+  "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }
+}}}
+```
+
 ## Repo layout
 
 ```

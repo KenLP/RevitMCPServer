@@ -44,6 +44,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   a fixed fixture `.rvt`. See [`docs/SMOKE_TESTING.md`](docs/SMOKE_TESTING.md).
   Verified live on Revit 2027 (18/18 checks; golden compare 23/23).
 
+### Added (P2-A — tool profiles)
+
+- **`REVIT_MCP_PROFILE`** env var — expose only selected tool groups instead of all 80,
+  cutting token cost and tool-selection errors. Groups: `core` (always on), `inspection`,
+  `model-health`, `coordination`, `architecture`, `documentation`, `editing`, `view`.
+  Unset = all tools (default, backward compatible). Implemented as a runtime gate over
+  `server.tool` (no change to the registration call sites). Verified: `documentation`
+  exposes 20 tools, hides 60.
+
 ---
 
 ## [0.8.3] — 2026-06-22: Model health — worksets, imports/links, warning ratio

@@ -24,6 +24,7 @@
 | Workset audit (get_worksets) + model-health enrichment (imports/links section, warning/element ratio, worksets, isModelInCloud) | v0.8.3 | ✅ Done |
 | Truth gate (version + tool-count drift fail CI) + observability (X-Request-Id, structured log, /stats) + limits (body/batch/in-flight) | v0.8.4 | ✅ Done |
 | Live-Revit smoke suite (scripts/smoke-test.ps1) — read/dry-run/real-write/batch/limits + golden fingerprint compare | v0.8.4 | ✅ Done |
+| P2-A tool profiles — REVIT_MCP_PROFILE gates the 80-tool surface by group (core always on) for token efficiency | v0.8.4 | ✅ Done |
 
 ## Near-term backlog
 

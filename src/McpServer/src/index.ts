@@ -45,6 +45,93 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
   return envelopeToToolResult(await callRevit(cmd, rest, dryRun === true));
 };
 
+// ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
+// With 80 tools, loading the whole catalog into every conversation wastes tokens
+// and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
+// list (e.g. "documentation,view") to expose only those groups; "core" is always
+// included. Unset = all tools (default, fully backward compatible).
+const PROFILES: Record<string, string[]> = {
+  core: [
+    "revit_ping", "revit_get_version", "revit_get_document_info",
+    "revit_find_elements", "revit_get_element_info", "revit_get_parameter",
+    "revit_batch",
+  ],
+  inspection: [
+    "revit_list_elements", "revit_list_levels", "revit_list_wall_types",
+    "revit_list_floor_types", "revit_list_categories", "revit_list_families",
+    "revit_list_family_types", "revit_list_sheets", "revit_list_rooms",
+    "revit_list_spaces", "revit_list_materials", "revit_list_phases",
+    "revit_list_view_templates", "revit_get_views", "revit_get_active_view",
+    "revit_get_selected_elements", "revit_get_linked_files",
+    "revit_get_linked_elements", "revit_get_element_geometry",
+    "revit_get_view_image", "revit_get_element_rooms",
+  ],
+  "model-health": ["revit_get_model_health", "revit_get_worksets"],
+  coordination: ["revit_check_clearance"],
+  architecture: [
+    "revit_create_wall", "revit_create_floor", "revit_create_level",
+    "revit_create_grid", "revit_create_room", "revit_create_column",
+    "revit_create_beam", "revit_create_ceiling", "revit_create_opening_in_wall",
+    "revit_place_family_instance",
+  ],
+  documentation: [
+    "revit_create_sheet", "revit_place_view_on_sheet",
+    "revit_create_floor_plan_view", "revit_create_section_view",
+    "revit_create_3d_view", "revit_create_schedule", "revit_configure_schedule",
+    "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
+    "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
+  ],
+  editing: [
+    "revit_set_parameter", "revit_set_parameter_batch", "revit_rename_element",
+    "revit_change_element_type", "revit_apply_view_template",
+    "revit_copy_parameters", "revit_set_level_elevation", "revit_move_element",
+    "revit_rotate_element", "revit_copy_element", "revit_mirror_element",
+    "revit_array_linear", "revit_delete_elements", "revit_group_elements",
+    "revit_ungroup_elements",
+  ],
+  view: [
+    "revit_open_view", "revit_set_view_detail_level",
+    "revit_hide_elements_in_view", "revit_unhide_elements_in_view",
+    "revit_isolate_elements_in_view", "revit_set_section_box",
+    "revit_select_elements", "revit_zoom_to_elements", "revit_apply_view_filter",
+    "revit_color_override_by_param", "revit_override_element_graphics",
+  ],
+};
+
+const TOOL_PROFILE: Record<string, string> = {};
+for (const [profile, names] of Object.entries(PROFILES))
+  for (const name of names) TOOL_PROFILE[name] = profile;
+
+function resolveEnabledProfiles(): Set<string> | null {
+  const raw = process.env.REVIT_MCP_PROFILE?.trim();
+  if (!raw) return null; // null = expose everything (default)
+  const set = new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
+  set.add("core"); // core tools are always available
+  for (const p of set)
+    if (p !== "core" && !(p in PROFILES))
+      console.error(`[revit-mcp-server] WARNING: unknown profile "${p}" in REVIT_MCP_PROFILE`);
+  return set;
+}
+
+const ENABLED_PROFILES = resolveEnabledProfiles();
+let toolsRegistered = 0;
+let toolsSkipped = 0;
+
+// Gate server.tool() by profile without touching the 80 registration call sites.
+const _registerTool = server.tool.bind(server);
+(server as unknown as { tool: (...a: unknown[]) => unknown }).tool = (
+  ...args: unknown[]
+) => {
+  const name = args[0] as string;
+  const profile = TOOL_PROFILE[name] ?? "core";
+  if (ENABLED_PROFILES === null || ENABLED_PROFILES.has(profile)) {
+    toolsRegistered++;
+    return (_registerTool as (...a: unknown[]) => unknown)(...args);
+  }
+  toolsSkipped++;
+  return undefined;
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DIAGNOSTICS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -734,6 +821,11 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`[revit-mcp-server] v0.8.4 connected to Revit addin at ${REVIT_BASE_URL}`);
+  if (ENABLED_PROFILES !== null)
+    console.error(
+      `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +
+      `— ${toolsRegistered} tools exposed, ${toolsSkipped} hidden`,
+    );
 
   // Startup connectivity probe — log diagnostics but never crash.
   const health = await checkRevitHealth();
