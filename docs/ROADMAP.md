@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.3
+## Current status — v0.8.4
 
 | Phase | Version | Status |
 |---|---|---|
@@ -22,6 +22,8 @@
 | Annotation — tag_all_in_view, get_tags_in_view (create_aligned_dimension / create_spot_elevation hidden pending API fixes) | v0.8.1 | ✅ Done |
 | Model health report — get_model_health one-shot scorecard (warnings, file size, imports/links, families, groups, unused views, purgeable) | v0.8.2 | ✅ Done |
 | Workset audit (get_worksets) + model-health enrichment (imports/links section, warning/element ratio, worksets, isModelInCloud) | v0.8.3 | ✅ Done |
+| Truth gate (version + tool-count drift fail CI) + observability (X-Request-Id, structured log, /stats) + limits (body/batch/in-flight) | v0.8.4 | ✅ Done |
+| Live-Revit smoke suite (scripts/smoke-test.ps1) — read/dry-run/real-write/batch/limits + golden fingerprint compare | v0.8.4 | ✅ Done |
 
 ## Near-term backlog
 

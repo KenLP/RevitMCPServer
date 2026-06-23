@@ -35,6 +35,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - **`GET /stats`** endpoint: total/success/failed request counts, in-flight count,
   average and peak duration.
 
+### Added (P1.5 — live-Revit smoke suite)
+
+- **`scripts/smoke-test.ps1`** — drives the running addin over HTTP and asserts
+  end-to-end behaviour unit tests can't (real Revit API). Covers connectivity, the
+  read surface, observability, dry-run vs real writes (self-cleaning create→delete),
+  batch, and the new limits. Supports `-Snapshot`/`-Golden` fingerprint compare against
+  a fixed fixture `.rvt`. See [`docs/SMOKE_TESTING.md`](docs/SMOKE_TESTING.md).
+  Verified live on Revit 2027 (18/18 checks; golden compare 23/23).
+
 ---
 
 ## [0.8.3] — 2026-06-22: Model health — worksets, imports/links, warning ratio
