@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Autodesk.Revit.DB;
@@ -5,13 +6,20 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Place a spot elevation symbol on an element face in a view.
-/// Uses doc.Create.NewSpotElevation (Revit 2026 API).
+/// Place a spot elevation symbol on the top face of an element in a view.
+///
+/// Root-cause fix (see The Building Coder, "Spot Elevation Creation on Top of
+/// Beam"): the prior code projected onto a solid face manually, so the supplied
+/// point did not lie exactly on the face → "Spot Dimension does not lie on its
+/// reference". Instead we cast a ray straight DOWN through the element at the
+/// user's (x, y) using <see cref="ReferenceIntersector"/> on a 3D view. The hit
+/// gives both the face reference AND a point guaranteed to lie on that face
+/// (origin + (-Z) * proximity).
 ///
 /// Params:
-///   - elementId:    long, required — element with an upward-facing face (Floor, Slab, Roof, etc.)
-///   - point:        {x, y, z?} — model-space position; will be projected onto the face automatically
-///   - textOffset:   {x, y} optional — offset from point to the symbol/text. Default {0.5, 0} m
+///   - elementId:    long, required — element with an upward-facing face (Floor, Slab, Roof, beam, etc.)
+///   - point:        {x, y, z?} — (x, y) is where the ray drops; z is ignored (the face Z is found by raycast)
+///   - textOffset:   {x, y} optional — leader/symbol offset. Default {0.5, 0} m
 ///   - hasLeader:    bool, default true
 ///   - viewId:       long, optional (defaults to active view)
 ///   - units:        "meters"|"feet", default "meters"
@@ -42,98 +50,74 @@ public sealed class CreateSpotElevationCommand : IRevitCommand
         var element = doc.GetElement(elementId)
             ?? throw new RevitCommandException("not_found", $"Element {elementId.Value} not found.");
 
-        // Find top-facing face reference (requires ComputeReferences = true)
-        var faceRef = GetUpwardFaceReference(element)
-            ?? throw new RevitCommandException("not_found",
-                $"No upward-facing planar face found on element {elementId.Value}. " +
-                "Provide a Floor, Slab, Roof, or similar host element.");
-
-        // Parse input point
         var ptObj = p["point"] as JsonObject
             ?? throw new RevitCommandException("bad_request", "'point' {x, y, z?} is required.");
         double px = P.DblOr(ptObj, "x", 0) * scale;
         double py = P.DblOr(ptObj, "y", 0) * scale;
-        double pz = P.DblOr(ptObj, "z", 0) * scale;
 
-        // origin = measurement point (will be projected to face automatically by Revit)
-        // refPt  = same as origin (Revit computes the actual projected point)
-        var origin = new XYZ(px, py, pz);
-        var refPt = origin;
+        var bbox = element.get_BoundingBox(null)
+            ?? throw new RevitCommandException("not_found",
+                $"Element {elementId.Value} has no bounding box to raycast against.");
 
-        // textOffset → end point (where symbol/text appears)
-        double defaultOffset = 0.5 * scale;
-        double ox = defaultOffset, oy = 0;
-        if (p["textOffset"] is JsonObject offObj)
+        // Raycast straight down from above the element at (px, py). A fresh
+        // temporary isometric 3D view avoids section-box / visibility surprises
+        // from any existing 3D view; it is deleted after the spot is placed.
+        var vft = CreateFloorPlanViewCommand.GetViewFamilyType(doc, ViewFamily.ThreeDimensional);
+        var view3d = View3D.CreateIsometric(doc, vft.Id);
+
+        SpotDimension spot;
+        bool hasLeader;
+        double hitZ;
+        try
         {
-            ox = P.DblOr(offObj, "x", 0.5) * scale;
-            oy = P.DblOr(offObj, "y", 0) * scale;
+            double startZ = bbox.Max.Z + 10.0; // 10 ft above the top of the element
+            var originAbove = new XYZ(px, py, startZ);
+
+            var intersector = new ReferenceIntersector(elementId, FindReferenceTarget.Face, view3d);
+            var hit = intersector.FindNearest(originAbove, XYZ.BasisZ.Negate())
+                ?? throw new RevitCommandException("not_found",
+                    $"Downward ray at ({px:F2}, {py:F2}) ft hit no face on element {elementId.Value}. " +
+                    "Check that (x, y) is within the element's footprint.");
+
+            var faceRef = hit.GetReference();
+            double proximity = hit.Proximity;
+            // Exact point ON the face: originAbove + (-Z) * proximity
+            var hitPoint = originAbove.Subtract(XYZ.BasisZ.Multiply(proximity));
+            hitZ = hitPoint.Z;
+
+            // textOffset → leader bend/end (offset sideways and up)
+            double ox = 0.5 * scale, oy = 0;
+            if (p["textOffset"] is JsonObject offObj)
+            {
+                ox = P.DblOr(offObj, "x", 0.5) * scale;
+                oy = P.DblOr(offObj, "y", 0) * scale;
+            }
+            hasLeader = P.BoolOr(p, "hasLeader", true);
+
+            double lift = Math.Max(Math.Abs(ox), 1.0); // leader rises at least 1 ft
+            var origin = hitPoint;
+            var refPt = hitPoint;
+            var bend = new XYZ(hitPoint.X + ox / 2, hitPoint.Y + oy / 2, hitPoint.Z + lift);
+            var end = new XYZ(hitPoint.X + ox, hitPoint.Y + oy, hitPoint.Z + lift);
+
+            // Signature: view, reference, origin, bend, end, refPt, hasLeader
+            spot = doc.Create.NewSpotElevation(view, faceRef, origin, bend, end, refPt, hasLeader)
+                ?? throw new RevitCommandException("command_failed",
+                    "NewSpotElevation returned null — the view type may not support spot elevations.");
         }
-
-        var end = new XYZ(px + ox, py + oy, pz);
-        var bend = new XYZ(px + ox / 2, py + oy / 2, pz);
-        var hasLeader = P.BoolOr(p, "hasLeader", true);
-
-        // doc.Create.NewSpotElevation(view, reference, origin, bend, end, refPt, hasLeader)
-        var spot = doc.Create.NewSpotElevation(view, faceRef, origin, bend, end, refPt, hasLeader);
-        if (spot is null)
-            throw new RevitCommandException("command_failed", "NewSpotElevation returned null — check the face reference and view type.");
-
-        // Report elevation in meters (origin z is in feet internally)
-        double elevM = pz * P.FeetToMeters;
+        finally
+        {
+            // Reference is to the element geometry (document-level), so deleting
+            // the temporary view does not invalidate the placed spot dimension.
+            try { doc.Delete(view3d.Id); } catch { }
+        }
 
         return new JsonObject
         {
             ["spotId"] = spot.Id.Value,
-            ["elevationMeters"] = elevM,
+            ["elevationMeters"] = hitZ * P.FeetToMeters,
             ["hasLeader"] = hasLeader,
             ["viewId"] = viewId.Value,
         };
-    }
-
-    private static Reference? GetUpwardFaceReference(Element element)
-    {
-        var opts = new Options
-        {
-            ComputeReferences = true,
-            DetailLevel = ViewDetailLevel.Fine,
-            IncludeNonVisibleObjects = false,
-        };
-
-        var geomElem = element.get_Geometry(opts);
-        if (geomElem is null) return null;
-
-        Reference? best = null;
-        double bestZ = double.MinValue;
-
-        foreach (var gObj in geomElem)
-        {
-            if (gObj is GeometryInstance gi)
-            {
-                foreach (var go2 in gi.GetInstanceGeometry())
-                    TryFace(go2, ref best, ref bestZ);
-            }
-            else
-            {
-                TryFace(gObj, ref best, ref bestZ);
-            }
-        }
-
-        return best;
-    }
-
-    private static void TryFace(GeometryObject gObj, ref Reference? best, ref double bestZ)
-    {
-        if (gObj is not Solid solid) return;
-        foreach (Face face in solid.Faces)
-        {
-            if (face is PlanarFace pf && pf.FaceNormal.Z > 0.9 && pf.Reference is not null)
-            {
-                if (pf.Origin.Z > bestZ)
-                {
-                    bestZ = pf.Origin.Z;
-                    best = pf.Reference;
-                }
-            }
-        }
     }
 }

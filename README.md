@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.4** — 81 C# commands (79 exposed as MCP tools + 2 hidden) + 1 batch tool = **80 MCP tools**.
+**v0.8.5** — 81 C# commands (81 exposed as MCP tools + 0 hidden) + 1 batch tool = **82 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (79 commands + 1 batch = 80 MCP tools)
+## Tool surface (81 commands + 1 batch = 82 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -69,8 +69,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ### Creation: Documentation (8 write)
 `revit_create_sheet` | `revit_place_view_on_sheet` | `revit_create_floor_plan_view` | `revit_create_section_view` | `revit_create_3d_view` | `revit_create_schedule` | `revit_tag_element` | `revit_create_text_note`
 
-### Annotation (2 read/write)
-`revit_tag_all_in_view` | `revit_get_tags_in_view`
+### Annotation (4 read/write)
+`revit_tag_all_in_view` | `revit_get_tags_in_view` | `revit_create_aligned_dimension` | `revit_create_spot_elevation`
 
 ### Edit: Parameters, Types & Naming (7 write)
 `revit_set_parameter` | `revit_set_parameter_batch` | `revit_rename_element` | `revit_change_element_type` | `revit_apply_view_template` | `revit_copy_parameters` | `revit_configure_schedule`
@@ -106,12 +106,12 @@ Unset = all tools (default, backward compatible).
 | `model-health` | 2 | `get_model_health`, `get_worksets` |
 | `coordination` | 1 | `check_clearance` |
 | `architecture` | 10 | wall/floor/level/grid/room/column/beam/ceiling/opening/family |
-| `documentation` | 13 | sheets, views, schedules, tags, text, PDF |
+| `documentation` | 15 | sheets, views, schedules, tags, text, PDF, dimensions, spot elevations |
 | `editing` | 15 | parameters, type swap, transform, delete, group |
 | `view` | 11 | open/hide/isolate/filter/override/section-box |
 
 ```jsonc
-// e.g. a documentation-only client (exposes 20 tools instead of 80):
+// e.g. a documentation-only client (exposes 22 tools instead of 82):
 { "mcpServers": { "revit": {
   "command": "node", "args": ["dist/index.js"],
   "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }
@@ -264,7 +264,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.4
+   version   : 0.8.5
    authEnabled : True
    ```
 
@@ -421,7 +421,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.4, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.5, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

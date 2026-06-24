@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.4 — 79 commands + 1 batch = 80 MCP tools** (+ 2 hidden = 81 C# commands registered).
+> **v0.8.5 — 81 commands + 1 batch = 82 MCP tools** (0 hidden; 81 C# commands registered).
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -85,6 +85,8 @@ The HTTP command name is the name without the prefix (used in
 | `revit_tag_element`               | `tag_element`           | ❌        | Tag an element in a view                                  |
 | `revit_tag_all_in_view`           | `tag_all_in_view`       | ❌        | Tag all untagged elements of a category in a view         |
 | `revit_get_tags_in_view`          | `get_tags_in_view`      | ✅        | List all IndependentTag elements in a view (optional category filter) |
+| `revit_create_aligned_dimension`  | `create_aligned_dimension` | ❌     | Aligned dimension chain: Grids, Walls (centreline/face), columns, beams |
+| `revit_create_spot_elevation`     | `create_spot_elevation` | ❌        | Spot elevation on a top face (Floor, Slab, Roof, beam) via downward raycast |
 | `revit_apply_view_filter`         | `apply_view_filter`     | ❌        | ParameterFilterElement + SetFilterOverrides               |
 | `revit_color_override_by_param`   | `color_override_by_param`| ❌       | Per-bucket color overrides by parameter value             |
 | `revit_hide_elements_in_view`     | `hide_elements_in_view` | ❌        | Hide by ids in view                                       |

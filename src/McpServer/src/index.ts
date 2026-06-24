@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.4 (stdio).
+ * Revit MCP Server v0.8.5 (stdio).
  *
- * 74 tools covering diagnostics, inspection, creation, editing,
+ * 82 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -25,7 +25,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.4" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.5" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -80,6 +80,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_create_3d_view", "revit_create_schedule", "revit_configure_schedule",
     "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
     "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
+    "revit_create_aligned_dimension", "revit_create_spot_elevation",
   ],
   editing: [
     "revit_set_parameter", "revit_set_parameter_batch", "revit_rename_element",
@@ -406,9 +407,34 @@ server.tool("revit_tag_all_in_view", "Tag all (untagged) elements of a category 
   dryRun: dryRunField,
 }, fwdWrite("tag_all_in_view"));
 
-// revit_create_aligned_dimension — hidden pending grid-reference fix (wall-to-wall works, mixed wall+grid refs broken in NewDimension API)
+server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain between two or more element references in a view. Supports Grids, Walls (centreline or face), ReferencePlanes, columns, beams, and FamilyInstances. Wall side: 'auto'/'centre' = wall centreline (default), 'exterior'/'interior' = outer/inner face, 'core' = core centre. The dimension line must cross all references and they must be visible in the target view.", {
+  references: z.array(z.object({
+    elementId: z.number().int().describe("ElementId of the grid, wall, column, beam, or other element to dimension to."),
+    side: z.enum(["auto", "exterior", "interior", "centre", "core"]).optional()
+      .describe("For walls: which face/centreline to use. 'auto'/'centre' = overall centreline. 'exterior'/'interior' = outer/inner face. 'core' = core centre. Ignored for non-wall elements."),
+  })).min(2).describe("At least 2 element references to dimension between."),
+  line: z.object({
+    start: xyz.describe("Start point of the dimension line. Must lie on the opposite side of the references from end."),
+    end: xyz.describe("End point of the dimension line. The line must cross all references."),
+  }).describe("Position and direction of the dimension witness line. Must be perpendicular to the elements being dimensioned and cross all references."),
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view. All references must be visible in this view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_aligned_dimension"));
 
-// revit_create_spot_elevation — hidden pending origin-projection fix (origin must lie exactly on face; auto-projection not yet implemented)
+server.tool("revit_create_spot_elevation", "Place a spot elevation symbol on the top face of an element (Floor, Slab, Roof, beam, etc.) in a plan or section view. Uses a downward raycast at (x, y) to find the exact face hit point — the point is guaranteed to lie on the face.", {
+  elementId: z.number().int().describe("ElementId of the element to place the spot elevation on (Floor, Slab, Roof, beam, etc.)."),
+  point: z.object({
+    x: z.number().describe("X coordinate within the element's footprint."),
+    y: z.number().describe("Y coordinate within the element's footprint."),
+  }).describe("(x, y) position of the spot. Must fall within the element's horizontal footprint. Z is determined automatically by raycasting down onto the top face."),
+  textOffset: z.object({ x: z.number(), y: z.number() }).optional()
+    .describe("Leader/symbol offset from the hit point. Default {x: 0.5, y: 0} m."),
+  hasLeader: z.boolean().optional().describe("Show a leader line. Default true."),
+  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_spot_elevation"));
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
@@ -820,7 +846,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.4 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.5 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

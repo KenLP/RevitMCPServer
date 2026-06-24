@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] — 2026-06-24: Un-hide create_aligned_dimension + create_spot_elevation
+
+### Fixed
+
+- **`create_aligned_dimension`**: Grid references now use `new Reference(grid)` (element
+  reference) instead of the grid curve's geometry reference, which does not resolve in
+  `NewDimension`. Wall centreline / core now uses the undocumented `:-9999:` stable
+  representation (index 1 = overall centreline, 2 = core exterior, 3 = core interior,
+  4 = core centre), confirmed working on Revit 2027. `GetSideFaces` kept as a fallback
+  for explicit exterior/interior face requests.
+- **`create_spot_elevation`**: Replaced manual solid-face iteration + user-supplied Z
+  (caused "Spot Dimension does not lie on its reference") with `ReferenceIntersector`
+  downward raycast on a temporary isometric 3D view. The hit gives both the face reference
+  and a point guaranteed to lie on it. Temporary view is deleted after placement.
+
+### Changed
+
+- Both tools are now **exposed on the MCP surface** (`revit_create_aligned_dimension`,
+  `revit_create_spot_elevation`) and added to the `documentation` profile. Total MCP
+  tools: **80 → 82** (81 C# commands + 1 batch; 0 hidden).
+- Version bumped: 0.8.4 → 0.8.5.
+
 ## [0.8.4] — 2026-06-23: Truth gate + observability & limits
 
 ### Fixed

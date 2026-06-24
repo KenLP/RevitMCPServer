@@ -238,6 +238,40 @@ elseif ($Golden) {
     }
 }
 
+# ── 9. Dimensions & spot elevations (dry-run; skip if model lacks elements) ──
+Write-Host "`n[9] Dimensions & spot elevations (dry-run)"
+
+$grids = (Invoke-Mcp find_elements -Params @{ category = "OST_Grids"; limit = 5 }).data.elements
+if ($grids.Count -ge 2) {
+    Test-Case "create_aligned_dimension dryRun (grid+grid)" {
+        $g0 = [long]$grids[0].id; $g1 = [long]$grids[1].id
+        $r = Invoke-Mcp create_aligned_dimension -DryRun -Params @{
+            references = @(@{ elementId = $g0 }, @{ elementId = $g1 })
+            line = @{ start = @{ x = -20; y = 0; z = 0 }; end = @{ x = 20; y = 0; z = 0 } }
+        }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.dimensionId -gt 0) "no dimensionId"
+        Assert ($r.data.value -gt 0) "dimension value <= 0 ($($r.data.value))"
+    }
+} else {
+    Write-Host "  SKIP  create_aligned_dimension (fewer than 2 grids in model)" -ForegroundColor Yellow
+}
+
+$floors = (Invoke-Mcp find_elements -Params @{ category = "OST_Floors"; limit = 3 }).data.elements
+if ($floors.Count -ge 1) {
+    Test-Case "create_spot_elevation dryRun (floor top face)" {
+        $fid = [long]$floors[0].id
+        $r = Invoke-Mcp create_spot_elevation -DryRun -Params @{
+            elementId = $fid
+            point     = @{ x = 0; y = 0 }
+        }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.spotId -gt 0) "no spotId"
+    }
+} else {
+    Write-Host "  SKIP  create_spot_elevation (no Floor elements in model)" -ForegroundColor Yellow
+}
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 Write-Host "`n$("=" * 56)"
 $total = $script:pass + $script:fail
