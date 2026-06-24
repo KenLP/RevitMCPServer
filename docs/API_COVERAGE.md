@@ -27,7 +27,7 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.3)
+## Current command surface (v0.8.4)
 
 **81 commands** registered (79 exposed as MCP tools + 2 hidden pending API fixes:
 `create_aligned_dimension`, `create_spot_elevation`) across read, write, UI, and

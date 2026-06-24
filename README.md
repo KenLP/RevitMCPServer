@@ -126,20 +126,29 @@ RevitMCPServer/
 ├── LICENSE                         ← MIT
 ├── CHANGELOG.md
 ├── docs/
-│   ├── ARCHITECTURE.md             ← three-layer design + threading model
+│   ├── ARCHITECTURE.md             ← three-layer design, threading, observability
 │   ├── COMMANDS.md                 ← every command's schema + envelope
 │   ├── API_COVERAGE.md             ← what we wrap, what we don't, why
+│   ├── COMPATIBILITY.md            ← Revit/.NET/Node support + port matrix
+│   ├── SMOKE_TESTING.md            ← live-Revit smoke suite + golden fixtures
+│   ├── TROUBLESHOOTING.md          ← common failures and fixes
 │   └── ROADMAP.md                  ← phase tracker
+├── scripts/
+│   ├── check-version.mjs           ← CI gate: version + tool-count consistency
+│   └── smoke-test.ps1              ← live-Revit smoke test
 └── src/
-    ├── RevitAddin/                 ← C# addin (in-Revit, .NET 8/10)
-    │   ├── App.cs
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 81 commands
     │   ├── RevitMCPExternalEventHandler.cs
-    │   ├── Server/McpHttpServer.cs
-    │   ├── Commands/               ← one IRevitCommand per tool
+    │   └── Commands/               ← one IRevitCommand per tool
+    ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
+    │   ├── App.cs
+    │   ├── Server/McpHttpServer.cs ← /mcp, /mcp/batch, /commands, /health, /stats
+    │   ├── Server/RequestLog.cs    ← structured request log
+    │   ├── Server/ServerMetrics.cs ← counters behind /stats
     │   ├── RevitMCPAddin.csproj
     │   └── RevitMCPAddin.addin
     └── McpServer/                  ← TypeScript MCP stdio server
-        ├── src/index.ts
+        ├── src/index.ts            ← tool declarations + profiles
         ├── src/revitClient.ts
         ├── package.json
         └── tsconfig.json

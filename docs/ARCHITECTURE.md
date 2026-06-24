@@ -99,37 +99,29 @@ the actual Revit API call, not boilerplate.
 ## File map
 
 ```
-src/RevitAddin/
-├── App.cs                              # IExternalApplication entry point
+src/RevitMCP.Core/                      # portable class library — the execution kernel
 ├── RevitMCPExternalEventHandler.cs     # main-thread bridge + transaction owner
-├── Server/
-│   └── McpHttpServer.cs                # HttpListener, /mcp, /mcp/batch, /commands, /health
 └── Commands/
     ├── IRevitCommand.cs                # contract every command implements
-    ├── CommandContext.cs               # request scope (App, Doc, Parameters)
-    ├── CommandRegistry.cs              # name → IRevitCommand
+    ├── CommandContext.cs               # request scope (App, Doc, Parameters, DryRun)
+    ├── CommandRegistry.cs              # name → IRevitCommand (RegisterDefaults)
     ├── JsonResult.cs                   # response envelope helpers
     ├── ParamUtil.cs                    # P.Str / P.Dbl / P.Xyz / …
-    ├── PingCommand.cs
-    ├── GetVersionCommand.cs
-    ├── ListElementsCommand.cs
-    ├── GetElementInfoCommand.cs
-    ├── ListLevelsCommand.cs
-    ├── ListWallTypesCommand.cs
-    ├── ListFloorTypesCommand.cs
-    ├── ListCategoriesCommand.cs
-    ├── CreateWallCommand.cs
-    ├── CreateFloorCommand.cs
-    ├── CreateLevelCommand.cs
-    ├── CreateGridCommand.cs
-    ├── SetParameterCommand.cs
-    ├── DeleteElementsCommand.cs
-    └── MoveElementCommand.cs
+    ├── BatchPolicy.cs                  # mixed ModelWrite/UiAction batch rejection
+    ├── RevitCommandException.cs        # typed domain error codes
+    └── …Command.cs                     # 81 commands, one file each
 
-src/McpServer/
+src/RevitAddin/                         # the Revit add-in host
+├── App.cs                              # IExternalApplication; mints the auth token
+└── Server/
+    ├── McpHttpServer.cs                # HttpListener: /mcp, /mcp/batch, /commands, /health, /stats
+    ├── RequestLog.cs                   # structured per-request JSON log
+    └── ServerMetrics.cs               # in-process counters behind /stats
+
+src/McpServer/                          # MCP stdio bridge (Node/TypeScript)
 ├── src/
-│   ├── index.ts                        # server.tool(...) declarations
-│   └── revitClient.ts                  # HTTP client + envelope helpers
+│   ├── index.ts                        # server.tool(...) declarations + tool profiles
+│   └── revitClient.ts                  # HTTP client, envelope helpers, X-Request-Id
 ├── package.json
 └── tsconfig.json
 ```
@@ -164,13 +156,40 @@ Write commands return a `changeSummary` one-liner and (where applicable)
 a `changes` object with before/after values. The AI should show the
 summary by default and only reveal full diffs on demand.
 
+## Observability & limits
+
+Every `/mcp` and `/mcp/batch` request carries a correlation id — the client may send
+`X-Request-Id`, otherwise `McpHttpServer` mints one. It is echoed on the response and
+written to a structured per-request log (one JSON line: `ts, requestId, method, path,
+status, ok, durationMs, inFlight`) under `%LOCALAPPDATA%\RevitMCP\logs\`.
+
+To shed load rather than grow an unbounded queue, the server enforces:
+
+| Limit | Value | Response |
+|---|---|---|
+| Request body | 1 MB | 413 `payload_too_large` |
+| Batch steps | 200 | 400 `too_many_steps` |
+| Concurrent in-flight | 32 | 503 `overloaded` (+ `Retry-After`) |
+
+`GET /stats` returns counters: total / success / failed / rejected requests, current
+in-flight, and average / peak duration.
+
+## Tool profiles
+
+The 80-tool surface can be narrowed per client via the `REVIT_MCP_PROFILE` env var
+(comma-separated group names; `core` is always included; unset = all tools). It is a
+runtime gate over `server.tool` in `index.ts`, so the registration call sites stay
+untouched and the CI tool-count gate is unaffected. See the README for the group list.
+
 ## Adding a new command
 
-1. **C# side**: implement `IRevitCommand` in `src/RevitAddin/Commands/`.
-   Set `IsReadOnly` correctly. Don't open a `Transaction`.
+1. **C# side**: implement `IRevitCommand` in `src/RevitMCP.Core/Commands/`.
+   Set `IsReadOnly` / `Execution` correctly. Don't open a `Transaction`.
 2. Register it in `CommandRegistry.RegisterDefaults()`.
 3. **TypeScript side**: add a `server.tool(...)` declaration in `index.ts`
-   that forwards to `callRevit("your_command", params)`.
+   that forwards to `callRevit("your_command", params)`. Add the new tool name to a
+   group in the `PROFILES` map (otherwise it defaults to `core`). The CI gate
+   (`scripts/check-version.mjs`) will fail until README counts are updated to match.
 4. `dotnet build` (or `dotnet build -p:RevitVersion=2027` for R2027).
    The post-build target deploys to `%APPDATA%\Autodesk\Revit\Addins\<version>\`.
 5. `npm run build` in `src/McpServer/`.

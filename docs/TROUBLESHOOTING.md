@@ -121,3 +121,27 @@ Diagnostic-only commands (`ping`, `get_revit_version`) work without an open proj
 - **MCP server logs:** Claude Desktop captures stderr. Find logs in `%APPDATA%\Claude\logs\` (Windows).
 - **Health check:** `curl http://127.0.0.1:7891/health` returns `{"ok":true,"service":"revit-mcp-addin","version":"...","authEnabled":true/false}` when the addin is running.
 - **Command list:** `curl http://127.0.0.1:7891/commands` (with auth header) lists all registered commands with `name`, `isReadOnly`, `riskLevel`, and `executionKind` (`ReadOnly` / `ModelWrite` / `UiAction`).
+- **Structured request log:** one JSON line per request at `%LOCALAPPDATA%\RevitMCP\logs\revit-mcp-<date>.log` (`ts`, `requestId`, `method`, `path`, `status`, `ok`, `durationMs`, `inFlight`). Correlate with a response's `X-Request-Id` header.
+- **Server stats:** `GET /stats` (with auth header) returns total / success / failed / rejected request counts, current in-flight, and average / peak duration.
+- **Live smoke test:** run `scripts/smoke-test.ps1 -Version <year>` against a running Revit to confirm the whole HTTP surface end-to-end (see [SMOKE_TESTING.md](SMOKE_TESTING.md)).
+
+---
+
+## Fewer tools than expected / a tool is missing
+
+**Symptom:** The client only sees some tools (e.g. no `revit_create_*`).
+
+**Fix:** Check the `REVIT_MCP_PROFILE` env var in your MCP client config. When set, only the
+listed groups (+ `core`) are exposed. Remove it to expose all 80 tools, or add the group you
+need (`inspection`, `architecture`, `documentation`, `editing`, `view`, `model-health`,
+`coordination`). The MCP server logs the active profiles and tool count to stderr on startup.
+
+---
+
+## HTTP 413 / 429-style 503 / 400 "too_many_steps"
+
+These are the server's load-shedding limits, not bugs:
+
+- **413 `payload_too_large`** — request body exceeds 1 MB. Split the work.
+- **503 `overloaded`** (with `Retry-After`) — more than 32 requests in flight. Retry shortly.
+- **400 `too_many_steps`** — a batch has more than 200 steps. Split into smaller batches.

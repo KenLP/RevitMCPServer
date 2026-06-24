@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.3 — 79 commands + 1 batch = 80 MCP tools** (+ 2 hidden = 81 C# commands registered).
+> **v0.8.4 — 79 commands + 1 batch = 80 MCP tools** (+ 2 hidden = 81 C# commands registered).
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
