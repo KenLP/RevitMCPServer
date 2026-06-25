@@ -73,13 +73,17 @@ const registerCount = (registry.match(/Register\(new\s+\w+\(\)\)/g) || []).lengt
 // Hidden = tools implemented in C# but commented out of the MCP surface in index.ts
 const hiddenCount = (indexTs.match(/^\s*\/\/\s*revit_[a-z0-9_]+.*hidden/gim) || []).length;
 
-// Structural invariant: exposed C# commands (registered − hidden) + 1 batch
-// transport tool must equal the number of MCP tools exposed in index.ts.
-const expectedTools = registerCount - hiddenCount + 1;
+// Recipes (revit_recipe_*) are Node-only orchestration tools with no C# command,
+// so they are excluded from the C#-parity invariant.
+const recipeCount = [...indexTs.matchAll(/server\.tool\(\s*"revit_recipe_[a-z0-9_]+"/g)].length;
+
+// Structural invariant: exposed C# commands (registered − hidden) + 1 batch transport
+// tool + Node-only recipes must equal the number of MCP tools exposed in index.ts.
+const expectedTools = registerCount - hiddenCount + 1 + recipeCount;
 if (toolCount !== expectedTools) {
   errors.push(
     `Tool/command drift: index.ts exposes ${toolCount} MCP tools, but ` +
-    `${registerCount} registered − ${hiddenCount} hidden + 1 batch = ${expectedTools}`);
+    `${registerCount} registered − ${hiddenCount} hidden + 1 batch + ${recipeCount} recipes = ${expectedTools}`);
 }
 
 // README headline claims must match reality.
@@ -105,4 +109,4 @@ if (errors.length > 0) {
 
 console.log(
   `All consistent: v${expected}, ${toolCount} MCP tools, ` +
-  `${registerCount} C# commands (${hiddenCount} hidden).`);
+  `${registerCount} C# commands (${hiddenCount} hidden), ${recipeCount} recipe(s).`);

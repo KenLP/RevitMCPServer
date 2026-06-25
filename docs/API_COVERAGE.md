@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.8)
+## Current command surface (v0.8.9)
 
 **86 commands** registered (85 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
-across read, write, UI, and coordination categories. With the batch transport tool that is
-**86 MCP tools**.
+across read, write, UI, and coordination categories. With the batch transport tool and one
+Node-only workflow recipe (`recipe_model_health_triage`), that is **87 MCP tools**.
 
 ### Implemented — Read / Introspection
 

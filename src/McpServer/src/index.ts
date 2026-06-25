@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.8 (stdio).
+ * Revit MCP Server v0.8.9 (stdio).
  *
- * 86 tools covering diagnostics, inspection, creation, editing, family,
+ * 87 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -24,8 +24,9 @@ import {
   checkRevitHealth,
   REVIT_BASE_URL,
 } from "./revitClient.js";
+import { modelHealthTriage } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.8" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.9" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -67,6 +68,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_get_view_image", "revit_get_element_rooms", "revit_get_schedule_data",
   ],
   "model-health": ["revit_get_model_health", "revit_get_worksets"],
+  recipes: ["revit_recipe_model_health_triage"],
   coordination: ["revit_check_clearance"],
   architecture: [
     "revit_create_wall", "revit_create_floor", "revit_create_level",
@@ -878,13 +880,24 @@ server.tool("revit_batch",
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
+// WORKFLOW RECIPES (P4) — orchestration over verified kernel commands
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool("revit_recipe_model_health_triage",
+  "WORKFLOW RECIPE (read-only): run a model-health scan and return a prioritized, " +
+  "actionable triage list — each issue with its severity and a recommended fix. " +
+  "Composes get_model_health; use this instead of get_model_health when you want guidance, not raw metrics.",
+  { deep: z.boolean().optional().describe("Include the purge scan (slower). Default false.") },
+  async (params) => envelopeToToolResult(await modelHealthTriage(callRevit, params.deep === true)));
+
+// ═══════════════════════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.8 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.9 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

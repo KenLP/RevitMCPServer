@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] — 2026-06-25: Workflow recipes — pilot (P4)
+
+### Added
+
+- **Workflow recipe layer** (`src/McpServer/src/recipes.ts`) — the P4 orchestration layer.
+  Recipes live in the Node bridge ABOVE the deterministic C# kernel; they compose verified
+  atomic commands into goal-oriented workflows (preconditions, synthesis, and — for writes —
+  dry-run/verification). They never touch the Revit API directly.
+- **`revit_recipe_model_health_triage`** (read-only pilot) — runs a model-health scan and
+  returns a **prioritized, actionable triage list** (each issue + severity + recommended fix),
+  instead of raw metrics. Composes `get_model_health`. New `recipes` tool profile.
+- `check-version.mjs` now accounts for Node-only `revit_recipe_*` tools (excluded from the
+  C#-parity invariant): `server.tool == registered − hidden + 1 batch + recipes`.
+
+Counts: 87 MCP tools (86 C# commands, 1 hidden, 1 Node-only recipe). Synthesis unit-tested
+(Vitest); underlying `get_model_health` already verified live.
+
+---
+
 ## [0.8.8] — 2026-06-25: Family management + detailing (P3 packs 2 & 3)
 
 ### Added
