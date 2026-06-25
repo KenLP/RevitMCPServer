@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.5 (stdio).
+ * Revit MCP Server v0.8.6 (stdio).
  *
  * 82 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -25,7 +25,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.5" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.6" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -118,7 +118,7 @@ const ENABLED_PROFILES = resolveEnabledProfiles();
 let toolsRegistered = 0;
 let toolsSkipped = 0;
 
-// Gate server.tool() by profile without touching the 80 registration call sites.
+// Gate server.tool() by profile without touching the registration call sites.
 const _registerTool = server.tool.bind(server);
 (server as unknown as { tool: (...a: unknown[]) => unknown }).tool = (
   ...args: unknown[]
@@ -145,17 +145,22 @@ server.tool("revit_get_document_info", "Get project info: title, path, workshari
 // INSPECTION / INTROSPECTION
 // ═══════════════════════════════════════════════════════════════════════════
 
-server.tool("revit_list_elements", "List elements filtered by BuiltInCategory.", {
+server.tool("revit_list_elements",
+  "List elements filtered by BuiltInCategory. Paginated: returns total, hasMore, nextOffset — " +
+  "page through large sets with offset (no 5000 ceiling).", {
   category: z.string().optional().describe("BuiltInCategory, e.g. 'OST_Walls'."),
   onlyInstances: z.boolean().optional(),
-  limit: z.number().int().min(1).max(5000).optional(),
+  limit: z.number().int().min(1).max(5000).optional().describe("Page size. Default 200."),
+  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. Use nextOffset from the previous page."),
 }, fwd("list_elements"));
 
 server.tool("revit_get_element_info", "Full parameters + bbox of one element.", {
   id: z.number().int(),
 }, fwd("get_element_info"));
 
-server.tool("revit_find_elements", "Query elements by category + parameter filters. Returns matched elements with optional field projections.", {
+server.tool("revit_find_elements",
+  "Query elements by category + parameter filters. Returns matched elements with optional field " +
+  "projections. Paginated: total reflects all matches after filters; page through with offset (no 5000 ceiling).", {
   category: z.string().describe("BuiltInCategory name (required)."),
   filters: z.array(z.object({
     parameterName: z.string(),
@@ -163,7 +168,8 @@ server.tool("revit_find_elements", "Query elements by category + parameter filte
     value: z.union([z.string(), z.number(), z.boolean()]),
   })).optional().describe("Parameter filters."),
   fields: z.array(z.string()).optional().describe("Parameter names to project in results."),
-  limit: z.number().int().min(1).max(5000).optional(),
+  limit: z.number().int().min(1).max(5000).optional().describe("Page size. Default 200."),
+  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. Use nextOffset from the previous page."),
 }, fwd("find_elements"));
 
 server.tool("revit_get_parameter", "Get one parameter's value from an element.", {
@@ -846,7 +852,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.5 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.6 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

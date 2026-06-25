@@ -34,6 +34,7 @@ public sealed class FindElementsCommand : IRevitCommand
             .WhereElementIsNotElementType();
 
         var limit = Math.Clamp(P.IntOr(p, "limit", 200), 1, 5000);
+        var offset = Math.Max(0, P.IntOr(p, "offset", 0));
         var filtersArr = p["filters"] as JsonArray;
         var fieldsArr = p["fields"] as JsonArray;
 
@@ -58,10 +59,13 @@ public sealed class FindElementsCommand : IRevitCommand
             }
         }
 
-        elements = elements.Take(limit).ToList();
+        // total = matches after filters, before paging — so the caller knows how
+        // many exist and can page through all of them (no 5000 ceiling).
+        var total = elements.Count;
+        var page = elements.Skip(offset).Take(limit).ToList();
 
         var arr = new JsonArray();
-        foreach (var el in elements)
+        foreach (var el in page)
         {
             var obj = ListElementsCommand.SummarizeElement(el);
 
@@ -85,11 +89,18 @@ public sealed class FindElementsCommand : IRevitCommand
             arr.Add(obj);
         }
 
+        var nextOffset = offset + page.Count;
+        var hasMore = nextOffset < total;
+
         return new JsonObject
         {
             ["count"] = arr.Count,
+            ["total"] = total,
+            ["offset"] = offset,
             ["limit"] = limit,
-            ["truncated"] = elements.Count == limit,
+            ["hasMore"] = hasMore,
+            ["nextOffset"] = hasMore ? nextOffset : null,
+            ["truncated"] = hasMore,
             ["elements"] = arr,
         };
     }

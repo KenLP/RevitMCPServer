@@ -10,7 +10,12 @@ namespace RevitMCPAddin.Commands;
 /// Parameters (all optional):
 ///   - category:        BuiltInCategory enum name, e.g. "OST_Walls", "OST_Doors"
 ///   - onlyInstances:   bool, default true
-///   - limit:           int,  default 200, max 5000
+///   - limit:           int,  page size, default 200, max 5000
+///   - offset:          int,  page start, default 0 — page through large sets
+///                            (no 5000 ceiling: increase offset to fetch the rest)
+///
+/// Returns a paginated envelope: count (this page), total (all matches), offset,
+/// limit, hasMore, nextOffset.  truncated is kept as an alias of hasMore.
 /// </summary>
 public sealed class ListElementsCommand : IRevitCommand
 {
@@ -22,36 +27,54 @@ public sealed class ListElementsCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var p = ctx.Parameters;
 
-        FilteredElementCollector collector = new(doc);
-
+        BuiltInCategory? bic = null;
         var categoryName = P.StrOrNull(p, "category");
         if (!string.IsNullOrWhiteSpace(categoryName))
         {
-            if (!Enum.TryParse<BuiltInCategory>(categoryName, ignoreCase: true, out var bic))
+            if (!Enum.TryParse<BuiltInCategory>(categoryName, ignoreCase: true, out var parsed))
                 throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{categoryName}'.");
-            collector = collector.OfCategory(bic);
+            bic = parsed;
         }
 
         var onlyInstances = P.BoolOr(p, "onlyInstances", true);
-        if (onlyInstances)
-            collector = (FilteredElementCollector)collector.WhereElementIsNotElementType();
+
+        // Build a fresh collector each time — a FilteredElementCollector should not
+        // be reused after a terminal operation like GetElementCount().
+        FilteredElementCollector BuildCollector()
+        {
+            var c = new FilteredElementCollector(doc);
+            if (bic.HasValue) c = c.OfCategory(bic.Value);
+            if (onlyInstances) c = c.WhereElementIsNotElementType();
+            return c;
+        }
 
         var limit = Math.Clamp(P.IntOr(p, "limit", 200), 1, 5000);
+        var offset = Math.Max(0, P.IntOr(p, "offset", 0));
+        var total = BuildCollector().GetElementCount();
 
         var items = new JsonArray();
-        var count = 0;
-        foreach (var el in collector)
+        var index = 0;
+        var emitted = 0;
+        foreach (var el in BuildCollector())
         {
-            if (count >= limit) break;
+            if (index++ < offset) continue;
+            if (emitted >= limit) break;
             items.Add(SummarizeElement(el));
-            count++;
+            emitted++;
         }
+
+        var nextOffset = offset + emitted;
+        var hasMore = nextOffset < total;
 
         return new JsonObject
         {
-            ["count"] = count,
+            ["count"] = emitted,
+            ["total"] = total,
+            ["offset"] = offset,
             ["limit"] = limit,
-            ["truncated"] = count == limit,
+            ["hasMore"] = hasMore,
+            ["nextOffset"] = hasMore ? nextOffset : null,
+            ["truncated"] = hasMore,
             ["elements"] = items,
         };
     }

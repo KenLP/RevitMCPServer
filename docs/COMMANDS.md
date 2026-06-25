@@ -13,7 +13,12 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.5 — 81 commands + 1 batch = 82 MCP tools** (0 hidden; 81 C# commands registered).
+> **v0.8.6 — 81 commands + 1 batch = 82 MCP tools** (0 hidden; 81 C# commands registered).
+>
+> **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
+> `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
+> Page through any size by repeating with `offset = nextOffset`; there is no 5000 ceiling
+> on total reach, only on per-page size.
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |

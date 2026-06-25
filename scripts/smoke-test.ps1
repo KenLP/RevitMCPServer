@@ -109,6 +109,17 @@ Test-Case "get_worksets has isWorkshared"    {
     $r = Invoke-Mcp get_worksets
     Assert ($null -ne $r.data.isWorkshared) "no isWorkshared"
 }
+Test-Case "list_elements pagination (total/hasMore/nextOffset, distinct pages)" {
+    $p1 = Invoke-Mcp list_elements -Params @{ limit = 5; offset = 0 }
+    Assert ($p1.ok -eq $true) "page1 not ok"
+    Assert ($null -ne $p1.data.total) "no total field"
+    if ($p1.data.total -gt 5) {
+        Assert ($p1.data.hasMore -eq $true) "hasMore should be true when total>5"
+        Assert ($p1.data.nextOffset -eq 5) "nextOffset=$($p1.data.nextOffset)"
+        $p2 = Invoke-Mcp list_elements -Params @{ limit = 5; offset = 5 }
+        Assert ($p1.data.elements[0].id -ne $p2.data.elements[0].id) "pages overlap (same first id)"
+    }
+}
 
 # ── 3. Observability (P1) ────────────────────────────────────────────────────
 Write-Host "`n[3] Observability"

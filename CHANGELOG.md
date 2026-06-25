@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] — 2026-06-25: Pagination for large element lists (P2-C)
+
+### Added
+
+- **Pagination** for `revit_list_elements` and `revit_find_elements`: new `offset` param,
+  and the response now carries `total` (all matches — for `find_elements`, after filters),
+  `offset`, `limit`, `hasMore`, and `nextOffset`. Page through arbitrarily large sets by
+  passing `offset = nextOffset` — the previous 5000-element ceiling no longer caps total
+  reach (per-page `limit` stays ≤ 5000 so each response remains token-bounded).
+- `truncated` is kept as an alias of `hasMore` for backward compatibility; `offset`
+  defaults to 0, so existing callers are unaffected and simply gain the new fields.
+
+---
+
 ## [0.8.5] — 2026-06-24: Un-hide create_aligned_dimension + create_spot_elevation
 
 ### Fixed

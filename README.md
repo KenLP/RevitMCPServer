@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.5** — 81 C# commands (81 exposed as MCP tools + 0 hidden) + 1 batch tool = **82 MCP tools**.
+**v0.8.6** — 81 C# commands (81 exposed as MCP tools + 0 hidden) + 1 batch tool = **82 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -94,7 +94,7 @@ Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 80 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 82 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -264,7 +264,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.5
+   version   : 0.8.6
    authEnabled : True
    ```
 
@@ -421,7 +421,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.5, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.6, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
