@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] — 2026-06-25: Schedule data reading (P3 pack 1)
+
+### Added
+
+- **`revit_get_schedule_data`** — read the rendered cell text of a ViewSchedule
+  (calculated fields, units, and formatting applied — exactly what the user sees).
+  Uses `ViewSchedule.GetTableData()` + `GetCellText(SectionType.Body, …)`. Paginated by
+  row (`offset`/`limit`; returns `totalRows`, `totalColumns`, `hasMore`, `nextOffset`).
+  The first row is normally the column headers. Complements `create_schedule` /
+  `configure_schedule` (which author schedules and export CSV) by returning the data
+  inline to the agent. Inspection profile.
+
+---
+
 ## [0.8.6] — 2026-06-25: Pagination for large element lists (P2-C)
 
 ### Added

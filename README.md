@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.6** — 81 C# commands (80 exposed as MCP tools + 1 hidden) + 1 batch tool = **81 MCP tools**.
+**v0.8.7** — 82 C# commands (81 exposed as MCP tools + 1 hidden) + 1 batch tool = **82 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,13 +52,13 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (80 commands + 1 batch = 81 MCP tools)
+## Tool surface (81 commands + 1 batch = 82 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
 
-### Inspection / Introspection (27 read-only)
-`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_spaces` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image` | `revit_get_element_rooms` | `revit_export_view_pdf` | `revit_get_model_health` | `revit_get_worksets`
+### Inspection / Introspection (28 read-only)
+`revit_list_elements` | `revit_get_element_info` | `revit_find_elements` | `revit_get_parameter` | `revit_list_levels` | `revit_list_wall_types` | `revit_list_floor_types` | `revit_list_categories` | `revit_list_families` | `revit_list_family_types` | `revit_list_sheets` | `revit_list_rooms` | `revit_list_spaces` | `revit_list_materials` | `revit_list_phases` | `revit_list_view_templates` | `revit_get_views` | `revit_get_active_view` | `revit_get_selected_elements` | `revit_get_linked_files` | `revit_get_element_geometry` | `revit_get_linked_elements` | `revit_get_view_image` | `revit_get_element_rooms` | `revit_export_view_pdf` | `revit_get_model_health` | `revit_get_worksets` | `revit_get_schedule_data`
 
 ### Coordination / Clash (1 read-only)
 `revit_check_clearance`
@@ -94,7 +94,7 @@ Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 81 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 82 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -102,7 +102,7 @@ Unset = all tools (default, backward compatible).
 | Profile | Tools | For |
 | ------- | ----- | --- |
 | `core` | 7 (always on) | ping, document/element info, find, batch |
-| `inspection` | 21 | `list_*` / `get_*` read-only queries |
+| `inspection` | 22 | `list_*` / `get_*` read-only queries (incl. schedule data) |
 | `model-health` | 2 | `get_model_health`, `get_worksets` |
 | `coordination` | 1 | `check_clearance` |
 | `architecture` | 10 | wall/floor/level/grid/room/column/beam/ceiling/opening/family |
@@ -111,7 +111,7 @@ Unset = all tools (default, backward compatible).
 | `view` | 11 | open/hide/isolate/filter/override/section-box |
 
 ```jsonc
-// e.g. a documentation-only client (exposes 21 tools instead of 81):
+// e.g. a documentation-only client (exposes 21 tools instead of 82):
 { "mcpServers": { "revit": {
   "command": "node", "args": ["dist/index.js"],
   "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }
@@ -264,7 +264,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.6
+   version   : 0.8.7
    authEnabled : True
    ```
 
@@ -421,7 +421,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.6, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.7, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

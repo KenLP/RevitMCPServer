@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.6 (stdio).
+ * Revit MCP Server v0.8.7 (stdio).
  *
- * 81 tools covering diagnostics, inspection, creation, editing,
+ * 82 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -25,7 +25,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.6" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.7" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -64,7 +64,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_list_view_templates", "revit_get_views", "revit_get_active_view",
     "revit_get_selected_elements", "revit_get_linked_files",
     "revit_get_linked_elements", "revit_get_element_geometry",
-    "revit_get_view_image", "revit_get_element_rooms",
+    "revit_get_view_image", "revit_get_element_rooms", "revit_get_schedule_data",
   ],
   "model-health": ["revit_get_model_health", "revit_get_worksets"],
   coordination: ["revit_check_clearance"],
@@ -438,6 +438,15 @@ server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a vie
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
   category: z.string().optional().describe("Filter by tagged element category name, e.g. 'Doors'."),
 }, fwd("get_tags_in_view"));
+
+server.tool("revit_get_schedule_data",
+  "Read the rendered cell data of a ViewSchedule (text exactly as shown — calculated fields, units, " +
+  "formatting applied). The first row is normally the column headers. Paginated by row: returns totalRows, " +
+  "totalColumns, hasMore, nextOffset; page large schedules with offset.", {
+  scheduleId: z.number().int().describe("ElementId of the ViewSchedule (from revit_get_views)."),
+  limit: z.number().int().min(1).max(1000).optional().describe("Rows per page. Default 100."),
+  offset: z.number().int().min(0).optional().describe("First body row to return. Default 0. Use nextOffset from the previous page."),
+}, fwd("get_schedule_data"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EDIT — PARAMETERS
@@ -844,7 +853,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.6 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.7 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

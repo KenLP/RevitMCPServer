@@ -120,6 +120,16 @@ Test-Case "list_elements pagination (total/hasMore/nextOffset, distinct pages)" 
         Assert ($p1.data.elements[0].id -ne $p2.data.elements[0].id) "pages overlap (same first id)"
     }
 }
+$sched = (Invoke-Mcp get_views).data.views | Where-Object { $_.viewType -eq 'Schedule' } | Select-Object -First 1
+if ($sched) {
+    Test-Case "get_schedule_data reads rendered cells" {
+        $r = Invoke-Mcp get_schedule_data -Params @{ scheduleId = [long]$sched.id; limit = 5 }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.totalColumns -gt 0) "no columns ($($r.data.totalColumns))"
+    }
+} else {
+    Write-Host "  SKIP  get_schedule_data (no schedule in model)" -ForegroundColor Yellow
+}
 
 # ── 3. Observability (P1) ────────────────────────────────────────────────────
 Write-Host "`n[3] Observability"

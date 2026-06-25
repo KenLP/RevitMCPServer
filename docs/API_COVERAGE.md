@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.6)
+## Current command surface (v0.8.7)
 
-**81 commands** registered (80 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
+**82 commands** registered (81 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
 across read, write, UI, and coordination categories. With the batch transport tool that is
-**81 MCP tools**.
+**82 MCP tools**.
 
 ### Implemented — Read / Introspection
 
@@ -68,6 +68,7 @@ across read, write, UI, and coordination categories. With the batch transport to
 | `get_tags_in_view` | List IndependentTag elements in a view (optional category filter) |
 | `get_model_health` | One-shot health scorecard: warnings (+ /1000-element ratio), file size, imports/links, families, groups, unused views, worksets, purgeable |
 | `get_worksets` | User worksets with per-workset element counts; flags empty worksets and default "Workset1" |
+| `get_schedule_data` | Read rendered ViewSchedule cell text (calculated fields/units applied); paginated by row |
 
 ### Implemented — Model Writes
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.4
+## Current status — v0.8.7
 
 | Phase | Version | Status |
 |---|---|---|
@@ -25,6 +25,9 @@
 | Truth gate (version + tool-count drift fail CI) + observability (X-Request-Id, structured log, /stats) + limits (body/batch/in-flight) | v0.8.4 | ✅ Done |
 | Live-Revit smoke suite (scripts/smoke-test.ps1) — read/dry-run/real-write/batch/limits + golden fingerprint compare | v0.8.4 | ✅ Done |
 | P2-A tool profiles — REVIT_MCP_PROFILE gates the 80-tool surface by group (core always on) for token efficiency | v0.8.4 | ✅ Done |
+| P3-fix — un-hide create_aligned_dimension (works); create_spot_elevation re-hidden after raycast approach failed live | v0.8.5/0.8.6 | ✅ Done |
+| P2-C pagination — list_elements + find_elements (offset/total/hasMore/nextOffset; no 5000 ceiling) | v0.8.6 | ✅ Done |
+| P3 pack 1 — get_schedule_data (read rendered ViewSchedule cells; paginated) | v0.8.7 | ✅ Done |
 
 ## Near-term backlog
 
