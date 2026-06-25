@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.9** — 86 C# commands (85 exposed as MCP tools + 1 hidden) + 1 batch tool + 1 workflow recipe = **87 MCP tools**.
+**v0.8.10** — 86 C# commands (85 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **88 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (85 commands + 1 batch + 1 recipe = 87 MCP tools)
+## Tool surface (85 commands + 1 batch + 2 recipes = 88 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -93,16 +93,17 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ### Batch (1)
 `revit_batch` — run multiple commands inside ONE Revit Transaction (single undo entry).
 
-### Workflow recipes (1)
-`revit_recipe_model_health_triage` — read-only: run a health scan and return a prioritized,
-actionable triage list (each issue + recommended fix). Recipes orchestrate verified kernel
-commands in the Node layer; they are the P4 workflow surface.
+### Workflow recipes (2)
+`revit_recipe_model_health_triage` — read-only: health scan → prioritized, actionable triage list.
+`revit_recipe_clash_review` — read-only: coordination clash sweep across many element-set pairs
+(host vs host or host vs **linked RVT**) → consolidated, prioritized clash report.
+Recipes orchestrate verified kernel commands in the Node layer; they are the P4 workflow surface.
 
 Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 87 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 88 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -112,7 +113,7 @@ Unset = all tools (default, backward compatible).
 | `core` | 7 (always on) | ping, document/element info, find, batch |
 | `inspection` | 22 | `list_*` / `get_*` read-only queries (incl. schedule data) |
 | `model-health` | 2 | `get_model_health`, `get_worksets` |
-| `recipes` | 1 | workflow recipes (model-health triage) |
+| `recipes` | 2 | workflow recipes (model-health triage, clash review) |
 | `coordination` | 1 | `check_clearance` |
 | `architecture` | 10 | wall/floor/level/grid/room/column/beam/ceiling/opening/family |
 | `documentation` | 16 | sheets, views, schedules, tags, text, PDF, dimensions, detail lines, filled regions |
@@ -120,7 +121,7 @@ Unset = all tools (default, backward compatible).
 | `view` | 11 | open/hide/isolate/filter/override/section-box |
 
 ```jsonc
-// e.g. a documentation + view client (a subset instead of all 87):
+// e.g. a documentation + view client (a subset instead of all 88):
 { "mcpServers": { "revit": {
   "command": "node", "args": ["dist/index.js"],
   "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }
@@ -273,7 +274,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.9
+   version   : 0.8.10
    authEnabled : True
    ```
 
@@ -430,7 +431,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.9, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.10, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

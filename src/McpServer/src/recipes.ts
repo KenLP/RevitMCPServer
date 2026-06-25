@@ -47,6 +47,88 @@ const ACTION: Record<string, string> = {
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
 
+export interface ClashPairInput {
+  label?: string;
+  setA: Record<string, unknown>;
+  setB: Record<string, unknown>;
+  axis?: string;
+  direction?: string;
+  clearanceMm?: number;
+  viewId?: number;
+  sampleCount?: number;
+  maxResults?: number;
+}
+
+/**
+ * RECIPE (read-only): run a coordination clash sweep across multiple element-set pairs
+ * (host vs host, or host vs linked RVT) and return a consolidated, prioritized report.
+ * Each pair is a check_clearance input — links are supported via setB.source='link' + linkId.
+ * Composes check_clearance; a pair that errors is recorded and the sweep continues.
+ */
+export async function clashReview(call: CallFn, pairs: ClashPairInput[]): Promise<RevitEnvelope> {
+  if (!Array.isArray(pairs) || pairs.length === 0)
+    return { ok: false, error: { code: "bad_request", message: "clash_review requires a non-empty 'pairs' array." } };
+
+  const pairReports: Array<Record<string, unknown>> = [];
+  const offenders: Array<Record<string, unknown>> = [];
+  let totalHard = 0;
+  let totalClear = 0;
+
+  for (let i = 0; i < pairs.length; i++) {
+    const p = pairs[i];
+    const label = p.label ?? `pair ${i + 1}`;
+
+    const params: Record<string, unknown> = { setA: p.setA, setB: p.setB };
+    for (const k of ["axis", "direction", "clearanceMm", "viewId", "sampleCount", "maxResults"] as const)
+      if (p[k] !== undefined) params[k] = p[k];
+
+    const env = await call("check_clearance", params);
+    if (!env.ok) {
+      pairReports.push({ label, error: env.error?.code ?? "failed", message: env.error?.message });
+      continue;
+    }
+
+    const d = (env.data ?? {}) as Record<string, any>;
+    const clashes = (d.clashes ?? []) as Array<Record<string, any>>;
+    let hard = 0;
+    let clear = 0;
+    for (const c of clashes) {
+      const isHard = c.type === "hard_clash";
+      if (isHard) hard++; else clear++;
+      offenders.push({
+        pair: label,
+        severity: isHard ? "hard_clash" : "clearance_violation",
+        clearanceMm: c.clearanceActualMm ?? null,
+        a: c.elementA?.id, aCategory: c.elementA?.category, aSource: c.elementA?.source,
+        b: c.elementB?.id, bCategory: c.elementB?.category, bSource: c.elementB?.source, bLinkId: c.elementB?.linkId,
+      });
+    }
+    totalHard += hard;
+    totalClear += clear;
+    pairReports.push({ label, hardClashes: hard, clearanceWarnings: clear, limited: d.limited === true });
+  }
+
+  // Prioritise: hard clashes first, then clearance violations by smallest measured gap.
+  offenders.sort((x, y) => {
+    if (x.severity !== y.severity) return x.severity === "hard_clash" ? -1 : 1;
+    if (x.severity === "clearance_violation")
+      return (Number(x.clearanceMm ?? Infinity)) - (Number(y.clearanceMm ?? Infinity));
+    return 0;
+  });
+
+  return {
+    ok: true,
+    data: {
+      summary: `${totalHard} hard clash(es), ${totalClear} clearance warning(s) across ${pairs.length} pair(s).`,
+      totalHardClashes: totalHard,
+      totalClearanceWarnings: totalClear,
+      offenderCount: offenders.length,
+      pairs: pairReports,
+      topOffenders: offenders.slice(0, 50),
+    },
+  };
+}
+
 /**
  * RECIPE (read-only): run a model-health scan and return a prioritized, actionable
  * triage list. Composes get_model_health; pure synthesis on top.

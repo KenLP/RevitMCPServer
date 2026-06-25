@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.9 (stdio).
+ * Revit MCP Server v0.8.10 (stdio).
  *
- * 87 tools covering diagnostics, inspection, creation, editing, family,
+ * 88 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -24,9 +24,9 @@ import {
   checkRevitHealth,
   REVIT_BASE_URL,
 } from "./revitClient.js";
-import { modelHealthTriage } from "./recipes.js";
+import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.9" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.10" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -68,7 +68,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_get_view_image", "revit_get_element_rooms", "revit_get_schedule_data",
   ],
   "model-health": ["revit_get_model_health", "revit_get_worksets"],
-  recipes: ["revit_recipe_model_health_triage"],
+  recipes: ["revit_recipe_model_health_triage", "revit_recipe_clash_review"],
   coordination: ["revit_check_clearance"],
   architecture: [
     "revit_create_wall", "revit_create_floor", "revit_create_level",
@@ -890,6 +890,27 @@ server.tool("revit_recipe_model_health_triage",
   { deep: z.boolean().optional().describe("Include the purge scan (slower). Default false.") },
   async (params) => envelopeToToolResult(await modelHealthTriage(callRevit, params.deep === true)));
 
+const clashPairSchema = z.object({
+  label: z.string().optional().describe("Human label for this pair, e.g. 'Ducts × Struct link'."),
+  setA: elementSetSchema,
+  setB: elementSetSchemaB,
+  axis: z.enum(["bbox", "Z"]).optional(),
+  direction: z.enum(["below", "above"]).optional(),
+  clearanceMm: z.number().min(0).optional(),
+  viewId: z.number().int().optional(),
+  sampleCount: z.number().int().min(1).max(10).optional(),
+  maxResults: z.number().int().min(1).max(2000).optional(),
+});
+
+server.tool("revit_recipe_clash_review",
+  "WORKFLOW RECIPE (read-only): run a coordination clash sweep across multiple element-set pairs " +
+  "(host vs host, or host vs LINKED RVT) and return a consolidated, prioritized clash report — " +
+  "hard clashes first, then clearance violations by smallest gap, counted per pair. " +
+  "Each pair is a check_clearance input; for links set setB.source='link' + linkId (from revit_get_linked_files). " +
+  "Composes check_clearance.",
+  { pairs: z.array(clashPairSchema).min(1).describe("Coordination matrix: each entry is a labelled check_clearance pair.") },
+  async (params) => envelopeToToolResult(await clashReview(callRevit, params.pairs as never)));
+
 // ═══════════════════════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -897,7 +918,7 @@ server.tool("revit_recipe_model_health_triage",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.9 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.10 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

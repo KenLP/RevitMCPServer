@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { modelHealthTriage } from "../recipes.js";
+import { modelHealthTriage, clashReview } from "../recipes.js";
 
 const sampleHealth = {
   ok: true,
@@ -57,5 +57,47 @@ describe("modelHealthTriage", () => {
     let seen: any = null;
     await modelHealthTriage(async (_cmd, params) => { seen = params; return sampleHealth as any; }, true);
     expect(seen.deep).toBe(true);
+  });
+});
+
+describe("clashReview", () => {
+  it("aggregates and prioritizes across pairs (hard first, then smallest gap)", async () => {
+    const queue = [
+      { ok: true, data: { limited: false, clashes: [
+        { type: "hard_clash", elementA: { id: 1, category: "Ducts", source: "host" }, elementB: { id: 2, category: "Framing", source: "link" } },
+        { type: "hard_clash", elementA: { id: 3 }, elementB: { id: 4 } },
+      ] } },
+      { ok: true, data: { clashes: [
+        { type: "clearance_violation", clearanceActualMm: 120, elementA: { id: 5 }, elementB: { id: 6 } },
+        { type: "clearance_violation", clearanceActualMm: 40, elementA: { id: 7 }, elementB: { id: 8 } },
+      ] } },
+    ];
+    let i = 0;
+    const res = await clashReview(async () => queue[i++] as any, [
+      { label: "Ducts × Struct", setA: {}, setB: {} },
+      { label: "Ducts × Floors", setA: {}, setB: {} },
+    ]);
+    const d = res.data as any;
+    expect(d.totalHardClashes).toBe(2);
+    expect(d.totalClearanceWarnings).toBe(2);
+    expect(d.topOffenders[0].severity).toBe("hard_clash");
+    const clears = d.topOffenders.filter((o: any) => o.severity === "clearance_violation");
+    expect(clears[0].clearanceMm).toBe(40); // smallest gap first
+  });
+
+  it("records a failing pair and continues the sweep", async () => {
+    const res = await clashReview(async (_cmd, params: any) =>
+      (params.setA.bad
+        ? { ok: false, error: { code: "not_found", message: "x" } }
+        : { ok: true, data: { clashes: [{ type: "hard_clash", elementA: { id: 1 }, elementB: { id: 2 } }] } }) as any,
+      [{ setA: { bad: true }, setB: {} }, { setA: {}, setB: {} }]);
+    const d = res.data as any;
+    expect(d.pairs[0].error).toBe("not_found");
+    expect(d.totalHardClashes).toBe(1);
+  });
+
+  it("rejects an empty pairs array", async () => {
+    const res = await clashReview(async () => ({ ok: true }) as any, []);
+    expect(res.ok).toBe(false);
   });
 });

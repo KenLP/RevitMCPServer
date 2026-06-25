@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.9
+## Current status — v0.8.10
 
 | Phase | Version | Status |
 |---|---|---|
@@ -30,7 +30,8 @@
 | P3 pack 1 — get_schedule_data (read rendered ViewSchedule cells; paginated) | v0.8.7 | ✅ Done |
 | P3 pack 2 — Family: load_family, duplicate_family_type | v0.8.8 | ✅ Done |
 | P3 pack 3 — Detailing: create_detail_line, create_filled_region | v0.8.8 | ✅ Done |
-| P4 pilot — workflow recipe layer + recipe_model_health_triage (read-only) | v0.8.9 | ✅ Done (evaluate before expanding) |
+| P4 pilot — workflow recipe layer + recipe_model_health_triage (read-only) | v0.8.9 | ✅ Done |
+| P4 — recipe_clash_review (coordination matrix across host/linked RVT) | v0.8.10 | ✅ Done (live e2e: 20 hard clashes, link×link) |
 
 ## Near-term backlog
 

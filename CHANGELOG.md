@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.10] — 2026-06-26: Workflow recipe — clash review (P4)
+
+### Added
+
+- **`revit_recipe_clash_review`** (read-only) — runs a coordination clash sweep across many
+  element-set pairs and returns a consolidated, prioritized report (hard clashes first, then
+  clearance violations by smallest gap, counted per pair). Each pair is a `check_clearance`
+  input, so **linked RVTs are supported** (`setB.source='link'` + `linkId` from
+  `get_linked_files`) — the real host-MEP × linked-Arch/Struct coordination case. Composes
+  `check_clearance`; a pair that errors is recorded and the sweep continues.
+
+Counts: 88 MCP tools (86 C# commands, 1 hidden, 2 Node-only recipes). Synthesis unit-tested
+(Vitest 20/20). **Verified live e2e on Revit 2027** against a federated model: HVAC-link ducts ×
+Structural-link framing returned 20 hard clashes (link × link), correctly aggregated and
+prioritized per pair.
+
+---
+
 ## [0.8.9] — 2026-06-25: Workflow recipes — pilot (P4)
 
 ### Added
