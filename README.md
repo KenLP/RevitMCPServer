@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.6** — 81 C# commands (81 exposed as MCP tools + 0 hidden) + 1 batch tool = **82 MCP tools**.
+**v0.8.6** — 81 C# commands (80 exposed as MCP tools + 1 hidden) + 1 batch tool = **81 MCP tools**.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (81 commands + 1 batch = 82 MCP tools)
+## Tool surface (80 commands + 1 batch = 81 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -69,8 +69,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ### Creation: Documentation (8 write)
 `revit_create_sheet` | `revit_place_view_on_sheet` | `revit_create_floor_plan_view` | `revit_create_section_view` | `revit_create_3d_view` | `revit_create_schedule` | `revit_tag_element` | `revit_create_text_note`
 
-### Annotation (4 read/write)
-`revit_tag_all_in_view` | `revit_get_tags_in_view` | `revit_create_aligned_dimension` | `revit_create_spot_elevation`
+### Annotation (3 read/write)
+`revit_tag_all_in_view` | `revit_get_tags_in_view` | `revit_create_aligned_dimension`
 
 ### Edit: Parameters, Types & Naming (7 write)
 `revit_set_parameter` | `revit_set_parameter_batch` | `revit_rename_element` | `revit_change_element_type` | `revit_apply_view_template` | `revit_copy_parameters` | `revit_configure_schedule`
@@ -94,7 +94,7 @@ Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 82 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 81 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -106,12 +106,12 @@ Unset = all tools (default, backward compatible).
 | `model-health` | 2 | `get_model_health`, `get_worksets` |
 | `coordination` | 1 | `check_clearance` |
 | `architecture` | 10 | wall/floor/level/grid/room/column/beam/ceiling/opening/family |
-| `documentation` | 15 | sheets, views, schedules, tags, text, PDF, dimensions, spot elevations |
+| `documentation` | 14 | sheets, views, schedules, tags, text, PDF, aligned dimensions |
 | `editing` | 15 | parameters, type swap, transform, delete, group |
 | `view` | 11 | open/hide/isolate/filter/override/section-box |
 
 ```jsonc
-// e.g. a documentation-only client (exposes 22 tools instead of 82):
+// e.g. a documentation-only client (exposes 21 tools instead of 81):
 { "mcpServers": { "revit": {
   "command": "node", "args": ["dist/index.js"],
   "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }

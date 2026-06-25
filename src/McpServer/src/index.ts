@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.6 (stdio).
  *
- * 82 tools covering diagnostics, inspection, creation, editing,
+ * 81 tools covering diagnostics, inspection, creation, editing,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -80,7 +80,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_create_3d_view", "revit_create_schedule", "revit_configure_schedule",
     "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
     "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
-    "revit_create_aligned_dimension", "revit_create_spot_elevation",
+    "revit_create_aligned_dimension",
   ],
   editing: [
     "revit_set_parameter", "revit_set_parameter_batch", "revit_rename_element",
@@ -428,19 +428,11 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
   dryRun: dryRunField,
 }, fwdWrite("create_aligned_dimension"));
 
-server.tool("revit_create_spot_elevation", "Place a spot elevation symbol on the top face of an element (Floor, Slab, Roof, beam, etc.) in a plan or section view. Uses a downward raycast at (x, y) to find the exact face hit point — the point is guaranteed to lie on the face.", {
-  elementId: z.number().int().describe("ElementId of the element to place the spot elevation on (Floor, Slab, Roof, beam, etc.)."),
-  point: z.object({
-    x: z.number().describe("X coordinate within the element's footprint."),
-    y: z.number().describe("Y coordinate within the element's footprint."),
-  }).describe("(x, y) position of the spot. Must fall within the element's horizontal footprint. Z is determined automatically by raycasting down onto the top face."),
-  textOffset: z.object({ x: z.number(), y: z.number() }).optional()
-    .describe("Leader/symbol offset from the hit point. Default {x: 0.5, y: 0} m."),
-  hasLeader: z.boolean().optional().describe("Show a leader line. Default true."),
-  viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
-  units: unitsField,
-  dryRun: dryRunField,
-}, fwdWrite("create_spot_elevation"));
+// revit_create_spot_elevation — hidden pending a reliable face-reference approach.
+// The ReferenceIntersector raycast against a temporary 3D view returns no face hit
+// for floors even at the bbox centre (doc.Regenerate() did not help); the prior
+// solid-face approach hit "Spot Dimension does not lie on its reference". The C#
+// command stays registered (HTTP-callable) for future work but is off the MCP surface.
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),

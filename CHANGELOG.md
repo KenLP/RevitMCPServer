@@ -16,6 +16,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - `truncated` is kept as an alias of `hasMore` for backward compatibility; `offset`
   defaults to 0, so existing callers are unaffected and simply gain the new fields.
 
+### Changed
+
+- **`create_spot_elevation` re-hidden** from the MCP surface. Live testing on Revit 2027
+  showed the `ReferenceIntersector` raycast returns no face hit for floors even at the
+  bbox centre (`doc.Regenerate()` on the temporary 3D view did not help), and the earlier
+  solid-face approach failed with "Spot Dimension does not lie on its reference". The C#
+  command stays registered (HTTP-callable) with a 2D-view guard for future work, but is off
+  the tool surface until a reliable face-reference approach lands. `create_aligned_dimension`
+  remains live and verified (grid+grid dimension).
+
 ---
 
 ## [0.8.5] — 2026-06-24: Un-hide create_aligned_dimension + create_spot_elevation

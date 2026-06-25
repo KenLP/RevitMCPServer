@@ -29,8 +29,9 @@ Claude Desktop / Claude Code.
 
 ## Current command surface (v0.8.6)
 
-**81 commands** registered (all 81 exposed as MCP tools, 0 hidden) across read, write, UI, and
-coordination categories. With the batch transport tool that is **82 MCP tools**.
+**81 commands** registered (80 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
+across read, write, UI, and coordination categories. With the batch transport tool that is
+**81 MCP tools**.
 
 ### Implemented — Read / Introspection
 

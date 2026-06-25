@@ -46,6 +46,17 @@ public sealed class CreateSpotElevationCommand : IRevitCommand
         var view = doc.GetElement(viewId) as View
             ?? throw new RevitCommandException("not_found", $"View {viewId.Value} not found.");
 
+        // The spot elevation is PLACED in this view, which must be a 2D view —
+        // a plan, section, or elevation. (A temporary 3D view is used internally
+        // only for the geometry raycast and is deleted; no spot is created in 3D.)
+        var placeable = view.ViewType is ViewType.FloorPlan or ViewType.CeilingPlan
+            or ViewType.EngineeringPlan or ViewType.AreaPlan
+            or ViewType.Section or ViewType.Elevation or ViewType.Detail;
+        if (!placeable)
+            throw new RevitCommandException("unsupported_view",
+                $"Spot elevation must be placed in a plan, section, or elevation view, not '{view.ViewType}'. " +
+                "Open or pass a 2D view via viewId.");
+
         var elementId = new ElementId(P.Long(p, "elementId"));
         var element = doc.GetElement(elementId)
             ?? throw new RevitCommandException("not_found", $"Element {elementId.Value} not found.");
@@ -64,6 +75,9 @@ public sealed class CreateSpotElevationCommand : IRevitCommand
         // from any existing 3D view; it is deleted after the spot is placed.
         var vft = CreateFloorPlanViewCommand.GetViewFamilyType(doc, ViewFamily.ThreeDimensional);
         var view3d = View3D.CreateIsometric(doc, vft.Id);
+        // A freshly created view is not realized until the document regenerates;
+        // without this, ReferenceIntersector.FindNearest returns null for every ray.
+        doc.Regenerate();
 
         SpotDimension spot;
         bool hasLeader;
