@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.7
+## Current status — v0.8.8
 
 | Phase | Version | Status |
 |---|---|---|
@@ -28,6 +28,8 @@
 | P3-fix — un-hide create_aligned_dimension (works); create_spot_elevation re-hidden after raycast approach failed live | v0.8.5/0.8.6 | ✅ Done |
 | P2-C pagination — list_elements + find_elements (offset/total/hasMore/nextOffset; no 5000 ceiling) | v0.8.6 | ✅ Done |
 | P3 pack 1 — get_schedule_data (read rendered ViewSchedule cells; paginated) | v0.8.7 | ✅ Done |
+| P3 pack 2 — Family: load_family, duplicate_family_type | v0.8.8 | 🔄 Built; live-test pending |
+| P3 pack 3 — Detailing: create_detail_line, create_filled_region | v0.8.8 | 🔄 Built; live-test pending |
 
 ## Near-term backlog
 

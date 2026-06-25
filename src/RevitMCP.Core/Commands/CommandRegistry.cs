@@ -80,6 +80,12 @@ public sealed class CommandRegistry
         Register(new CreateAlignedDimensionCommand());
         Register(new CreateSpotElevationCommand());
         Register(new CreateTextNoteCommand());
+        Register(new CreateDetailLineCommand());
+        Register(new CreateFilledRegionCommand());
+
+        // === Family management ===
+        Register(new LoadFamilyCommand());
+        Register(new DuplicateFamilyTypeCommand());
 
         // === Annotation — query ===
         Register(new GetTagsInViewCommand());

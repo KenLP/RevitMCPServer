@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] — 2026-06-25: Family management + detailing (P3 packs 2 & 3)
+
+### Added
+
+- **`revit_load_family`** — load a family (`.rfa`) from disk into the project with an
+  overwrite policy (`IFamilyLoadOptions`). Returns family id, category, and its types.
+- **`revit_duplicate_family_type`** — duplicate a FamilySymbol under a new name (set
+  parameters afterwards with `set_parameter` on the returned `typeId`).
+- **`revit_create_detail_line`** — view-specific detail line in a 2D view; endpoints
+  projected onto the view plane (rejects 3D / sheet / schedule views).
+- **`revit_create_filled_region`** — filled region from a closed boundary in a 2D view;
+  points projected onto the view plane, loop closed automatically, default FilledRegionType.
+
+Counts: 82 → 86 MCP tools (86 C# commands registered, 1 hidden). Compiles for R2025/26/27;
+C# 132/132; check-version green. **Live verification on Revit pending** (single end-to-end
+test session — watch items: LoadFamily inside the dispatcher transaction, detail-curve view
+plane, filled-region loop planarity).
+
+---
+
 ## [0.8.7] — 2026-06-25: Schedule data reading (P3 pack 1)
 
 ### Added

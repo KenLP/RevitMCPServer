@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.7 (stdio).
+ * Revit MCP Server v0.8.8 (stdio).
  *
- * 82 tools covering diagnostics, inspection, creation, editing,
+ * 86 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -25,7 +25,7 @@ import {
   REVIT_BASE_URL,
 } from "./revitClient.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.7" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.8" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -80,7 +80,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_create_3d_view", "revit_create_schedule", "revit_configure_schedule",
     "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
     "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
-    "revit_create_aligned_dimension",
+    "revit_create_aligned_dimension", "revit_create_detail_line", "revit_create_filled_region",
   ],
   editing: [
     "revit_set_parameter", "revit_set_parameter_batch", "revit_rename_element",
@@ -88,7 +88,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_copy_parameters", "revit_set_level_elevation", "revit_move_element",
     "revit_rotate_element", "revit_copy_element", "revit_mirror_element",
     "revit_array_linear", "revit_delete_elements", "revit_group_elements",
-    "revit_ungroup_elements",
+    "revit_ungroup_elements", "revit_load_family", "revit_duplicate_family_type",
   ],
   view: [
     "revit_open_view", "revit_set_view_detail_level",
@@ -447,6 +447,37 @@ server.tool("revit_get_schedule_data",
   limit: z.number().int().min(1).max(1000).optional().describe("Rows per page. Default 100."),
   offset: z.number().int().min(0).optional().describe("First body row to return. Default 0. Use nextOffset from the previous page."),
 }, fwd("get_schedule_data"));
+
+server.tool("revit_load_family",
+  "Load a family (.rfa) from disk into the project. Returns the family id and its types.", {
+  filePath: z.string().describe("Absolute path to a .rfa file."),
+  overwrite: z.boolean().optional().describe("Overwrite the family (and its parameter values) if already loaded. Default true."),
+}, fwdWrite("load_family"));
+
+server.tool("revit_duplicate_family_type",
+  "Duplicate a family type (FamilySymbol) under a new name. Set parameters on the new type afterwards with revit_set_parameter using the returned typeId.", {
+  sourceTypeId: z.number().int().describe("ElementId of the FamilySymbol to copy."),
+  newName: z.string().describe("Name for the new type (unique within the family)."),
+}, fwdWrite("duplicate_family_type"));
+
+server.tool("revit_create_detail_line",
+  "Create a view-specific detail line in a 2D view (plan/section/elevation/drafting/detail). Endpoints are projected onto the view plane.", {
+  start: xyz.describe("Start point."),
+  end: xyz.describe("End point."),
+  viewId: z.number().int().optional().describe("Target 2D view. Defaults to active view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_detail_line"));
+
+server.tool("revit_create_filled_region",
+  "Create a filled region (2D annotation) from a closed boundary in a 2D view. Points are projected onto the view plane and the loop is closed automatically.", {
+  boundary: z.array(z.object({ x: z.number(), y: z.number(), z: z.number().optional() })).min(3)
+    .describe("Boundary points in order (at least 3)."),
+  filledRegionTypeId: z.number().int().optional().describe("FilledRegionType id. Defaults to the first available."),
+  viewId: z.number().int().optional().describe("Target 2D view. Defaults to active view."),
+  units: unitsField,
+  dryRun: dryRunField,
+}, fwdWrite("create_filled_region"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EDIT — PARAMETERS
@@ -853,7 +884,7 @@ server.tool("revit_batch",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.7 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.8 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +
