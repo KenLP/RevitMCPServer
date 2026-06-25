@@ -281,6 +281,34 @@ if ($grids.Count -ge 2) {
 # create_spot_elevation is hidden from the MCP surface (ReferenceIntersector raycast
 # finds no face on a temporary 3D view); not smoke-tested until a reliable approach lands.
 
+# ── 10. Family & detailing (dry-run) ─────────────────────────────────────────
+Write-Host "`n[10] Family & detailing (dry-run)"
+
+$ftype = (Invoke-Mcp list_family_types -Params @{ limit = 1 }).data
+$ftypeId = if ($ftype.familyTypes) { $ftype.familyTypes[0].id } elseif ($ftype.types) { $ftype.types[0].id } else { $null }
+if ($ftypeId) {
+    Test-Case "duplicate_family_type dryRun" {
+        $r = Invoke-Mcp duplicate_family_type -DryRun -Params @{ sourceTypeId = [long]$ftypeId; newName = "MCP_SMOKE_TYPE" }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.typeId -gt 0) "no typeId"
+    }
+} else { Write-Host "  SKIP  duplicate_family_type (no family types)" -ForegroundColor Yellow }
+
+$planV = ((Invoke-Mcp get_views).data.views | Where-Object { $_.viewType -eq 'FloorPlan' } | Select-Object -First 1).id
+if ($planV) {
+    Test-Case "create_detail_line dryRun (2D view)" {
+        $r = Invoke-Mcp create_detail_line -DryRun -Params @{ viewId = [long]$planV; start = @{ x = 0; y = 0 }; end = @{ x = 3; y = 0 } }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.detailLineId -gt 0) "no detailLineId"
+    }
+    Test-Case "create_filled_region dryRun (2D view)" {
+        $r = Invoke-Mcp create_filled_region -DryRun -Params @{ viewId = [long]$planV; boundary = @(@{x=0;y=0},@{x=2;y=0},@{x=2;y=2},@{x=0;y=2}) }
+        Assert ($r.ok -eq $true) "not ok: $($r.error.message)"
+        Assert ($r.data.filledRegionId -gt 0) "no filledRegionId"
+    }
+} else { Write-Host "  SKIP  detail line / filled region (no FloorPlan view)" -ForegroundColor Yellow }
+# load_family is not smoke-tested (depends on a machine-specific .rfa path).
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 Write-Host "`n$("=" * 56)"
 $total = $script:pass + $script:fail

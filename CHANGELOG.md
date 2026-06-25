@@ -18,9 +18,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   points projected onto the view plane, loop closed automatically, default FilledRegionType.
 
 Counts: 82 → 86 MCP tools (86 C# commands registered, 1 hidden). Compiles for R2025/26/27;
-C# 132/132; check-version green. **Live verification on Revit pending** (single end-to-end
-test session — watch items: LoadFamily inside the dispatcher transaction, detail-curve view
-plane, filled-region loop planarity).
+C# 132/132; check-version green. **Verified live on Revit 2027** (24/24 smoke incl. family &
+detailing): `load_family` loaded a real .rfa inside the dispatcher transaction; detail-line
+and filled-region view-plane projection confirmed; `duplicate_family_type` dry-run confirmed.
 
 ---
 
