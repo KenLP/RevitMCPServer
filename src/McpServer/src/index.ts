@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.10 (stdio).
+ * Revit MCP Server v0.8.11 (stdio).
  *
  * 88 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.10" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.11" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -328,12 +328,15 @@ server.tool("revit_create_opening_in_wall", "Create a rectangular opening in a w
   dryRun: dryRunField,
 }, fwdWrite("create_opening_in_wall"));
 
-server.tool("revit_place_family_instance", "Place a FamilyInstance at a point (non-hosted). When selection is ambiguous (no familyName/familyTypeName given) returns a candidate list with placed:false — pick from the list and retry with both fields.", {
+server.tool("revit_place_family_instance", "Place a FamilyInstance at a point. Pass hostId (wall element id) for doors/windows so Revit uses the hosted overload and auto-cuts the opening. Without hostId the instance is placed non-hosted (no opening cut). When selection is ambiguous returns a candidate list with placed:false.", {
   location: xyz,
   familyName: z.string().optional(),
   familyTypeName: z.string().optional(),
   category: z.string().optional().describe("BuiltInCategory to narrow the search."),
   levelName: z.string().optional(),
+  hostId: z.number().int().optional().describe("Element id of the host wall/face. Required for doors and windows to cut the opening."),
+  flipFacing: z.boolean().optional().describe("Flip the door/window facing side (which side the door opens toward)."),
+  flipHand: z.boolean().optional().describe("Flip the door/window hand side (hinge side)."),
   structural: z.boolean().optional(),
   units: unitsField,
   dryRun: dryRunField,
@@ -918,7 +921,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.10 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.11 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

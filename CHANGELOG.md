@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.11] — 2026-06-27: Hosted family-instance placement (doors/windows)
+
+### Changed
+
+- **`revit_place_family_instance`** — adds `hostId`, `flipFacing`, and `flipHand` parameters
+  (all optional, fully backward-compatible). When `hostId` is supplied the handler uses the
+  Revit API hosted overload `NewFamilyInstance(XYZ, FamilySymbol, Element host, Level, StructuralType)`
+  so the door/window is wall-hosted, Revit auto-cuts the opening, and `Host Id ≠ -1`.
+  Phase Created is copied from the host wall to avoid the *"infilling wall"* warning.
+  Without `hostId` behaviour is unchanged (non-hosted free-standing placement).
+
+Counts: 88 MCP tools (unchanged — no new tool, existing tool extended).
+Addresses cad2bim gap: `revit_mcp_hosted_instance_gap.md`.
+
+---
+
+## [0.8.11] — 2026-06-27: find_elements projects type parameters
+
+### Fixed
+
+- **`find_elements` now resolves TYPE parameters, not just instance parameters.** Both the
+  `fields` projection and the `filters` matcher used `Element.LookupParameter`, which is
+  instance-only, so type-level BIM parameters (Fire Rating, door Width, assembly codes,
+  materials…) came back empty and filters on them never matched. They now fall back to the
+  element's Type when the instance lookup misses, cached per `(typeId, name)` so N elements
+  sharing a type cost one type lookup. Response `fields` shape is unchanged — type values
+  simply start appearing. (Reported via a downstream QA rig; a stale copy of this command in
+  another repo also reported the pre-P2-C "offset ignored" bug — that one was already fixed
+  here in 0.8.6/P2-C.)
+
+---
+
 ## [0.8.10] — 2026-06-26: Workflow recipe — clash review (P4)
 
 ### Added

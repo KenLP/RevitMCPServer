@@ -38,6 +38,27 @@ public sealed class FindElementsCommand : IRevitCommand
         var filtersArr = p["filters"] as JsonArray;
         var fieldsArr = p["fields"] as JsonArray;
 
+        // Element.LookupParameter resolves INSTANCE parameters only. Many BIM parameters
+        // (Fire Rating, door Width, assembly codes...) live on the element TYPE, so fall
+        // back to the type when the instance lookup misses. Cache per (typeId, name) so N
+        // elements sharing a type cost one type lookup, not N.
+        var typeParamCache = new System.Collections.Generic.Dictionary<(long, string), Parameter?>();
+        Parameter? LookupInstanceOrType(Element el, string fname)
+        {
+            var pr = el.LookupParameter(fname);
+            if (pr is { HasValue: true }) return pr;
+
+            var tid = el.GetTypeId();
+            if (tid is null || tid == ElementId.InvalidElementId) return pr;
+            var key = (tid.Value, fname);
+            if (!typeParamCache.TryGetValue(key, out var cached))
+            {
+                cached = doc.GetElement(tid)?.LookupParameter(fname);
+                typeParamCache[key] = cached;
+            }
+            return cached is { HasValue: true } ? cached : pr;
+        }
+
         var elements = collector.ToList();
 
         // Apply parameter filters in-memory (simple approach — fast enough for <10k elements).
@@ -52,7 +73,7 @@ public sealed class FindElementsCommand : IRevitCommand
 
                 elements = elements.Where(el =>
                 {
-                    var param = el.LookupParameter(paramName);
+                    var param = LookupInstanceOrType(el, paramName);
                     if (param is null || !param.HasValue) return op == "not_equals";
                     return MatchParam(param, op, matchValue);
                 }).ToList();
@@ -77,7 +98,7 @@ public sealed class FindElementsCommand : IRevitCommand
                 {
                     var fname = fn?.GetValue<string>();
                     if (fname is null) continue;
-                    var param = el.LookupParameter(fname);
+                    var param = LookupInstanceOrType(el, fname);
                     if (param is not null && param.HasValue)
                     {
                         fieldValues[fname] = ReadValueNode(param);
