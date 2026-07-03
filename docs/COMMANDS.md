@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.10 — 85 commands + 1 batch + 2 recipes = 88 MCP tools** (1 hidden: `create_spot_elevation`; 86 C# commands registered; workflow recipes are Node-only).
+> **v0.8.12 — 86 commands + 1 batch + 2 recipes = 89 MCP tools** (1 hidden: `create_spot_elevation`; 87 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -54,6 +54,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_model_health`          | `get_model_health`      | ✅        | One-shot model health scorecard: warnings (+ /1000-element ratio), file size, imports/links (CAD, PDF, RVT, point cloud), in-place families, groups, unused views, worksets, purgeable |
 | `revit_get_worksets`              | `get_worksets`          | ✅        | User worksets with per-workset element counts; flags empty worksets and default 'Workset1' name |
 | `revit_get_schedule_data`         | `get_schedule_data`     | ✅        | Read rendered ViewSchedule cell text (calc fields/units applied); paginated by row |
+| `revit_get_doors`                 | `get_doors`             | ✅        | All doors with width, plan XY, level, and swing geometry (facing/hand orientation vectors) for ADA/egress checks |
 | `revit_load_family`               | `load_family`           | ❌        | Load a family (.rfa) from disk; returns family id + types |
 | `revit_duplicate_family_type`     | `duplicate_family_type` | ❌        | Duplicate a FamilySymbol under a new name |
 | `revit_create_detail_line`        | `create_detail_line`    | ❌        | View-specific detail line in a 2D view (projected onto view plane) |

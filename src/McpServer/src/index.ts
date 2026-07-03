@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.11 (stdio).
+ * Revit MCP Server v0.8.12 (stdio).
  *
- * 88 tools covering diagnostics, inspection, creation, editing, family,
+ * 89 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.11" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.12" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -66,6 +66,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_get_selected_elements", "revit_get_linked_files",
     "revit_get_linked_elements", "revit_get_element_geometry",
     "revit_get_view_image", "revit_get_element_rooms", "revit_get_schedule_data",
+    "revit_get_doors",
   ],
   "model-health": ["revit_get_model_health", "revit_get_worksets"],
   recipes: ["revit_recipe_model_health_triage", "revit_recipe_clash_review"],
@@ -452,6 +453,14 @@ server.tool("revit_get_schedule_data",
   limit: z.number().int().min(1).max(1000).optional().describe("Rows per page. Default 100."),
   offset: z.number().int().min(0).optional().describe("First body row to return. Default 0. Use nextOffset from the previous page."),
 }, fwd("get_schedule_data"));
+
+server.tool("revit_get_doors",
+  "All placed doors with nominal width (m), plan location (world XY, m), level, and door swing geometry: " +
+  "facingX/Y (FacingOrientation — the normal / pull-swing side), handX/Y (HandOrientation — along the wall), " +
+  "and facingFlipped/handFlipped. Orientation is geometry, not a parameter, so find_elements cannot return it — " +
+  "use this for ADA/egress maneuvering-clearance and door-swing checks.",
+  {},
+  fwd("get_doors"));
 
 server.tool("revit_load_family",
   "Load a family (.rfa) from disk into the project. Returns the family id and its types.", {
@@ -921,7 +930,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.11 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.12 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

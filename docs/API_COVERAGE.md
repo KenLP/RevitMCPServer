@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.10)
+## Current command surface (v0.8.12)
 
-**86 commands** registered (85 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
+**87 commands** registered (86 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
 across read, write, UI, and coordination categories. With the batch transport tool and two
-Node-only workflow recipes (`recipe_model_health_triage`, `recipe_clash_review`), that is **88 MCP tools**.
+Node-only workflow recipes (`recipe_model_health_triage`, `recipe_clash_review`), that is **89 MCP tools**.
 
 ### Implemented — Read / Introspection
 
@@ -69,6 +69,7 @@ Node-only workflow recipes (`recipe_model_health_triage`, `recipe_clash_review`)
 | `get_model_health` | One-shot health scorecard: warnings (+ /1000-element ratio), file size, imports/links, families, groups, unused views, worksets, purgeable |
 | `get_worksets` | User worksets with per-workset element counts; flags empty worksets and default "Workset1" |
 | `get_schedule_data` | Read rendered ViewSchedule cell text (calculated fields/units applied); paginated by row |
+| `get_doors` | All doors with width, plan XY, level, and swing geometry (facing/hand orientation) for ADA/egress checks |
 
 ### Implemented — Model Writes
 

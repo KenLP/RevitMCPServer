@@ -20,6 +20,22 @@ Addresses cad2bim gap: `revit_mcp_hosted_instance_gap.md`.
 
 ---
 
+## [0.8.12] — 2026-06-28: get_doors — door swing geometry
+
+### Added
+
+- **`revit_get_doors`** — all placed doors with nominal width (m), plan location (world XY, m),
+  level, and **swing geometry**: `facingX/Y` (FacingOrientation — the normal / pull-swing side),
+  `handX/Y` (HandOrientation — along the wall), and `facingFlipped/handFlipped`. Orientation is
+  geometry, not a parameter, so `find_elements` cannot return it — this command exposes door swing
+  for ADA/egress maneuvering-clearance and door-swing checks (consumer: spatial-qc).
+
+  Ported from the `feat/extract-revit-mcp-core` line (commit `0668cf9`) onto `main` — that branch
+  was 23 commits behind `main` and building it would have regressed the live add-in, so the command
+  was brought forward instead. Read-only; additive; `find_elements`/`list_elements` unchanged.
+
+---
+
 ## [0.8.11] — 2026-06-27: find_elements projects type parameters
 
 ### Fixed

@@ -55,6 +55,7 @@ public sealed class CommandRegistry
         Register(new GetModelHealthCommand());
         Register(new GetWorksetsCommand());
         Register(new GetScheduleDataCommand());
+        Register(new GetDoorsCommand());
 
         // === Creation — architecture ===
         Register(new CreateWallCommand());
