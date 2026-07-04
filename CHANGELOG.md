@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.13] — 2026-07-03: Spatial-QC command pack (HTTP-only, `spatial_*`)
+
+### Added
+
+- **Four pure-geometry commands forward-ported from AutomatedSpatialQC's add-in fork** so
+  `spatial-qc check-revit` runs against the live `main`-based add-in again (it was aborting at
+  `get_room_boundary` because only `get_doors` had been ported earlier):
+  - **`spatial_get_room_boundary`** — room boundary loops (outer ring + holes) at the finish face as
+    world-XY polylines in metres (net clear area, matches `IfcSpace`).
+  - **`spatial_clearance_envelope`** — volumetric MEP-aware clear-height check over a room footprint,
+    boolean-intersecting every overhead element in host **and every linked RVT**, naming each
+    obstruction with the clear height it leaves.
+  - **`spatial_clearance_envelope_batch`** — the same check for many rooms in one call, extracting
+    candidate geometry once over the union of footprints.
+  - **`spatial_raycast_headroom`** — vertical headroom raycast returning the lowest overhead soffit
+    per `(x,y)` point.
+
+### Namespacing decision
+
+- The four are **registered in C# (HTTP-callable via `/mcp`) but NOT exposed as MCP tools** — they are
+  consumed programmatically by the spatial-qc Python client, not by LLM tool routing, so surfacing
+  them would only dilute the tool list. Prefixed `spatial_` to keep them clearly apart from the
+  curated command surface and avoid any future name collision.
+- **`get_doors` was deliberately left unprefixed.** It already shipped (v0.8.12) as the general-purpose
+  MCP tool `revit_get_doors` (ADA/egress door-swing, useful to any consumer); renaming it would break
+  that tool name and re-churn docs for no benefit. It and the spatial pack are different layers.
+- Added `P.LongOrNull` helper (used by `spatial_get_room_boundary`).
+
+Counts: **91 C# commands** registered (86 exposed + 5 hidden: `create_spot_elevation` + the 4 spatial
+commands), still **89 MCP tools** (surface unchanged).
+
+---
+
 ## [0.8.11] — 2026-06-27: Hosted family-instance placement (doors/windows)
 
 ### Changed

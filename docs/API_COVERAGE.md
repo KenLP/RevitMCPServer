@@ -27,11 +27,18 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.12)
+## Current command surface (v0.8.13)
 
-**87 commands** registered (86 exposed as MCP tools + 1 hidden: `create_spot_elevation`)
-across read, write, UI, and coordination categories. With the batch transport tool and two
-Node-only workflow recipes (`recipe_model_health_triage`, `recipe_clash_review`), that is **89 MCP tools**.
+**91 commands** registered (86 exposed as MCP tools + 5 hidden) across read, write, UI, and
+coordination categories. With the batch transport tool and two Node-only workflow recipes
+(`recipe_model_health_triage`, `recipe_clash_review`), that is **89 MCP tools**.
+
+The 5 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
+tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
+**4-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
+`spatial_clearance_envelope_batch`, `spatial_raycast_headroom`) — pure-geometry primitives consumed
+programmatically by the AutomatedSpatialQC client, not by LLM tool routing (see the Spatial-QC pack
+section below).
 
 ### Implemented — Read / Introspection
 
@@ -117,6 +124,21 @@ Node-only workflow recipes (`recipe_model_health_triage`, `recipe_clash_review`)
 | Command | Notes |
 |---|---|
 | `check_clearance` | Two algorithms: `axis="bbox"` (AABB inflation, conservative) and `axis="Z"` (`ReferenceIntersector` vertical raycast, XY-accurate). Z-mode supports multi-point centreline sampling (`sampleCount`, default 3) and handles sloped MEP elements and multi-block buildings correctly. |
+
+### Spatial-QC pack — HTTP-only
+
+Registered in C# (callable via HTTP `/mcp`) but **not exposed as MCP tools** — they are consumed
+programmatically by the [AutomatedSpatialQC](https://github.com/KenLP/AutomatedSpatialQC) client (its
+inputs, e.g. `loops`/`points`, are produced by other calls in the pipeline), so surfacing them to LLM
+tool routing would only dilute the tool list. Prefixed `spatial_` to namespace them apart from the
+curated command surface and avoid any future collision. Pure geometry, no dependency on newer infra.
+
+| Command | Notes |
+|---|---|
+| `spatial_get_room_boundary` | Room boundary loops (outer ring + holes) at the **finish** face as world-XY polylines in metres (net clear area, matches `IfcSpace`). Params: `id` or `number` (optional) to target one room. |
+| `spatial_clearance_envelope` | Volumetric MEP-aware clear-height check: extrudes a room footprint to a required clear volume and boolean-intersects every overhead element in host **and every linked RVT**; names each obstruction (category/id/link) with the clear height it leaves. |
+| `spatial_clearance_envelope_batch` | Same check for many rooms in one call; collects + extracts candidate geometry **once** over the union of all footprints and reuses it per room (removes repeated extraction, the dominant cost). |
+| `spatial_raycast_headroom` | Vertical headroom raycast: fires a ray up from each `(x,y)` on the floor, returns the lowest overhead soffit height (ceilings/floors-above/roofs/framing; stairs excluded). |
 
 ### Implemented — UI Actions (no model transaction)
 

@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.12" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.13" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -440,6 +440,14 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // solid-face approach hit "Spot Dimension does not lie on its reference". The C#
 // command stays registered (HTTP-callable) for future work but is off the MCP surface.
 
+// Spatial-QC pack — registered in C# (HTTP-callable via /mcp) but deliberately NOT exposed as MCP
+// tools. They are consumed programmatically by AutomatedSpatialQC's Python (inputs like loops/points
+// come from other calls), so surfacing them to LLM tool routing would only dilute the tool list.
+// revit_spatial_get_room_boundary — hidden (HTTP-only spatial-QC pack; C# spatial_get_room_boundary)
+// revit_spatial_clearance_envelope — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope)
+// revit_spatial_clearance_envelope_batch — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope_batch)
+// revit_spatial_raycast_headroom — hidden (HTTP-only spatial-QC pack; C# spatial_raycast_headroom)
+
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
   category: z.string().optional().describe("Filter by tagged element category name, e.g. 'Doors'."),
@@ -458,7 +466,9 @@ server.tool("revit_get_doors",
   "All placed doors with nominal width (m), plan location (world XY, m), level, and door swing geometry: " +
   "facingX/Y (FacingOrientation — the normal / pull-swing side), handX/Y (HandOrientation — along the wall), " +
   "and facingFlipped/handFlipped. Orientation is geometry, not a parameter, so find_elements cannot return it — " +
-  "use this for ADA/egress maneuvering-clearance and door-swing checks.",
+  "use this for ADA/egress maneuvering-clearance and door-swing checks. " +
+  "For door PARAMETERS (FireRating, Mark, type name, custom Width param) use find_elements(category='Doors'); " +
+  "for which rooms a door connects use get_element_rooms; for a bare id list use list_elements(category='OST_Doors').",
   {},
   fwd("get_doors"));
 
@@ -930,7 +940,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.12 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.13 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

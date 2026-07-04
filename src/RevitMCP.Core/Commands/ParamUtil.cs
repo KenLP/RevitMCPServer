@@ -62,6 +62,9 @@ public static class P
         return node.GetValue<long>();
     }
 
+    public static long? LongOrNull(JsonObject obj, string key) =>
+        obj[key] is { } node ? node.GetValue<long>() : null;
+
     public static bool BoolOr(JsonObject obj, string key, bool @default) =>
         obj[key]?.GetValue<bool>() ?? @default;
 
