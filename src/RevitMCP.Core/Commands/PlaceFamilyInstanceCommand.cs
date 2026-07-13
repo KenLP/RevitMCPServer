@@ -7,7 +7,7 @@ using Autodesk.Revit.DB.Structure;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Place a FamilyInstance at a point (non-hosted).
+/// Place a FamilyInstance at a point.
 ///
 /// Params:
 ///   - location:       { x, y, z? }
@@ -15,6 +15,11 @@ namespace RevitMCPAddin.Commands;
 ///   - familyTypeName: string, optional
 ///   - category:       BuiltInCategory name, optional (helps narrow the search)
 ///   - levelName:      string, optional
+///   - hostId:         long, optional — element id of host wall/face; when
+///                     present uses the hosted overload so Revit auto-cuts
+///                     the opening (required for doors/windows)
+///   - flipFacing:     bool, optional — flip the door/window facing side
+///   - flipHand:       bool, optional — flip the door/window hinge side
 ///   - structural:     bool, default false
 ///   - units:          "meters"|"feet"
 ///
@@ -89,8 +94,12 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         var location = P.Xyz(p, "location", units);
         var level = CreateWallCommand.ResolveLevel(doc, P.StrOrNull(p, "levelName"));
         var structural = P.BoolOr(p, "structural", false);
+        var flipFacing = P.BoolOr(p, "flipFacing", false);
+        var flipHand   = P.BoolOr(p, "flipHand",   false);
 
-        if (!symbol.IsActive) symbol.Activate();
+        bool hasHost = p.ContainsKey("hostId") && p["hostId"] is not null;
+
+        if (!symbol.IsActive) { symbol.Activate(); doc.Regenerate(); }
 
         var stype = StructuralType.NonStructural;
         if (structural)
@@ -106,7 +115,33 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
         }
 
         var pt = new XYZ(location.X, location.Y, level.Elevation);
-        var instance = doc.Create.NewFamilyInstance(pt, symbol, level, stype);
+
+        FamilyInstance instance;
+        long? returnedHostId = null;
+
+        if (hasHost)
+        {
+            var hostElemId = new ElementId(P.Long(p, "hostId"));
+            var hostElem = doc.GetElement(hostElemId)
+                ?? throw new RevitCommandException("not_found",
+                    $"Host element id {P.Long(p, "hostId")} not found in document.");
+
+            instance = doc.Create.NewFamilyInstance(pt, symbol, hostElem, level, stype);
+
+            // Phase must match host or Revit raises an infill warning and the wall cut fails.
+            var hostPhaseId = hostElem.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsElementId();
+            if (hostPhaseId != null && hostPhaseId != ElementId.InvalidElementId)
+                instance.get_Parameter(BuiltInParameter.PHASE_CREATED)?.Set(hostPhaseId);
+
+            if (flipFacing) instance.flipFacing();
+            if (flipHand)   instance.flipHand();
+
+            returnedHostId = hostElemId.Value;
+        }
+        else
+        {
+            instance = doc.Create.NewFamilyInstance(pt, symbol, level, stype);
+        }
 
         var result = new JsonObject
         {
@@ -117,6 +152,9 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
             ["familyTypeId"] = symbol.Id.Value,
             ["levelName"] = level.Name,
         };
+
+        if (returnedHostId.HasValue)
+            result["hostId"] = returnedHostId.Value;
 
         if (usedFirstMatch)
             result["warning"] = $"Multiple types matched — used first result '{symbol.FamilyName} : {symbol.Name}'. " +
