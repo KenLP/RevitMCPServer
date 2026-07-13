@@ -24,6 +24,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   `Host = -1` and no wall cut. Restored the hosted overload (host-phase copy,
   `flipFacing`/`flipHand`) and added a wall-only guard: a `hostId` that is not a `Wall` falls
   back to non-hosted placement with a `hostWarning` instead of throwing.
+- **Two-point tool schemas no longer collapse the second point to an unusable `{}`.**
+  `revit_create_wall`, `revit_create_beam`, `revit_create_grid`, and the mirror-plane tool
+  referenced the shared `xyz` Zod object twice, so `zod-to-json-schema` emitted the second
+  point as a `$ref` the MCP bridge flattened away — a direct `create_wall` call rejected
+  `end` with *"expected object, received string"*. Giving the second point a distinct
+  instance (`.describe(...)`) inlines its `{x,y,z}` schema.
 
 Counts unchanged: 89 MCP tools, 91 C# commands.
 Addresses cad2bim gap: `HANDOFF_revitmcp_hosted_family_instance.md`.

@@ -253,7 +253,7 @@ server.tool("revit_get_element_geometry", "Bounding box, centroid, volume, surfa
 // ═══════════════════════════════════════════════════════════════════════════
 
 server.tool("revit_create_wall", "Create a single straight wall. Returns changeSummary for diff review.", {
-  start: xyz, end: xyz,
+  start: xyz, end: xyz.describe("End point."),
   height: z.number().positive().optional().describe("Default 3.0 m."),
   levelName: z.string().optional(),
   wallTypeName: z.string().optional(),
@@ -278,7 +278,7 @@ server.tool("revit_create_level", "Create a Level at given elevation.", {
 }, fwdWrite("create_level"));
 
 server.tool("revit_create_grid", "Create a straight Grid line.", {
-  start: xyz, end: xyz,
+  start: xyz, end: xyz.describe("End point."),
   name: z.string().optional(),
   units: unitsField,
   dryRun: dryRunField,
@@ -304,7 +304,7 @@ server.tool("revit_create_column", "Place a structural column.", {
 }, fwdWrite("create_column"));
 
 server.tool("revit_create_beam", "Place a structural beam between two points.", {
-  start: xyz, end: xyz,
+  start: xyz, end: xyz.describe("End point."),
   levelName: z.string().optional(),
   familyName: z.string().optional(),
   familyTypeName: z.string().optional(),
@@ -368,7 +368,7 @@ server.tool("revit_create_floor_plan_view", "Create a floor plan view for a leve
 }, fwdWrite("create_floor_plan_view"));
 
 server.tool("revit_create_section_view", "Create a section view.", {
-  origin: xyz, direction: xyz,
+  origin: xyz, direction: xyz.describe("Direction vector."),
   depth: z.number().optional().describe("Cut depth, default 10 m."),
   width: z.number().optional().describe("Half-width, default 10 m."),
   height: z.number().optional().describe("Half-height, default 5 m."),
