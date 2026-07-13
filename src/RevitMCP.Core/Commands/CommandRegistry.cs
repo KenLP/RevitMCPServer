@@ -13,6 +13,9 @@ public sealed class CommandRegistry
 
     public IEnumerable<string> Names => _commands.Keys;
 
+    /// <summary>Number of registered commands (the real capability surface).</summary>
+    public int Count => _commands.Count;
+
     public IEnumerable<(string Name, bool IsReadOnly, string RiskLevel, string ExecutionKind)> Describe()
     {
         foreach (var kv in _commands)

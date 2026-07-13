@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
- * Verifies version strings in package.json, index.ts, McpHttpServer.cs, and
+ * Verifies version strings in package.json, index.ts, RevitMCPAddin.csproj, and
  * CHANGELOG.md all agree.  Exits non-zero on any mismatch.
+ *
+ * The C# runtime version is single-sourced from the csproj <Version>; /health
+ * reports it via the compiled AssemblyInformationalVersion (see BuildInfo), so
+ * there is no hand-typed version literal in McpHttpServer.cs to check anymore.
  */
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -15,8 +19,8 @@ const expected = pkg.version;
 const indexTs = readFileSync(join(root, 'src/McpServer/src/index.ts'), 'utf8');
 const tsMatch = indexTs.match(/new McpServer\(\s*\{[^}]*version:\s*"([^"]+)"/s);
 
-const httpServer = readFileSync(join(root, 'src/RevitAddin/Server/McpHttpServer.cs'), 'utf8');
-const csMatch = httpServer.match(/\["version"\]\s*=\s*"([^"]+)"/);
+const csproj = readFileSync(join(root, 'src/RevitAddin/RevitMCPAddin.csproj'), 'utf8');
+const csMatch = csproj.match(/<Version>([^<]+)<\/Version>/);
 
 const changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
 
@@ -36,9 +40,9 @@ if (!startupLogMatch) {
 }
 
 if (!csMatch) {
-  errors.push('Could not find version in src/RevitAddin/Server/McpHttpServer.cs');
+  errors.push('Could not find <Version> in src/RevitAddin/RevitMCPAddin.csproj');
 } else if (csMatch[1] !== expected) {
-  errors.push(`McpHttpServer.cs version "${csMatch[1]}" != package.json "${expected}"`);
+  errors.push(`RevitMCPAddin.csproj <Version> "${csMatch[1]}" != package.json "${expected}"`);
 }
 
 if (!changelog.includes(`## [${expected}]`)) {

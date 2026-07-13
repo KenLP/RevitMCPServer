@@ -118,25 +118,39 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
 
         FamilyInstance instance;
         long? returnedHostId = null;
+        string? hostWarning = null;
 
         if (hasHost)
         {
-            var hostElemId = new ElementId(P.Long(p, "hostId"));
-            var hostElem = doc.GetElement(hostElemId)
+            var rawHostId = P.Long(p, "hostId");
+            var hostElem = doc.GetElement(new ElementId(rawHostId))
                 ?? throw new RevitCommandException("not_found",
-                    $"Host element id {P.Long(p, "hostId")} not found in document.");
+                    $"Host element id {rawHostId} not found in document.");
 
-            instance = doc.Create.NewFamilyInstance(pt, symbol, hostElem, level, stype);
+            if (hostElem is Wall)
+            {
+                // Hosted overload: Revit auto-cuts the opening in the wall.
+                instance = doc.Create.NewFamilyInstance(pt, symbol, hostElem, level, stype);
 
-            // Phase must match host or Revit raises an infill warning and the wall cut fails.
-            var hostPhaseId = hostElem.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsElementId();
-            if (hostPhaseId != null && hostPhaseId != ElementId.InvalidElementId)
-                instance.get_Parameter(BuiltInParameter.PHASE_CREATED)?.Set(hostPhaseId);
+                // Phase must match host or Revit raises an infill warning and the wall cut fails.
+                var hostPhaseId = hostElem.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsElementId();
+                if (hostPhaseId != null && hostPhaseId != ElementId.InvalidElementId)
+                    instance.get_Parameter(BuiltInParameter.PHASE_CREATED)?.Set(hostPhaseId);
 
-            if (flipFacing) instance.flipFacing();
-            if (flipHand)   instance.flipHand();
+                if (flipFacing) instance.flipFacing();
+                if (flipHand)   instance.flipHand();
 
-            returnedHostId = hostElemId.Value;
+                returnedHostId = hostElem.Id.Value;
+            }
+            else
+            {
+                // hostId supplied but not a wall: fall back to non-hosted instead of
+                // letting the hosted overload throw. Warn so the caller knows the
+                // instance is free-standing (Host = -1), not silently mis-hosted.
+                instance = doc.Create.NewFamilyInstance(pt, symbol, level, stype);
+                hostWarning = $"hostId {rawHostId} is a {hostElem.GetType().Name}, not a Wall — " +
+                              "placed non-hosted (no opening cut). Only wall hosting is supported.";
+            }
         }
         else
         {
@@ -155,6 +169,9 @@ public sealed class PlaceFamilyInstanceCommand : IRevitCommand
 
         if (returnedHostId.HasValue)
             result["hostId"] = returnedHostId.Value;
+
+        if (hostWarning != null)
+            result["hostWarning"] = hostWarning;
 
         if (usedFirstMatch)
             result["warning"] = $"Multiple types matched — used first result '{symbol.FamilyName} : {symbol.Name}'. " +

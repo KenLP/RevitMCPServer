@@ -10,6 +10,11 @@
     <RootNamespace>RevitMCPAddin</RootNamespace>
     <AssemblyName>RevitMCPAddin</AssemblyName>
     <LangVersion>latest</LangVersion>
+
+    <!-- Single source of truth for the C# build's semver. Kept in lock-step with
+         src/McpServer/package.json by scripts/check-version.mjs. /health reports
+         this via the compiled AssemblyInformationalVersion — never a literal. -->
+    <Version>0.8.14</Version>
     <!-- MSB3277: harmless version conflict between .NET ref assemblies and Revit DLLs. -->
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
 
@@ -75,6 +80,40 @@
   <ItemGroup>
     <ProjectReference Include="..\RevitMCP.Core\RevitMCP.Core.csproj" />
   </ItemGroup>
+
+  <!-- Stamp the actual git commit / branch / dirty-state and a build timestamp
+       into the assembly so /health reports what THIS dll really is, instead of a
+       hand-typed version that can outrank a build with fewer commands. Runs on
+       every build (the timestamp intentionally defeats incremental skips so a
+       rebuilt dll always re-stamps). git failures degrade to "unknown" — CI
+       without a checkout, or a source drop with no .git, still builds. -->
+  <Target Name="StampBuildInfo" BeforeTargets="CoreCompile;GetAssemblyAttributes">
+    <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; rev-parse --short=12 HEAD"
+          ConsoleToMSBuild="true" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommit" />
+    </Exec>
+    <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; rev-parse --abbrev-ref HEAD"
+          ConsoleToMSBuild="true" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitBranch" />
+    </Exec>
+    <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; status --porcelain --untracked-files=no"
+          ConsoleToMSBuild="true" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitDirty" />
+    </Exec>
+    <PropertyGroup>
+      <_GitCommit Condition="'$(_GitCommit)' == ''">unknown</_GitCommit>
+      <_GitBranch Condition="'$(_GitBranch)' == ''">unknown</_GitBranch>
+      <_GitState Condition="'$(_GitDirty)' == ''">clean</_GitState>
+      <_GitState Condition="'$(_GitDirty)' != ''">dirty</_GitState>
+      <_BuildTimestampUtc>$([System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))</_BuildTimestampUtc>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyMetadata Include="GitCommit" Value="$(_GitCommit)" />
+      <AssemblyMetadata Include="GitBranch" Value="$(_GitBranch)" />
+      <AssemblyMetadata Include="GitState" Value="$(_GitState)" />
+      <AssemblyMetadata Include="BuildTimestampUtc" Value="$(_BuildTimestampUtc)" />
+    </ItemGroup>
+  </Target>
 
   <!-- After build, copy the DLL + manifest into the per-user Revit Addins folder
        so Revit picks it up on the next launch.  Disable with -p:DeployToRevit=false -->

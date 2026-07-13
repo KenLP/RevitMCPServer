@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -105,14 +106,26 @@ public sealed class McpHttpServer
                 requestId = Guid.NewGuid().ToString("N").Substring(0, 12);
             try { response.Headers["X-Request-Id"] = requestId; } catch { }
 
-            // Health endpoint is auth-exempt so clients can detect the addin.
+            // Health endpoint is auth-exempt so clients can detect the addin AND
+            // verify its capability without a token. version/git/build come from
+            // the compiled assembly (see BuildInfo), and commandCount +
+            // capabilityHash come from the live registry — so a build can't report
+            // a version that outranks the command surface it actually ships.
             if (method == "GET" && path == "/health")
             {
+                var names = _handler.Registry.Names as ICollection<string>
+                            ?? _handler.Registry.Names.ToList();
                 await WriteJsonAsync(response, 200, new JsonObject
                 {
                     ["ok"] = true,
                     ["service"] = "revit-mcp-addin",
-                    ["version"] = "0.8.13",
+                    ["version"] = BuildInfo.Version,
+                    ["gitCommit"] = BuildInfo.GitCommit,
+                    ["gitBranch"] = BuildInfo.GitBranch,
+                    ["gitState"] = BuildInfo.GitState,
+                    ["buildTimestampUtc"] = BuildInfo.BuildTimestampUtc,
+                    ["commandCount"] = names.Count,
+                    ["capabilityHash"] = BuildInfo.CapabilityHash(names),
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
                 return;

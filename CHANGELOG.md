@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.14] — 2026-07-13: Build-truth `/health`, hosted placement actually lands
+
+### Added
+
+- **`/health` now reports build-truth and stays auth-exempt.** `version` comes from the
+  compiled `AssemblyInformationalVersion` — single-sourced from the csproj `<Version>`, no
+  hand-typed literal — plus `gitCommit`, `gitBranch`, `gitState`, `buildTimestampUtc`,
+  `commandCount`, and a `capabilityHash` over the live registry. A consumer can verify the
+  actual capability without a token, and a build can no longer advertise a version that
+  outranks the command surface it really ships. The add-in also logs its build line on
+  start-up so the Revit journal shows exactly which dll loaded.
+
+### Fixed
+
+- **Hosted `revit_place_family_instance` is committed for real.** The [0.8.11] entry below
+  documented it, but the code was never committed — the RevitMCP.Core class-lib extraction
+  carried the non-hosted version, so builds through 0.8.13 placed doors/windows with
+  `Host = -1` and no wall cut. Restored the hosted overload (host-phase copy,
+  `flipFacing`/`flipHand`) and added a wall-only guard: a `hostId` that is not a `Wall` falls
+  back to non-hosted placement with a `hostWarning` instead of throwing.
+
+Counts unchanged: 89 MCP tools, 91 C# commands.
+Addresses cad2bim gap: `HANDOFF_revitmcp_hosted_family_instance.md`.
+
+---
+
 ## [0.8.13] — 2026-07-03: Spatial-QC command pack (HTTP-only, `spatial_*`)
 
 ### Added
@@ -38,6 +64,10 @@ commands), still **89 MCP tools** (surface unchanged).
 ---
 
 ## [0.8.11] — 2026-06-27: Hosted family-instance placement (doors/windows)
+
+> **Correction (0.8.14):** the code described below was *not* actually committed at 0.8.11 —
+> it was lost in the RevitMCP.Core class-lib extraction and only truly landed in [0.8.14].
+> Builds 0.8.11–0.8.13 still placed non-hosted (`Host = -1`).
 
 ### Changed
 

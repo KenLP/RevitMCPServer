@@ -81,14 +81,28 @@ Test-Case "ping reports active document" {
     Assert ($r.ok -eq $true) "ping not ok"
     Assert ($r.data.hasActiveDocument -eq $true) "no active document - open a model first"
 }
-Test-Case "health endpoint (no auth) returns version" {
+Test-Case "health endpoint (no auth) returns build-truth" {
     $r = Invoke-RestMethod -Uri "$base/health"
     Assert ($r.ok -eq $true) "health not ok"
     Assert ([string]::IsNullOrEmpty($r.version) -eq $false) "no version"
+    # Build-truth fields must be stamped, not 'unknown' (a real build has git info).
+    Assert ([string]::IsNullOrEmpty($r.gitCommit) -eq $false) "no gitCommit"
+    Assert ($r.gitCommit -ne 'unknown') "gitCommit is 'unknown' - built without git stamp"
+    Assert ([string]::IsNullOrEmpty($r.buildTimestampUtc) -eq $false) "no buildTimestampUtc"
+    Assert ([string]::IsNullOrEmpty($r.capabilityHash) -eq $false) "no capabilityHash"
+    Assert ($r.commandCount -ge 79) "health reports only $($r.commandCount) commands"
 }
 Test-Case "commands endpoint lists >= 79 commands" {
     $r = Invoke-RestMethod -Uri "$base/commands" -Headers $headers
     Assert ($r.data.count -ge 79) "only $($r.data.count) commands"
+}
+# The bug this whole feature fixes: /health version outranking its command
+# surface. Lock it — health's self-reported count MUST equal the real registry.
+Test-Case "health commandCount matches /commands (no capability lie)" {
+    $h = Invoke-RestMethod -Uri "$base/health"
+    $c = Invoke-RestMethod -Uri "$base/commands" -Headers $headers
+    Assert ($h.commandCount -eq $c.data.count) `
+        "health says $($h.commandCount) commands but /commands lists $($c.data.count)"
 }
 Test-Case "stats endpoint returns counters" {
     $r = Invoke-RestMethod -Uri "$base/stats" -Headers $headers

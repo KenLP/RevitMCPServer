@@ -49,6 +49,15 @@ public sealed class App : IExternalApplication
             _httpServer = new McpHttpServer(port, _handler, authToken);
             _httpServer.Start();
 
+            // Log the actual build so the Revit journal / DebugView shows which dll
+            // was loaded — the fastest way to spot a stale dll shadowing a newer one
+            // without hitting /health.
+            LogToConsole(
+                $"[RevitMCP] Build {BuildInfo.Version} " +
+                $"({BuildInfo.GitBranch}@{BuildInfo.GitCommit}, {BuildInfo.GitState}, " +
+                $"{BuildInfo.BuildTimestampUtc}) — {registry.Count} commands, " +
+                $"capability {BuildInfo.CapabilityHash(registry.Names)}");
+
             var authStatus = authToken is not null ? "auth=ON" : "auth=OFF";
             LogToConsole($"[RevitMCP] Listening on http://127.0.0.1:{port}/ ({authStatus})");
             return Result.Succeeded;
