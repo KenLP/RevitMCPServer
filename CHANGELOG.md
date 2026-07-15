@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.15] — 2026-07-15: `find_elements` view scoping (`view_id`) — closes the last fork gap
+
+### Added
+
+- **`find_elements` accepts `view_id`** — scopes the query to elements visible in that view
+  (must be a non-template `View`; a bad id returns a clear `invalid_parameter` error instead
+  of a raw collector exception). Ported from the `feat/extract-revit-mcp-core` fork; with this,
+  `main` is a strict superset of that branch and downstream submodules can re-pin to `main`.
+  Exposed on the MCP tool surface (`revit_find_elements.view_id`).
+
+### Fixed
+
+- **`find_elements` docstring caught up with reality** — it still described the pre-pagination,
+  instance-only-parameter behaviour, which misled an external audit
+  (`HANDOFF_revitmcp-find-elements-fix.md`) into re-reporting bugs that `main` had already
+  fixed: offset pagination landed in v0.8.6 (P2-C) and instance→type parameter fallback in
+  v0.8.11. Verified against fresh `origin/main`: both fixes present; only `view_id` was missing.
+
+Counts unchanged: 89 MCP tools, 91 C# commands.
+
+---
+
 ## [0.8.14] — 2026-07-13: Build-truth `/health`, hosted placement actually lands
 
 ### Added

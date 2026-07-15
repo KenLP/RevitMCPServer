@@ -13,12 +13,16 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.13 — 86 commands + 1 batch + 2 recipes = 89 MCP tools** (5 hidden: `create_spot_elevation` + the 4-command spatial-QC HTTP pack `spatial_*`; 91 C# commands registered; workflow recipes are Node-only).
+> **v0.8.15 — 86 commands + 1 batch + 2 recipes = 89 MCP tools** (5 hidden: `create_spot_elevation` + the 4-command spatial-QC HTTP pack `spatial_*`; 91 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
 > Page through any size by repeating with `offset = nextOffset`; there is no 5000 ceiling
 > on total reach, only on per-page size.
+>
+> **`find_elements` extras:** `fields`/`filters` resolve parameters on the instance first,
+> then fall back to the element **Type** (Fire Rating, door Width, assembly codes…).
+> Optional `view_id` scopes the query to elements visible in that (non-template) view.
 > This table shows a representative subset; see [`API_COVERAGE.md`](API_COVERAGE.md) for the full list.
 
 | MCP tool                          | HTTP command            | Read-only | Purpose                                                   |
@@ -30,7 +34,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_element_info`          | `get_element_info`      | ✅        | All parameters + bbox of one element                      |
 | `revit_get_element_geometry`      | `get_element_geometry`  | ✅        | Solid/curve geometry, volume, surface area                |
 | `revit_get_parameter`             | `get_parameter`         | ✅        | Single parameter value                                    |
-| `revit_find_elements`             | `find_elements`         | ✅        | Query: category + parameter predicates                    |
+| `revit_find_elements`             | `find_elements`         | ✅        | Query: category + parameter predicates (instance→type), optional `view_id` scope |
 | `revit_list_levels`               | `list_levels`           | ✅        | All Levels, sorted by elevation                           |
 | `revit_list_wall_types`           | `list_wall_types`       | ✅        | All WallTypes                                             |
 | `revit_list_floor_types`          | `list_floor_types`      | ✅        | All FloorTypes                                            |

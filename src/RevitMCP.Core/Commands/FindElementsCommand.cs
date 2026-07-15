@@ -10,10 +10,17 @@ namespace RevitMCPAddin.Commands;
 ///
 /// Params:
 ///   - category:   BuiltInCategory name, required
+///   - view_id:    long, optional — scope the query to elements visible in that
+///                 view (must be a non-template View). Omit for the whole document.
 ///   - filters:    [{parameterName, operator, value}], optional
 ///                 operator: "equals", "not_equals", "contains", "greater", "less"
-///   - limit:      int, default 200, max 5000
-///   - fields:     string[] of parameter names to project (optional)
+///   - limit:      int, default 200, max 5000 (page size)
+///   - offset:     int, default 0 — page start; page through all matches (no 5000 ceiling)
+///   - fields:     string[] of parameter names to project (optional).
+///                 Values resolve on the instance first, then fall back to the element Type.
+///
+/// Returns a paginated envelope: count (this page), total (all matches after filters),
+/// offset, limit, hasMore, nextOffset. truncated is kept as an alias of hasMore.
 /// </summary>
 public sealed class FindElementsCommand : IRevitCommand
 {
@@ -29,7 +36,27 @@ public sealed class FindElementsCommand : IRevitCommand
         if (!Enum.TryParse<BuiltInCategory>(categoryName, true, out var bic))
             throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{categoryName}'.");
 
-        var collector = new FilteredElementCollector(doc)
+        // Optional view scoping (parity with the spatial-QC fork). Validate up front
+        // so a bad id surfaces as a clear domain error, not a raw ArgumentException
+        // from the FilteredElementCollector constructor.
+        var viewId = P.LongOrNull(p, "view_id");
+        FilteredElementCollector collector;
+        if (viewId is > 0)
+        {
+            var vid = new ElementId(viewId.Value);
+            if (doc.GetElement(vid) is not View view)
+                throw new RevitCommandException("invalid_parameter",
+                    $"view_id {viewId.Value} is not a View.");
+            if (view.IsTemplate)
+                throw new RevitCommandException("invalid_parameter",
+                    $"view_id {viewId.Value} is a view template — element collection needs a real view.");
+            collector = new FilteredElementCollector(doc, vid);
+        }
+        else
+        {
+            collector = new FilteredElementCollector(doc);
+        }
+        collector = collector
             .OfCategory(bic)
             .WhereElementIsNotElementType();
 

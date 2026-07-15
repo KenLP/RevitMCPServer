@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.14" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.15" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -165,6 +165,8 @@ server.tool("revit_find_elements",
   "Query elements by category + parameter filters. Returns matched elements with optional field " +
   "projections. Paginated: total reflects all matches after filters; page through with offset (no 5000 ceiling).", {
   category: z.string().describe("BuiltInCategory name (required)."),
+  view_id: z.number().int().positive().optional()
+    .describe("Scope the query to elements visible in this view (non-template View id). Omit for the whole document."),
   filters: z.array(z.object({
     parameterName: z.string(),
     operator: z.enum(["equals", "eq", "not_equals", "neq", "contains", "greater", "gt", "less", "lt", "greater_equal", "gte", "less_equal", "lte"]).optional(),
@@ -940,7 +942,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.14 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.15 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +
