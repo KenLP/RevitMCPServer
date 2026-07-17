@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.17] — 2026-07-17: Security hardening — loopback clamp, unconditional auth, audit clean
+
+### Changed (BREAKING for dev-only escape hatches)
+
+- **`REVIT_MCP_AUTH=false` is removed on both sides.** The add-in always generates and
+  requires the bearer token; the Node client always sends one when available and ignores the
+  env var. Rationale: the listener is loopback-only, but an *unauthenticated* loopback port
+  would still let any local process drive Revit. Verified before removal that nothing on the
+  single deployment machine sets it — no `.env`, no system env, no Claude config does
+  (Cad2BIM and bim-orchestrator *support* the variable in their clients but do not enable
+  it; they are being notified to drop that branch).
+- **`REVIT_MCP_HOST` is clamped to loopback** (`127.0.0.1`, `localhost`, `::1`). Any other
+  value makes the Node client refuse to start with a clear error. The add-in's HttpListener
+  prefix is hard-coded to `http://127.0.0.1:<port>/`, so a non-loopback host could never
+  reach a real add-in — the only thing that setting could ever do is hand the bearer token
+  and the full command stream to an arbitrary host over plaintext HTTP.
+
+### Fixed
+
+- **`npm audit --omit=dev` is clean: 5 → 0 vulnerabilities** (hono, fast-uri,
+  express-rate-limit, ip-address, qs — 2 high / 3 moderate). All five were transitive
+  dependencies of `@modelcontextprotocol/sdk`'s **HTTP transports**, which this stdio-only
+  server never imports (`server/mcp.js` + `server/stdio.js` are the only SDK entry points),
+  so reachability was effectively nil — fixed for hygiene and marketplace review, within
+  semver ranges, no code change.
+
+Counts unchanged: 89 MCP tools, 91 C# commands. Addresses `project_review_findings_2026-07-16.md`
+P1 (dependency audit + runtime security escape hatches, resolved as B2: remove rather than
+document).
+
+---
+
 ## [0.8.16] — 2026-07-17: Release package actually runs; MCP submission docs land
 
 ### Fixed

@@ -3,7 +3,6 @@
  *
  * Auth: reads the auth token from REVIT_MCP_AUTH_TOKEN env var or from the
  * well-known file at %APPDATA%/Autodesk/Revit/Addins/<version>/revit-mcp-token.txt.
- * Set REVIT_MCP_AUTH=false to skip auth entirely.
  *
  * On 401 responses the client automatically re-reads the token file once (Revit
  * regenerates the token on restart) and retries the request.
@@ -13,7 +12,20 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "node:crypto";
 
-const REVIT_HOST = process.env.REVIT_MCP_HOST ?? "127.0.0.1";
+// The addin's HttpListener is hard-bound to http://127.0.0.1:<port>/, so a
+// non-loopback REVIT_MCP_HOST can never reach a real addin — the only thing it
+// could do is hand the bearer token and the full command stream to whatever is
+// listening there, over plaintext HTTP. Refuse to start instead.
+const RAW_HOST = process.env.REVIT_MCP_HOST ?? "127.0.0.1";
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+if (!LOOPBACK_HOSTS.has(RAW_HOST)) {
+  throw new Error(
+    `REVIT_MCP_HOST="${RAW_HOST}" is not a loopback address. The Revit addin ` +
+    `only listens on 127.0.0.1, so a remote host can never be a real addin. ` +
+    `Remove REVIT_MCP_HOST or set it to 127.0.0.1.`,
+  );
+}
+const REVIT_HOST = RAW_HOST === "::1" ? "[::1]" : RAW_HOST;
 const REVIT_VERSION = process.env.REVIT_MCP_VERSION ?? "2026";
 // Auto-assign port by version: 2026 → 7891, 2027 → 7892, …
 // Explicit REVIT_MCP_PORT always wins.
@@ -21,7 +33,6 @@ const DEFAULT_PORT = 7891 + (parseInt(REVIT_VERSION, 10) - 2026);
 const REVIT_PORT = Number(process.env.REVIT_MCP_PORT ?? String(DEFAULT_PORT));
 const BASE = `http://${REVIT_HOST}:${REVIT_PORT}`;
 const TIMEOUT_MS = Number(process.env.REVIT_MCP_TIMEOUT_MS ?? "30000");
-const AUTH_DISABLED = process.env.REVIT_MCP_AUTH?.toLowerCase() === "false";
 
 export interface RevitEnvelope {
   ok: boolean;
@@ -41,11 +52,8 @@ export interface BatchStep {
   params?: Record<string, unknown>;
 }
 
-/** Resolve the auth token. Returns undefined if auth is disabled. */
+/** Resolve the auth token: explicit env var, then the addin's token file. */
 function resolveAuthToken(): string | undefined {
-  if (AUTH_DISABLED) return undefined;
-
-  // Explicit env var takes precedence.
   const explicit = process.env.REVIT_MCP_AUTH_TOKEN;
   if (explicit) return explicit;
 
@@ -119,7 +127,7 @@ async function postJson(
 
     // On 401, try refreshing the token from disk once — Revit regenerates it
     // on restart and env-var tokens might be stale.
-    if (!_retried && envelope.error?.code === "unauthorized" && !AUTH_DISABLED) {
+    if (!_retried && envelope.error?.code === "unauthorized") {
       const fresh = readTokenFile();
       if (fresh && fresh !== _authToken) {
         _authToken = fresh;

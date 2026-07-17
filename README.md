@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.16** — 91 C# commands (86 exposed as MCP tools + 5 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 4-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.17** — 91 C# commands (86 exposed as MCP tools + 5 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 4-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -274,7 +274,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.16
+   version   : 0.8.17
    authEnabled : True
    ```
 
@@ -431,7 +431,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.16, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.17, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
@@ -536,9 +536,8 @@ Batches add `committed`, `count`, `hadFailures`, `results[]`. See
 | Variable                | Where         | Default           | Purpose                                    |
 | ----------------------- | ------------- | ----------------- | ------------------------------------------ |
 | `REVIT_MCP_PORT`        | Revit + Node  | auto (see below)  | HTTP port — override the auto-assigned port |
-| `REVIT_MCP_HOST`        | Node only     | `127.0.0.1`       | Host the MCP server connects to            |
+| `REVIT_MCP_HOST`        | Node only     | `127.0.0.1`       | Loopback only (`127.0.0.1`/`localhost`/`::1`) — anything else refuses to start |
 | `REVIT_MCP_TIMEOUT_MS`  | Node only     | `30000`           | Per-tool-call HTTP timeout                 |
-| `REVIT_MCP_AUTH`        | Revit + Node  | (enabled)         | Set `false` to disable auth token          |
 | `REVIT_MCP_AUTH_TOKEN`  | Node only     | (auto-read)       | Override: use this token instead of file    |
 | `REVIT_MCP_VERSION`     | Node only     | `2026`            | Revit version (for token file + auto-port)  |
 
@@ -591,10 +590,10 @@ it to `%APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt`.
 The TypeScript MCP server reads this file automatically.
 
 - `GET /health` is **exempt** from auth (so clients can detect the addin).
-- All other endpoints require `Authorization: Bearer <token>`.
-- Set `REVIT_MCP_AUTH=false` (env var on Revit) to disable auth entirely.
-- Or pass `REVIT_MCP_AUTH_TOKEN=<token>` to the MCP server to use a
-  fixed token.
+- All other endpoints require `Authorization: Bearer <token>`. Token auth is
+  unconditional — the old `REVIT_MCP_AUTH=false` switch was removed in 0.8.17
+  (an unauthenticated loopback port would let any local process drive Revit).
+- Pass `REVIT_MCP_AUTH_TOKEN=<token>` to the MCP server to use a fixed token.
 
 ## Per-tool risk levels
 
@@ -611,10 +610,10 @@ MCP clients can use this to decide which tools need per-call confirmation.
 
 ## Security model
 
-- The HTTP listener binds **only** to `127.0.0.1`.
+- The HTTP listener binds **only** to `127.0.0.1`, and the Node client refuses
+  to start if `REVIT_MCP_HOST` points anywhere but loopback.
 - **Auth token**: a random Bearer token is generated each Revit session and
-  required on all endpoints except `/health`. Disable with
-  `REVIT_MCP_AUTH=false`.
+  required on all endpoints except `/health`. It cannot be disabled.
 - **Dry-run mode**: lets you preview AI actions without committing.
 - **Risk levels**: `GET /commands` exposes per-tool risk, so clients can
   auto-allow `read` tools and prompt on `high` tools.

@@ -42,7 +42,7 @@ describe('envelopeToToolResult', () => {
 
 describe('callRevit', () => {
   beforeEach(() => {
-    vi.stubEnv('REVIT_MCP_AUTH', 'false');
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'test-token');
     vi.resetModules();
   });
   afterEach(() => {
@@ -85,7 +85,7 @@ describe('callRevit', () => {
 
 describe('callRevitBatch', () => {
   beforeEach(() => {
-    vi.stubEnv('REVIT_MCP_AUTH', 'false');
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'test-token');
     vi.resetModules();
   });
   afterEach(() => {
@@ -120,7 +120,7 @@ describe('callRevitBatch', () => {
 
 describe('postJson error handling', () => {
   beforeEach(() => {
-    vi.stubEnv('REVIT_MCP_AUTH', 'false');
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'test-token');
     vi.resetModules();
   });
   afterEach(() => {
@@ -175,19 +175,20 @@ describe('auth header', () => {
     expect(headers['authorization']).toBe('Bearer secret-token-xyz');
   });
 
-  it('omits auth header when REVIT_MCP_AUTH=false', async () => {
+  it('ignores REVIT_MCP_AUTH=false — auth cannot be disabled (0.8.17)', async () => {
     vi.stubEnv('REVIT_MCP_AUTH', 'false');
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'still-sent-token');
     vi.resetModules();
     vi.stubGlobal('fetch', mockFetch({ ok: true }));
     const { callRevit } = await import('../revitClient.js');
     await callRevit('ping', {});
     const [, opts] = vi.mocked(global.fetch).mock.calls[0];
     const headers = (opts as RequestInit).headers as Record<string, string>;
-    expect(headers['authorization']).toBeUndefined();
+    expect(headers['authorization']).toBe('Bearer still-sent-token');
   });
 
   it('always includes content-type header', async () => {
-    vi.stubEnv('REVIT_MCP_AUTH', 'false');
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'test-token');
     vi.resetModules();
     vi.stubGlobal('fetch', mockFetch({ ok: true }));
     const { callRevit } = await import('../revitClient.js');
@@ -195,5 +196,27 @@ describe('auth header', () => {
     const [, opts] = vi.mocked(global.fetch).mock.calls[0];
     const headers = (opts as RequestInit).headers as Record<string, string>;
     expect(headers['content-type']).toBe('application/json');
+  });
+});
+
+// ── host clamp ────────────────────────────────────────────────────────────────
+
+describe('REVIT_MCP_HOST loopback clamp', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('refuses to start when REVIT_MCP_HOST is not loopback', async () => {
+    vi.stubEnv('REVIT_MCP_HOST', 'evil.example.com');
+    vi.resetModules();
+    await expect(import('../revitClient.js')).rejects.toThrow(/not a loopback address/);
+  });
+
+  it.each(['127.0.0.1', 'localhost', '::1'])('accepts loopback host %s', async (host) => {
+    vi.stubEnv('REVIT_MCP_HOST', host);
+    vi.stubEnv('REVIT_MCP_AUTH_TOKEN', 'test-token');
+    vi.resetModules();
+    await expect(import('../revitClient.js')).resolves.toBeDefined();
   });
 });

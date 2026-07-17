@@ -39,7 +39,7 @@ Before diving into specific symptoms, verify:
 | Token file not readable | Ensure `%APPDATA%\Autodesk\Revit\Addins\<version>\revit-mcp-token.txt` exists and is readable by the current user |
 | Stale token after Revit restart | The MCP server auto-refreshes the token on a 401. If it keeps failing, restart Claude Desktop |
 | `REVIT_MCP_AUTH_TOKEN` set to old value | Remove the env var from Claude Desktop config and let the server read the file |
-| Auth disabled in addin but enabled in config | Check the health endpoint: `curl http://127.0.0.1:7891/health` — if `authEnabled:false`, set `REVIT_MCP_AUTH=false` in the MCP server env |
+| Addin reports `authEnabled:false` on `/health` | You are running an addin build older than 0.8.17 with auth disabled. Upgrade the addin — from 0.8.17 token auth is always on and `REVIT_MCP_AUTH=false` is ignored |
 
 ---
 

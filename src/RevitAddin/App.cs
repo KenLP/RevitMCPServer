@@ -16,7 +16,8 @@ namespace RevitMCPAddin;
 /// Auth: on startup a random 32-byte token is generated and written to
 /// <c>%APPDATA%\Autodesk\Revit\Addins\{version}\revit-mcp-token.txt</c>.
 /// The TypeScript MCP server reads that file to authenticate HTTP requests.
-/// Set env var <c>REVIT_MCP_AUTH=false</c> to disable auth entirely.
+/// Token auth is unconditional — there is no switch to disable it (the old
+/// REVIT_MCP_AUTH=false escape hatch was removed in 0.8.17).
 /// </summary>
 public sealed class App : IExternalApplication
 {
@@ -58,8 +59,7 @@ public sealed class App : IExternalApplication
                 $"{BuildInfo.BuildTimestampUtc}) — {registry.Count} commands, " +
                 $"capability {BuildInfo.CapabilityHash(registry.Names)}");
 
-            var authStatus = authToken is not null ? "auth=ON" : "auth=OFF";
-            LogToConsole($"[RevitMCP] Listening on http://127.0.0.1:{port}/ ({authStatus})");
+            LogToConsole($"[RevitMCP] Listening on http://127.0.0.1:{port}/ (auth=ON)");
             return Result.Succeeded;
         }
         catch (Exception ex)
@@ -99,14 +99,12 @@ public sealed class App : IExternalApplication
 
     /// <summary>
     /// Generates a random auth token and writes it to the addins folder.
-    /// Returns null if auth is explicitly disabled via REVIT_MCP_AUTH=false.
+    /// Always returns a token — auth cannot be disabled (the REVIT_MCP_AUTH=false
+    /// escape hatch was removed in 0.8.17: the listener is loopback-only, but an
+    /// unauthenticated loopback port would still let any local process drive Revit).
     /// </summary>
-    private static string? ResolveAuthToken(string revitVersion)
+    private static string ResolveAuthToken(string revitVersion)
     {
-        var authEnv = Environment.GetEnvironmentVariable("REVIT_MCP_AUTH");
-        if (string.Equals(authEnv, "false", StringComparison.OrdinalIgnoreCase))
-            return null;
-
         // Generate a cryptographically secure random token.
         var bytes = new byte[32];
         using (var rng = RandomNumberGenerator.Create())

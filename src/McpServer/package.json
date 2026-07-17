@@ -1,6 +1,6 @@
 {
   "name": "revit-mcp-server",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "description": "MCP server (stdio) that bridges Claude Desktop to a Revit addin via HTTP.",
   "private": true,
   "type": "module",

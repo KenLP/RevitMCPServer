@@ -134,8 +134,9 @@ On startup `App.cs` generates a 32-byte random token using
 `McpHttpServer` checks `Authorization: Bearer <token>` on every request
 except `GET /health` (exempt so clients can detect whether the addin is
 running). The TypeScript MCP server reads the token file automatically;
-override with `REVIT_MCP_AUTH_TOKEN` env var or disable with
-`REVIT_MCP_AUTH=false`.
+override with `REVIT_MCP_AUTH_TOKEN` env var. Token auth is unconditional —
+the `REVIT_MCP_AUTH=false` escape hatch was removed in 0.8.17, and the Node
+client refuses to start if `REVIT_MCP_HOST` is not a loopback address.
 
 ## Dry-run mode
 
