@@ -96,12 +96,17 @@ foreach ($rv in $RevitVersions) {
     $pkgDir = "$root/release/RevitMCPServer-v$version-R$rv"
     New-Item -ItemType Directory -Force -Path "$pkgDir/mcp-server/dist" | Out-Null
 
-    # Addin DLL + manifest
+    # Addin DLLs + manifest. RevitMCP.Core.dll carries the command kernel — the
+    # addin type-loads against it, so shipping RevitMCPAddin.dll alone yields a
+    # FileNotFoundException on Revit start-up.
     Copy-Item "$buildDir/RevitMCPAddin.dll"   "$pkgDir/" -Force
+    Copy-Item "$buildDir/RevitMCP.Core.dll"   "$pkgDir/" -Force
     Copy-Item "$root/src/RevitAddin/RevitMCPAddin.addin" "$pkgDir/" -Force
 
-    # MCP server (built JS + package metadata for npm install)
-    Copy-Item "$root/src/McpServer/dist/index.js"       "$pkgDir/mcp-server/dist/" -Force
+    # MCP server: every emitted runtime module, not just the entrypoint —
+    # index.js imports ./revitClient.js and ./recipes.js at run time. (dist/*.js
+    # is top-level only, so dist/__tests__/ is correctly excluded.)
+    Copy-Item "$root/src/McpServer/dist/*.js"           "$pkgDir/mcp-server/dist/" -Force
     Copy-Item "$root/src/McpServer/package.json"        "$pkgDir/mcp-server/"      -Force
     Copy-Item "$root/src/McpServer/package-lock.json"   "$pkgDir/mcp-server/"      -Force
 
@@ -129,6 +134,43 @@ UNINSTALL
 Full docs: https://github.com/your-org/RevitMCPServer
 "@
     $quickStart | Out-File "$pkgDir/INSTALL.txt" -Encoding utf8
+
+    # ── Artifact completeness gate ────────────────────────────────────────────
+    # Assert every runtime dependency is actually in the package BEFORE zipping.
+    # A missing file here ships a package that dies on first load, which is
+    # exactly what happened when only RevitMCPAddin.dll and index.js were copied.
+
+    $required = @(
+        "RevitMCPAddin.dll",
+        "RevitMCP.Core.dll",
+        "RevitMCPAddin.addin",
+        "mcp-server/dist/index.js",
+        "mcp-server/dist/revitClient.js",
+        "mcp-server/dist/recipes.js",
+        "mcp-server/package.json",
+        "mcp-server/package-lock.json",
+        "install.ps1",
+        "uninstall.ps1"
+    )
+    $missing = @()
+    foreach ($f in $required) {
+        if (-not (Test-Path (Join-Path $pkgDir $f))) { $missing += $f }
+    }
+    if ($missing.Count -gt 0) {
+        Fail "R$rv package is missing required file(s): $($missing -join ', ')"
+    }
+
+    # Every relative import in the emitted JS must resolve inside the package.
+    $distDir = Join-Path $pkgDir "mcp-server/dist"
+    foreach ($js in Get-ChildItem "$distDir/*.js") {
+        foreach ($m in [regex]::Matches((Get-Content $js.FullName -Raw), 'from\s+"(\.\/[^"]+)"')) {
+            $target = Join-Path $distDir ($m.Groups[1].Value -replace '^\./', '')
+            if (-not (Test-Path $target)) {
+                Fail "R$rv package: $($js.Name) imports '$($m.Groups[1].Value)' which is not in the package"
+            }
+        }
+    }
+    OK "R$rv package contents verified ($($required.Count) required files, imports resolve)"
 
     # ── Create ZIP ────────────────────────────────────────────────────────────
 

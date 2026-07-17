@@ -53,6 +53,13 @@ if (-not $DllSource -or -not (Test-Path (Join-Path $DllSource "RevitMCPAddin.dll
     exit 1
 }
 
+# RevitMCP.Core.dll carries the command kernel; the addin type-loads against it
+# and throws FileNotFoundException on start-up without it.
+if (-not (Test-Path (Join-Path $DllSource "RevitMCP.Core.dll"))) {
+    Write-Error "RevitMCP.Core.dll not found next to RevitMCPAddin.dll in '$DllSource'. The addin cannot load without it."
+    exit 1
+}
+
 # Locate addin manifest (same folder, or repo root)
 $addinFile = Join-Path $DllSource "RevitMCPAddin.addin"
 if (-not (Test-Path $addinFile)) {
@@ -69,6 +76,7 @@ $addinsDir = "$env:APPDATA\Autodesk\Revit\Addins\$RevitVersion"
 New-Item -ItemType Directory -Force -Path $addinsDir | Out-Null
 
 Copy-Item (Join-Path $DllSource "RevitMCPAddin.dll") -Destination $addinsDir -Force
+Copy-Item (Join-Path $DllSource "RevitMCP.Core.dll") -Destination $addinsDir -Force
 Copy-Item $addinFile -Destination $addinsDir -Force
 Write-Host "Installed addin to: $addinsDir" -ForegroundColor Green
 
