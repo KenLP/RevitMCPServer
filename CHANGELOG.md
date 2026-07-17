@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.16] — 2026-07-17: Release package actually runs; MCP submission docs land
+
+### Fixed
+
+- **The release package shipped an add-in and an MCP server that could not start.**
+  Three separate omissions, all in the packaging path only:
+  - `RevitMCPAddin.dll` was packaged **without `RevitMCP.Core.dll`** — the class-lib that
+    carries the command kernel the add-in type-loads against. Revit would throw
+    `FileNotFoundException` on start-up. The csproj's dev-deploy target *always* copied Core,
+    so every local deploy worked and the bug lived only in the artifact users download —
+    which is why it survived so many versions.
+  - Only `dist/index.js` was packaged, but it imports `./revitClient.js` and `./recipes.js`
+    at run time, so the packaged server died on first import.
+  - `uninstall.ps1` left `RevitMCP.Core.dll` orphaned in the Addins folder.
+- **`install.ps1`** now copies `RevitMCP.Core.dll` and fails fast with a clear message if it
+  is not next to the add-in dll. **`uninstall.ps1`** removes `RevitMCP.Core.dll`/`.pdb` and
+  reports the two things it deliberately leaves behind (metadata-only logs, the MCP server
+  folder) so they can be deleted in one step.
+
+### Added
+
+- **Artifact completeness gate in `build-release.ps1`.** Before zipping, it asserts the 10
+  required files are present and statically resolves every relative import in the packaged
+  JS. A missing runtime file now fails the build instead of shipping silently. Verified on
+  all three packages (R2025/R2026/R2027), plus an end-to-end check: the ZIP was extracted,
+  prod deps installed, and the packaged server booted clean.
+- **MCP Publisher submission artifacts** — `mcp-manifest.json` (89 tools, cross-checked
+  against `index.ts`) and the filled Publisher Declaration content.
+
+### Changed
+
+- **Publisher Declaration corrected to match the code.** The earlier draft overclaimed:
+  it said the server reads only the open Revit model (`revit_load_family` reads a `.rfa`
+  from any local path, and PNG/PDF/CSV exports write to disk); it said uninstall removes the
+  add-in *and* MCP server (it does not remove the server folder or logs); it implied auth is
+  unconditional (token auth is the default but a local env var can disable it). Data
+  retention now states plainly that diagnostic logs are append-only daily files with no
+  automatic rotation, kept until the user deletes them. Also records that the add-in's HTTP
+  listener is hard-bound to `http://127.0.0.1:<port>/` and is therefore unreachable from the
+  network under any configuration.
+- `mcp-manifest.json` declares `mcp_spec_version: 2025-11-25` — the SDK's
+  `LATEST_PROTOCOL_VERSION` and the value in Autodesk's own example (was `2025-06-18`).
+
+Counts unchanged: 89 MCP tools, 91 C# commands. Addresses `project_review_findings_2026-07-16.md`
+P0-1 and P0-2.
+
+---
+
 ## [0.8.15] — 2026-07-15: `find_elements` view scoping (`view_id`) — closes the last fork gap
 
 ### Added
