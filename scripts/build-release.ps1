@@ -131,7 +131,7 @@ REQUIREMENTS
 UNINSTALL
   PowerShell:  .\uninstall.ps1 -RevitVersion $rv
 
-Full docs: https://github.com/your-org/RevitMCPServer
+Full docs: https://github.com/KenLP/RevitMCPServer
 "@
     $quickStart | Out-File "$pkgDir/INSTALL.txt" -Encoding utf8
 

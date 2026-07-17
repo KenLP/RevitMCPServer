@@ -90,19 +90,74 @@ if (toolCount !== expectedTools) {
     `${registerCount} registered − ${hiddenCount} hidden + 1 batch + ${recipeCount} recipes = ${expectedTools}`);
 }
 
-// README headline claims must match reality.
-const readmeTools = readme.match(/(\d+)\s+MCP tools/);
-if (!readmeTools) {
-  errors.push('README.md: could not find an "N MCP tools" claim');
-} else if (Number(readmeTools[1]) !== toolCount) {
-  errors.push(`README.md claims ${readmeTools[1]} MCP tools but index.ts exposes ${toolCount}`);
-}
+// ── Doc claims must match reality — EVERY occurrence, not just the first ─────
+// The earlier version used .match() (first hit only) and only looked at README,
+// so "64 revit_* tools", "80 tools", "81 commands" rotted in place across README,
+// ARCHITECTURE and TROUBLESHOOTING while the gate stayed green. Scan them all.
+//
+// ROADMAP.md is exempt from the bare "N commands" rule on purpose: it is a
+// historical milestone table ("| 60 commands | v0.3.0 | Done |") where old
+// numbers are the point.
+const docFiles = [
+  ['README.md', readme],
+  ['docs/ARCHITECTURE.md', readFileSync(join(root, 'docs/ARCHITECTURE.md'), 'utf8')],
+  ['docs/TROUBLESHOOTING.md', readFileSync(join(root, 'docs/TROUBLESHOOTING.md'), 'utf8')],
+  ['docs/COMMANDS.md', readFileSync(join(root, 'docs/COMMANDS.md'), 'utf8')],
+  ['docs/API_COVERAGE.md', readFileSync(join(root, 'docs/API_COVERAGE.md'), 'utf8')],
+  ['src/McpServer/src/index.ts', indexTs],
+];
 
-const readmeCmds = readme.match(/(\d+)\s+C# commands/);
-if (!readmeCmds) {
-  errors.push('README.md: could not find an "N C# commands" claim');
-} else if (Number(readmeCmds[1]) !== registerCount) {
-  errors.push(`README.md claims ${readmeCmds[1]} C# commands but the registry has ${registerCount}`);
+// Claims that must equal the live MCP tool count.
+const TOOL_CLAIMS = [
+  /(\d+)\s+MCP tools/g,          // "89 MCP tools"
+  /expose all (\d+) tools/g,     // TROUBLESHOOTING profile note
+  /(\d+)-tool surface/g,         // ARCHITECTURE profile note
+  /see (\d+) `revit_\*` tools/g, // README verify step
+  /With (\d+) tools,/g,          // index.ts profile comment
+  /all (\d+) tools to every/g,   // README profile note
+];
+// Claims that must equal the registered C# command count.
+const CMD_CLAIMS = [
+  /(\d+)\s+C# commands/g,
+  /dispatcher \+ (\d+) commands/g, // README repo-layout tree
+  /# (\d+) commands, one file each/g, // ARCHITECTURE tree
+];
+
+let sawToolClaim = false;
+let sawCmdClaim = false;
+for (const [name, text] of docFiles) {
+  for (const re of TOOL_CLAIMS) {
+    for (const m of text.matchAll(re)) {
+      sawToolClaim = true;
+      if (Number(m[1]) !== toolCount)
+        errors.push(`${name}: claims ${m[1]} tools ("${m[0].trim()}") but index.ts exposes ${toolCount}`);
+    }
+  }
+  for (const re of CMD_CLAIMS) {
+    for (const m of text.matchAll(re)) {
+      sawCmdClaim = true;
+      if (Number(m[1]) !== registerCount)
+        errors.push(`${name}: claims ${m[1]} commands ("${m[0].trim()}") but the registry has ${registerCount}`);
+    }
+  }
+}
+if (!sawToolClaim) errors.push('No "N MCP tools" claim found in any doc — the count gate is not actually guarding anything');
+if (!sawCmdClaim) errors.push('No "N C# commands" claim found in any doc — the count gate is not actually guarding anything');
+
+// package-lock carries its own copy of the version and ships inside the release
+// ZIP; it sat at 0.4.2 for eleven releases because nothing checked it.
+const lock = JSON.parse(readFileSync(join(root, 'src/McpServer/package-lock.json'), 'utf8'));
+if (lock.version !== expected)
+  errors.push(`package-lock.json version "${lock.version}" != package.json "${expected}" (run: npm install --package-lock-only)`);
+
+// Unreplaced template placeholders must never reach a release artifact.
+for (const [name, text] of [
+  ['scripts/build-release.ps1', readFileSync(join(root, 'scripts/build-release.ps1'), 'utf8')],
+  ['scripts/install.ps1', readFileSync(join(root, 'scripts/install.ps1'), 'utf8')],
+  ['README.md', readme],
+]) {
+  if (text.includes('your-org'))
+    errors.push(`${name}: contains the placeholder "your-org" — replace with the real repo owner`);
 }
 
 if (errors.length > 0) {

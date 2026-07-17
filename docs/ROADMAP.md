@@ -1,6 +1,6 @@
 # Roadmap
 
-## Current status — v0.8.10
+## Current status — v0.8.17
 
 | Phase | Version | Status |
 |---|---|---|

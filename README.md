@@ -147,7 +147,7 @@ RevitMCPServer/
 │   ├── check-version.mjs           ← CI gate: version + tool-count consistency
 │   └── smoke-test.ps1              ← live-Revit smoke test
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 81 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 91 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
@@ -479,7 +479,7 @@ Two versions side-by-side (port auto-assigned):
 }
 ```
 
-Restart the client. You should see 64 `revit_*` tools per configured version.
+Restart the client. You should see 89 `revit_*` tools per configured version.
 
 ### 3. Try it
 
