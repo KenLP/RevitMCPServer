@@ -22,7 +22,7 @@ Revit versions to build for. Default: 2026, 2027.
 #>
 param(
     [switch]$SkipTests,
-    [int[]]$RevitVersions = @(2026, 2027)
+    [int[]]$RevitVersions = @(2025, 2026, 2027)
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,7 +32,7 @@ function Step([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function OK([string]$msg)   { Write-Host "    OK  $msg" -ForegroundColor Green }
 function Fail([string]$msg) { Write-Host "FAILED  $msg" -ForegroundColor Red; exit 1 }
 
-# ── Version ──────────────────────────────────────────────────────────────────
+# -- Version ------------------------------------------------------------------
 
 Step "Checking version consistency"
 node "$root/scripts/check-version.mjs"
@@ -45,7 +45,7 @@ OK "Version: $version"
 $releaseDir = "$root/release/RevitMCPServer-v$version"
 if (Test-Path $releaseDir) { Remove-Item $releaseDir -Recurse -Force }
 
-# ── TypeScript ────────────────────────────────────────────────────────────────
+# -- TypeScript ----------------------------------------------------------------
 
 Step "TypeScript: install dependencies"
 Push-Location "$root/src/McpServer"
@@ -66,7 +66,7 @@ if ($LASTEXITCODE -ne 0) { Fail "TypeScript build failed" }
 Pop-Location
 OK "TypeScript build complete"
 
-# ── C# ───────────────────────────────────────────────────────────────────────
+# -- C# -----------------------------------------------------------------------
 
 if (-not $SkipTests) {
     Step "C#: tests"
@@ -76,12 +76,28 @@ if (-not $SkipTests) {
     OK "All C# tests passed"
 }
 
-# ── Package each Revit version ────────────────────────────────────────────────
+# -- Assemble ONE bundle for all versions --------------------------------------
+# Layout:
+#   <bundle>/install.ps1, uninstall.ps1, INSTALL.txt
+#   <bundle>/addin/<ver>/{RevitMCPAddin.dll, RevitMCP.Core.dll, RevitMCPAddin.addin}
+#   <bundle>/mcp-server/{dist/*.js, package.json, package-lock.json}   (shared)
+# install.ps1 auto-detects which Revit versions are installed and deploys each.
+
+$pkgDir = "$root/release/RevitMCPServer-v$version"
+if (Test-Path $pkgDir) { Remove-Item $pkgDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path "$pkgDir/mcp-server/dist" | Out-Null
+
+# Shared MCP server: every emitted runtime module, not just the entrypoint -
+# index.js imports ./revitClient.js and ./recipes.js at run time. (dist/*.js is
+# top-level only, so dist/__tests__/ is correctly excluded.)
+Copy-Item "$root/src/McpServer/dist/*.js"         "$pkgDir/mcp-server/dist/" -Force
+Copy-Item "$root/src/McpServer/package.json"      "$pkgDir/mcp-server/"      -Force
+Copy-Item "$root/src/McpServer/package-lock.json" "$pkgDir/mcp-server/"      -Force
+Copy-Item "$root/scripts/install.ps1"             "$pkgDir/" -Force
+Copy-Item "$root/scripts/uninstall.ps1"           "$pkgDir/" -Force
 
 foreach ($rv in $RevitVersions) {
-
     Step "C# build for Revit $rv"
-
     $buildDir = "$root/release/.build-R$rv"
     dotnet build "$root/src/RevitAddin/RevitMCPAddin.csproj" `
         -p:RevitVersion=$rv `
@@ -89,109 +105,98 @@ foreach ($rv in $RevitVersions) {
         -p:OutputPath="$buildDir" `
         -c Release
     if ($LASTEXITCODE -ne 0) { Fail "C# build for R$rv failed" }
-    OK "C# R$rv build complete"
 
-    # ── Assemble ZIP contents ─────────────────────────────────────────────────
+    # RevitMCP.Core.dll carries the command kernel - the addin type-loads against
+    # it, so shipping RevitMCPAddin.dll alone yields a FileNotFoundException on
+    # Revit start-up. Each version gets its own subfolder (net8 for 2025/2026,
+    # net10 for 2027, built against version-specific Revit reference assemblies).
+    $addinDir = "$pkgDir/addin/$rv"
+    New-Item -ItemType Directory -Force -Path $addinDir | Out-Null
+    Copy-Item "$buildDir/RevitMCPAddin.dll" "$addinDir/" -Force
+    Copy-Item "$buildDir/RevitMCP.Core.dll" "$addinDir/" -Force
+    Copy-Item "$root/src/RevitAddin/RevitMCPAddin.addin" "$addinDir/" -Force
+    OK "C# R$rv staged into addin/$rv/"
+}
 
-    $pkgDir = "$root/release/RevitMCPServer-v$version-R$rv"
-    New-Item -ItemType Directory -Force -Path "$pkgDir/mcp-server/dist" | Out-Null
+# Quick-start readme
+$quickStart = @"
+RevitMCPServer v$version - Revit 2025 / 2026 / 2027
+===================================================
 
-    # Addin DLLs + manifest. RevitMCP.Core.dll carries the command kernel — the
-    # addin type-loads against it, so shipping RevitMCPAddin.dll alone yields a
-    # FileNotFoundException on Revit start-up.
-    Copy-Item "$buildDir/RevitMCPAddin.dll"   "$pkgDir/" -Force
-    Copy-Item "$buildDir/RevitMCP.Core.dll"   "$pkgDir/" -Force
-    Copy-Item "$root/src/RevitAddin/RevitMCPAddin.addin" "$pkgDir/" -Force
+INSTALL (one step, all detected Revit versions):
+  1. Close Revit.
+  2. Right-click install.ps1 -> Run with PowerShell
+     (or in a PowerShell window:  .\install.ps1)
+  3. Restart Revit, then restart Claude Desktop.
 
-    # MCP server: every emitted runtime module, not just the entrypoint —
-    # index.js imports ./revitClient.js and ./recipes.js at run time. (dist/*.js
-    # is top-level only, so dist/__tests__/ is correctly excluded.)
-    Copy-Item "$root/src/McpServer/dist/*.js"           "$pkgDir/mcp-server/dist/" -Force
-    Copy-Item "$root/src/McpServer/package.json"        "$pkgDir/mcp-server/"      -Force
-    Copy-Item "$root/src/McpServer/package-lock.json"   "$pkgDir/mcp-server/"      -Force
-
-    # Installer scripts
-    Copy-Item "$root/scripts/install.ps1"   "$pkgDir/" -Force
-    Copy-Item "$root/scripts/uninstall.ps1" "$pkgDir/" -Force
-
-    # Quick-start readme
-    $quickStart = @"
-RevitMCPServer v$version for Revit $rv
-======================================
-
-INSTALL
-  PowerShell:  .\install.ps1 -RevitVersion $rv
-  (Run from this folder after extracting the zip)
+The installer auto-detects which Revit versions you have, deploys the add-in to
+each, installs the MCP server to %LOCALAPPDATA%\RevitMCPServer, and adds a
+"revit-<ver>" entry to your Claude Desktop config (backing it up first, leaving
+your other MCP servers untouched).
 
 REQUIREMENTS
-  - Revit $rv installed
-  - Node.js 18+ in PATH
-  - Claude Desktop
+  - Revit 2025, 2026, or 2027
+  - Node.js 18+ in PATH   (only for the Claude bridge; the add-in works without it)
+  - Claude Desktop        (optional; add-in is usable over HTTP without it)
 
-UNINSTALL
-  PowerShell:  .\uninstall.ps1 -RevitVersion $rv
+OPTIONS
+  .\install.ps1 -RevitVersions 2027      only a specific version
+  .\install.ps1 -NoClaudeConfig          don't touch the Claude config
+  .\uninstall.ps1                        remove everything
 
 Full docs: https://github.com/KenLP/RevitMCPServer
 "@
-    $quickStart | Out-File "$pkgDir/INSTALL.txt" -Encoding utf8
+$quickStart | Out-File "$pkgDir/INSTALL.txt" -Encoding utf8
 
-    # ── Artifact completeness gate ────────────────────────────────────────────
-    # Assert every runtime dependency is actually in the package BEFORE zipping.
-    # A missing file here ships a package that dies on first load, which is
-    # exactly what happened when only RevitMCPAddin.dll and index.js were copied.
+# -- Artifact completeness gate ------------------------------------------------
+# Assert every runtime dependency is in the bundle BEFORE zipping. A missing file
+# here ships a package that dies on first load - exactly what happened at 0.8.15
+# when only RevitMCPAddin.dll and index.js were copied.
 
-    $required = @(
-        "RevitMCPAddin.dll",
-        "RevitMCP.Core.dll",
-        "RevitMCPAddin.addin",
-        "mcp-server/dist/index.js",
-        "mcp-server/dist/revitClient.js",
-        "mcp-server/dist/recipes.js",
-        "mcp-server/package.json",
-        "mcp-server/package-lock.json",
-        "install.ps1",
-        "uninstall.ps1"
-    )
-    $missing = @()
-    foreach ($f in $required) {
-        if (-not (Test-Path (Join-Path $pkgDir $f))) { $missing += $f }
-    }
-    if ($missing.Count -gt 0) {
-        Fail "R$rv package is missing required file(s): $($missing -join ', ')"
-    }
+$required = @(
+    "install.ps1", "uninstall.ps1", "INSTALL.txt",
+    "mcp-server/dist/index.js",
+    "mcp-server/dist/revitClient.js",
+    "mcp-server/dist/recipes.js",
+    "mcp-server/package.json",
+    "mcp-server/package-lock.json"
+)
+foreach ($rv in $RevitVersions) {
+    $required += "addin/$rv/RevitMCPAddin.dll"
+    $required += "addin/$rv/RevitMCP.Core.dll"
+    $required += "addin/$rv/RevitMCPAddin.addin"
+}
+$missing = @($required | Where-Object { -not (Test-Path (Join-Path $pkgDir $_)) })
+if ($missing.Count -gt 0) { Fail "Bundle is missing required file(s): $($missing -join ', ')" }
 
-    # Every relative import in the emitted JS must resolve inside the package.
-    $distDir = Join-Path $pkgDir "mcp-server/dist"
-    foreach ($js in Get-ChildItem "$distDir/*.js") {
-        foreach ($m in [regex]::Matches((Get-Content $js.FullName -Raw), 'from\s+"(\.\/[^"]+)"')) {
-            $target = Join-Path $distDir ($m.Groups[1].Value -replace '^\./', '')
-            if (-not (Test-Path $target)) {
-                Fail "R$rv package: $($js.Name) imports '$($m.Groups[1].Value)' which is not in the package"
-            }
+# Every relative import in the emitted JS must resolve inside the package.
+$distDir = Join-Path $pkgDir "mcp-server/dist"
+foreach ($js in Get-ChildItem "$distDir/*.js") {
+    foreach ($m in [regex]::Matches((Get-Content $js.FullName -Raw), 'from\s+"(\.\/[^"]+)"')) {
+        $target = Join-Path $distDir ($m.Groups[1].Value -replace '^\./', '')
+        if (-not (Test-Path $target)) {
+            Fail "Bundle: $($js.Name) imports '$($m.Groups[1].Value)' which is not in the package"
         }
     }
-    OK "R$rv package contents verified ($($required.Count) required files, imports resolve)"
-
-    # ── Create ZIP ────────────────────────────────────────────────────────────
-
-    $zipPath = "$root/release/RevitMCPServer-v$version-R$rv.zip"
-    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-    Compress-Archive -Path "$pkgDir/*" -DestinationPath $zipPath
-    OK "Created $zipPath"
-
-    # SHA-256 checksum alongside the zip
-    $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
-    "$hash  RevitMCPServer-v$version-R$rv.zip" | Out-File "$zipPath.sha256" -Encoding ascii
-    OK "SHA-256: $hash"
 }
+OK "Bundle contents verified ($($required.Count) required files, imports resolve)"
 
-# ── Cleanup build intermediates ───────────────────────────────────────────────
+# -- Create ZIP ----------------------------------------------------------------
+$zipPath = "$root/release/RevitMCPServer-v$version.zip"
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path "$pkgDir/*" -DestinationPath $zipPath
+OK "Created $zipPath"
 
+$hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+"$hash  RevitMCPServer-v$version.zip" | Out-File "$zipPath.sha256" -Encoding ascii
+OK "SHA-256: $hash"
+
+# -- Cleanup build intermediates -----------------------------------------------
 Remove-Item "$root/release/.build-R*" -Recurse -Force -ErrorAction SilentlyContinue
 
 Step "Done"
 Write-Host ""
-Write-Host "Release artifacts in: $root/release/" -ForegroundColor Yellow
-Get-ChildItem "$root/release/*.zip" | ForEach-Object {
+Write-Host "Release bundle in: $root/release/" -ForegroundColor Yellow
+Get-ChildItem "$root/release/RevitMCPServer-v$version.zip" | ForEach-Object {
     Write-Host "  $($_.Name)  ($([math]::Round($_.Length/1KB)) KB)" -ForegroundColor White
 }

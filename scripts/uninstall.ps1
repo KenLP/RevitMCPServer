@@ -1,56 +1,97 @@
 <#
 .SYNOPSIS
-Remove RevitMCPAddin from the per-user Revit Addins folder.
+Remove RevitMCPServer - add-in, MCP server, and Claude config entries.
 
-.PARAMETER RevitVersion
-Target Revit version. Default: 2026.
+.DESCRIPTION
+Mirrors install.ps1. With no arguments it removes the add-in from every Revit
+version it finds it installed in, deletes the MCP server folder, and removes the
+"revit-<ver>" entries from the Claude Desktop config (backing it up first).
+Diagnostic logs are left in place and their location is reported.
 
-.EXAMPLE
-  .\uninstall.ps1 -RevitVersion 2026
+.PARAMETER RevitVersions
+Explicit list. Default: every supported version that has the add-in installed.
+
+.PARAMETER KeepClaudeConfig
+Do not touch the Claude Desktop config.
+
+.PARAMETER ClaudeConfigPath
+Override the Claude config path. Default: %APPDATA%\Claude\claude_desktop_config.json
+
+.PARAMETER ServerInstallDir
+Where the MCP server was installed. Default: %LOCALAPPDATA%\RevitMCPServer
 #>
 param(
-    [ValidateSet("2025", "2026", "2027", "2028")]
-    [string]$RevitVersion = "2026"
+    [int[]]$RevitVersions,
+    [switch]$KeepClaudeConfig,
+    [string]$ClaudeConfigPath = "$env:APPDATA\Claude\claude_desktop_config.json",
+    [string]$ServerInstallDir = "$env:LOCALAPPDATA\RevitMCPServer"
 )
 
-$addinsDir = "$env:APPDATA\Autodesk\Revit\Addins\$RevitVersion"
-$targets = @(
-    (Join-Path $addinsDir "RevitMCPAddin.dll"),
-    (Join-Path $addinsDir "RevitMCPAddin.pdb"),
-    (Join-Path $addinsDir "RevitMCP.Core.dll"),
-    (Join-Path $addinsDir "RevitMCP.Core.pdb"),
-    (Join-Path $addinsDir "RevitMCPAddin.addin"),
-    (Join-Path $addinsDir "revit-mcp-token.txt")
-)
+$SUPPORTED = @(2025, 2026, 2027)
+function Info($m) { Write-Host $m -ForegroundColor Cyan }
+function Good($m) { Write-Host "  OK  $m" -ForegroundColor Green }
+function Warn($m) { Write-Host "  !!  $m" -ForegroundColor Yellow }
 
-$removed = 0
-foreach ($t in $targets) {
-    if (Test-Path $t) {
-        Remove-Item $t -Force
-        Write-Host "Removed: $t" -ForegroundColor Green
-        $removed++
+$versions = if ($RevitVersions) { $RevitVersions } else { $SUPPORTED }
+
+# -- 1. Remove the add-in ------------------------------------------------------
+Info "[1/3] Removing the Revit add-in"
+$removedAny = $false
+foreach ($ver in $versions) {
+    $dir = "$env:APPDATA\Autodesk\Revit\Addins\$ver"
+    $targets = @(
+        "RevitMCPAddin.dll", "RevitMCPAddin.pdb",
+        "RevitMCP.Core.dll", "RevitMCP.Core.pdb",
+        "RevitMCPAddin.addin", "revit-mcp-token.txt"
+    ) | ForEach-Object { Join-Path $dir $_ }
+    $n = 0
+    foreach ($t in $targets) { if (Test-Path $t) { Remove-Item $t -Force; $n++ } }
+    if ($n -gt 0) { Good "Revit ${ver}: removed $n file(s) from $dir"; $removedAny = $true }
+}
+if (-not $removedAny) { Warn "No installed add-in found." }
+Write-Host ""
+
+# -- 2. Remove the MCP server --------------------------------------------------
+Info "[2/3] Removing the MCP server"
+if (Test-Path $ServerInstallDir) {
+    Remove-Item $ServerInstallDir -Recurse -Force
+    Good "Deleted $ServerInstallDir"
+}
+else { Warn "No server folder at $ServerInstallDir" }
+Write-Host ""
+
+# -- 3. Clean the Claude Desktop config ----------------------------------------
+Info "[3/3] Cleaning Claude Desktop config"
+if ($KeepClaudeConfig) {
+    Warn "Skipping (-KeepClaudeConfig)."
+}
+elseif (-not (Test-Path $ClaudeConfigPath)) {
+    Warn "No Claude config at $ClaudeConfigPath"
+}
+else {
+    try {
+        $raw = Get-Content $ClaudeConfigPath -Raw | ConvertFrom-Json
+        $servers = $raw.mcpServers
+        if ($servers) {
+            $toRemove = @($servers.PSObject.Properties.Name | Where-Object { $_ -match '^revit-\d{4}$' })
+            if ($toRemove.Count -gt 0) {
+                $backup = "$ClaudeConfigPath.bak-$(Get-Date -Format yyyyMMdd-HHmmss)"
+                Copy-Item $ClaudeConfigPath $backup -Force
+                Good "Backed up -> $backup"
+                foreach ($k in $toRemove) { $servers.PSObject.Properties.Remove($k) }
+                $raw | ConvertTo-Json -Depth 8 | Set-Content $ClaudeConfigPath -Encoding UTF8
+                Good "Removed: $($toRemove -join ', ')"
+            }
+            else { Warn "No revit-<ver> entries to remove." }
+        }
     }
+    catch { Warn "Could not parse Claude config - left untouched." }
 }
+Write-Host ""
 
-if ($removed -eq 0) {
-    Write-Host "Nothing to remove in $addinsDir" -ForegroundColor Yellow
-} else {
-    Write-Host ""
-    Write-Host "Uninstall complete. Restart Revit $RevitVersion to take effect." -ForegroundColor Cyan
-}
-
-# Diagnostic logs are metadata-only and live outside the Addins folder, so they
-# are not deleted implicitly — tell the user exactly where they are.
 $logDir = Join-Path $env:LOCALAPPDATA "RevitMCP\logs"
 if (Test-Path $logDir) {
-    Write-Host ""
-    Write-Host "Diagnostic logs were left in place (metadata only, no model data):" -ForegroundColor Yellow
-    Write-Host "  $logDir"
-    Write-Host "  Delete that folder to remove them: Remove-Item '$logDir' -Recurse -Force"
+    Write-Host "Diagnostic logs were left in place (metadata only):" -ForegroundColor Yellow
+    Write-Host "  $logDir   (delete with: Remove-Item '$logDir' -Recurse -Force)"
 }
-
-# The MCP server itself lives wherever it was extracted/cloned (it is not copied
-# into the Addins folder), so removing it is a manual delete of that folder.
-Write-Host ""
-Write-Host "Note: the MCP server files (mcp-server/ or the cloned repo) are not" -ForegroundColor Yellow
-Write-Host "removed by this script — delete that folder manually if no longer needed."
+Write-Host "Uninstall complete. Restart Revit for it to take effect." -ForegroundColor Cyan

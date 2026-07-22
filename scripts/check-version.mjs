@@ -61,7 +61,7 @@ if (readmeHealth && readmeHealth[1] !== expected) {
   errors.push(`README.md health example version "${readmeHealth[1]}" != package.json "${expected}"`);
 }
 
-// ── Tool / command inventory consistency ────────────────────────────────────
+// -- Tool / command inventory consistency ------------------------------------
 // Single source of truth: the actual code. We count the real declarations and
 // fail if the docs (or the TS↔C# surfaces) disagree, so the counts can never
 // silently drift again.
@@ -90,7 +90,7 @@ if (toolCount !== expectedTools) {
     `${registerCount} registered − ${hiddenCount} hidden + 1 batch + ${recipeCount} recipes = ${expectedTools}`);
 }
 
-// ── Doc claims must match reality — EVERY occurrence, not just the first ─────
+// -- Doc claims must match reality - EVERY occurrence, not just the first -----
 // The earlier version used .match() (first hit only) and only looked at README,
 // so "64 revit_* tools", "80 tools", "81 commands" rotted in place across README,
 // ARCHITECTURE and TROUBLESHOOTING while the gate stayed green. Scan them all.
@@ -141,8 +141,8 @@ for (const [name, text] of docFiles) {
     }
   }
 }
-if (!sawToolClaim) errors.push('No "N MCP tools" claim found in any doc — the count gate is not actually guarding anything');
-if (!sawCmdClaim) errors.push('No "N C# commands" claim found in any doc — the count gate is not actually guarding anything');
+if (!sawToolClaim) errors.push('No "N MCP tools" claim found in any doc - the count gate is not actually guarding anything');
+if (!sawCmdClaim) errors.push('No "N C# commands" claim found in any doc - the count gate is not actually guarding anything');
 
 // package-lock carries its own copy of the version and ships inside the release
 // ZIP; it sat at 0.4.2 for eleven releases because nothing checked it.
@@ -157,7 +157,7 @@ for (const [name, text] of [
   ['README.md', readme],
 ]) {
   if (text.includes('your-org'))
-    errors.push(`${name}: contains the placeholder "your-org" — replace with the real repo owner`);
+    errors.push(`${name}: contains the placeholder "your-org" - replace with the real repo owner`);
 }
 
 if (errors.length > 0) {

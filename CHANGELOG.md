@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.18] — 2026-07-19: One-shot installer for all three Revit versions
+
+### Added
+
+- **Single self-contained install bundle.** `RevitMCPServer-v<ver>.zip` now carries the add-in for
+  **all three Revit versions** (`addin/2025`, `addin/2026`, `addin/2027`) plus one shared MCP server.
+  `install.ps1` with no arguments:
+  - **auto-detects** which Revit versions are installed (`Program Files\Autodesk\Revit <year>`) and
+    deploys the matching add-in to each `%APPDATA%\Autodesk\Revit\Addins\<ver>`;
+  - copies the MCP server to a **stable location** (`%LOCALAPPDATA%\RevitMCPServer`) and runs
+    `npm install` there, so the extracted folder can be deleted afterwards;
+  - **merges** a `revit-<ver>` entry per version into the Claude Desktop config — backing it up
+    first and leaving every other MCP server entry untouched (JSON-parsed, not string-spliced).
+  Flags: `-RevitVersions`, `-AllVersions`, `-NoClaudeConfig`, `-ClaudeConfigPath`,
+  `-ServerInstallDir`, `-SkipNpm`. Missing Node.js is a warning, not a failure — the add-in works
+  without it; only the Claude bridge needs it. `uninstall.ps1` mirrors all of this.
+- `build-release.ps1` produces the combined bundle (replacing the per-version ZIPs) and the artifact
+  gate now checks the per-version `addin/<ver>/` layout.
+
+### Fixed
+
+- **Installer/build scripts are now pure ASCII.** They contained em-dashes and box-drawing
+  characters; Windows PowerShell 5.1 (the default on a clean Windows box) reads a UTF-8 `.ps1` as the
+  ANSI code page, so an em-dash inside a string (`E2 80 94`) decoded to `â€"` whose trailing byte is a
+  `"` in CP1252 — silently terminating the string and breaking the parse **on the end user's machine**,
+  not just ours. All non-ASCII was transliterated to ASCII and both scripts re-verified with the PS
+  parser.
+
+No functional change to the server: 89 MCP tools, 91 C# commands. Addresses `project_review_findings`
+"ready-to-run installer" for the MCP-only path (no ribbon/.bundle, which are Design-&-Make-marketplace
+requirements we are not targeting).
+
+---
+
 ## [0.8.17] — 2026-07-17: Security hardening — loopback clamp, unconditional auth, audit clean
 
 ### Changed (BREAKING for dev-only escape hatches)
