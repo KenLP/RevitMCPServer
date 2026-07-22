@@ -79,7 +79,11 @@ else {
                 Copy-Item $ClaudeConfigPath $backup -Force
                 Good "Backed up -> $backup"
                 foreach ($k in $toRemove) { $servers.PSObject.Properties.Remove($k) }
-                $raw | ConvertTo-Json -Depth 8 | Set-Content $ClaudeConfigPath -Encoding UTF8
+                # PS 5.1 collapses single-element arrays; keep any surviving
+                # server's "args": ["x"] from decaying into a scalar.
+                $json = $raw | ConvertTo-Json -Depth 8
+                [regex]::Replace($json, '("args":\s*)"([^"]*)"', '$1["$2"]') |
+                    Set-Content $ClaudeConfigPath -Encoding UTF8
                 Good "Removed: $($toRemove -join ', ')"
             }
             else { Warn "No revit-<ver> entries to remove." }

@@ -166,6 +166,14 @@ else {
 Write-Host ""
 
 # -- 3. Merge into the Claude Desktop config -----------------------------------
+# Windows PowerShell 5.1 ConvertTo-Json collapses a single-element array to a
+# scalar ("args": "x" instead of "args": ["x"]). Claude requires args to be an
+# array, so re-expand any scalar "args" value. Multi-element args already
+# serialize as [..] and are left alone (the regex only matches a string value).
+function ConvertTo-ClaudeJson($obj) {
+    $json = $obj | ConvertTo-Json -Depth 8
+    return [regex]::Replace($json, '("args":\s*)"([^"]*)"', '$1["$2"]')
+}
 function ConvertTo-OrderedHashtable($obj) {
     if ($obj -is [System.Management.Automation.PSCustomObject]) {
         $h = [ordered]@{}
@@ -193,14 +201,14 @@ foreach ($ver in $installed) {
 if ($NoClaudeConfig -or -not $serverIndex) {
     if ($NoClaudeConfig) { Warn "Skipping Claude config (-NoClaudeConfig)." }
     Write-Host "Add these entries under `"mcpServers`" in your Claude Desktop config:" -ForegroundColor Yellow
-    Write-Host (([ordered]@{ mcpServers = $configSnippet } | ConvertTo-Json -Depth 8)) -ForegroundColor White
+    Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
 }
 else {
     $claudeDir = Split-Path $ClaudeConfigPath -Parent
     if (-not (Test-Path $claudeDir)) {
         Warn "Claude Desktop config folder not found ($claudeDir) - Claude Desktop may not be installed."
         Write-Host "When you install Claude Desktop, add these under `"mcpServers`":" -ForegroundColor Yellow
-        Write-Host (([ordered]@{ mcpServers = $configSnippet } | ConvertTo-Json -Depth 8)) -ForegroundColor White
+        Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
     }
     else {
         # Load existing config (or start fresh), preserving everything already there.
@@ -214,7 +222,7 @@ else {
             }
             catch {
                 Warn "Existing config is not valid JSON - leaving it untouched and printing the snippet instead."
-                Write-Host (([ordered]@{ mcpServers = $configSnippet } | ConvertTo-Json -Depth 8)) -ForegroundColor White
+                Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
                 $config = $null
             }
         }
@@ -226,7 +234,7 @@ else {
                 $config['mcpServers'] = ConvertTo-OrderedHashtable $config['mcpServers']
             }
             foreach ($key in $configSnippet.Keys) { $config['mcpServers'][$key] = $configSnippet[$key] }
-            $config | ConvertTo-Json -Depth 8 | Set-Content $ClaudeConfigPath -Encoding UTF8
+            ConvertTo-ClaudeJson $config | Set-Content $ClaudeConfigPath -Encoding UTF8
             Good "Wrote $($installed.Count) server entr$(if($installed.Count -eq 1){'y'}else{'ies'}) to $ClaudeConfigPath"
             Good "Other MCP servers in the file were left unchanged."
         }
