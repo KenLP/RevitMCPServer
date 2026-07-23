@@ -34,6 +34,7 @@ public sealed class App : IExternalApplication
     private ExternalEvent? _externalEvent;
     private McpHttpServer? _httpServer;
     private AutoAuditPanelView? _panelView;
+    private AutoAuditPanelView? _spatialQcPanelView;
 
     public Result OnStartup(UIControlledApplication application)
     {
@@ -74,6 +75,18 @@ public sealed class App : IExternalApplication
             catch (Exception ex)
             {
                 LogToConsole($"[RevitMCP] AutoAudit panel unavailable: {ex.Message}");
+            }
+
+            // Spatial-QC pane — same browser-only pattern, independent of AutoAudit (its own
+            // try/catch: a failure of either pane must never take the MCP server, or the other
+            // pane, down).
+            try
+            {
+                RegisterSpatialQcPanel(application, revitVersion);
+            }
+            catch (Exception ex)
+            {
+                LogToConsole($"[RevitMCP] Spatial QC panel unavailable: {ex.Message}");
             }
 
             return Result.Succeeded;
@@ -129,6 +142,57 @@ public sealed class App : IExternalApplication
         {
             ToolTip = "Show the AutoAudit audit panel (WebView2). "
                 + "If the embedded view is unavailable it opens in your browser.",
+        };
+        ribbonPanel.AddItem(button);
+    }
+
+    private void RegisterSpatialQcPanel(
+        UIControlledApplication application, string revitVersion)
+    {
+        // Same WebView2 assembly-resolution shim as AutoAudit — added independently so this pane
+        // works even if AutoAudit registration bailed before installing its own (idempotent: the
+        // first resolver to return non-null wins).
+        var alc = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(
+            Assembly.GetExecutingAssembly());
+        var addinDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        if (alc is not null)
+        {
+            alc.Resolving += (ctx, name) =>
+            {
+                var candidate = Path.Combine(addinDir, name.Name + ".dll");
+                return File.Exists(candidate) ? ctx.LoadFromAssemblyPath(candidate) : null;
+            };
+        }
+
+        // Distinct URL (revit-mcp-spatialqc-panel.json, default :8602) and a DISTINCT WebView2
+        // user-data folder so the two panes' browser profiles don't lock each other.
+        var url = SpatialQcPanelConfig.ResolveUrl(revitVersion);
+        var userDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "RevitMCPAddin", "WebView2", "SpatialQc", revitVersion);
+        _spatialQcPanelView = new AutoAuditPanelView(url, userDataFolder);
+        application.RegisterDockablePane(
+            SpatialQcPaneProvider.PaneId, "Spatial QC",
+            new SpatialQcPaneProvider(_spatialQcPanelView));
+
+        application.ControlledApplication.DocumentClosing +=
+            (_, _) => _spatialQcPanelView?.Suspend();
+        application.ControlledApplication.DocumentOpened +=
+            (_, _) => _spatialQcPanelView?.Resume();
+
+        // Own ribbon tab — decoupled from AutoAudit's tab (either registration may fail
+        // independently, so neither may assume the other created a tab).
+        var tab = "Spatial QC";
+        application.CreateRibbonTab(tab);
+        var ribbonPanel = application.CreateRibbonPanel(tab, "Spatial QC");
+        var button = new PushButtonData(
+            "SpatialQcShowPanel", "Spatial QC\nPanel",
+            Assembly.GetExecutingAssembly().Location,
+            typeof(ShowSpatialQcPanelCommand).FullName)
+        {
+            ToolTip = "Show the Spatial QC panel (WebView2). Run corridor/headroom/egress checks "
+                + "on the live model and click a finding to navigate to it. If the embedded view "
+                + "is unavailable it opens in your browser.",
         };
         ribbonPanel.AddItem(button);
     }
