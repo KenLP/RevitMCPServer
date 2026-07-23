@@ -11,19 +11,22 @@ Diagnostic logs are left in place and their location is reported.
 .PARAMETER RevitVersions
 Explicit list. Default: every supported version that has the add-in installed.
 
-.PARAMETER KeepClaudeConfig
-Do not touch the Claude Desktop config.
+.PARAMETER Client
+Which client config(s) to clean. One or more of: claude, gemini, cursor, codex.
+Default: all four. Only the "revit-<ver>" entries are removed from each.
 
-.PARAMETER ClaudeConfigPath
-Override the Claude config path. Default: %APPDATA%\Claude\claude_desktop_config.json
+.PARAMETER KeepClientConfig
+Do not touch any client config. (-KeepClaudeConfig is kept as an alias.)
 
 .PARAMETER ServerInstallDir
 Where the MCP server was installed. Default: %LOCALAPPDATA%\RevitMCPServer
 #>
 param(
     [int[]]$RevitVersions,
-    [switch]$KeepClaudeConfig,
-    [string]$ClaudeConfigPath = "$env:APPDATA\Claude\claude_desktop_config.json",
+    [ValidateSet("claude", "gemini", "cursor", "codex")]
+    [string[]]$Client = @("claude", "gemini", "cursor", "codex"),
+    [Alias("KeepClaudeConfig")]
+    [switch]$KeepClientConfig,
     [string]$ServerInstallDir = "$env:LOCALAPPDATA\RevitMCPServer"
 )
 
@@ -60,36 +63,47 @@ if (Test-Path $ServerInstallDir) {
 else { Warn "No server folder at $ServerInstallDir" }
 Write-Host ""
 
-# -- 3. Clean the Claude Desktop config ----------------------------------------
-Info "[3/3] Cleaning Claude Desktop config"
-if ($KeepClaudeConfig) {
-    Warn "Skipping (-KeepClaudeConfig)."
+# -- 3. Clean the MCP client config(s) -----------------------------------------
+$CLIENT_TARGETS = @{
+    claude = @{ label = "Claude Desktop"; path = "$env:APPDATA\Claude\claude_desktop_config.json"; format = "json" }
+    gemini = @{ label = "Gemini CLI";     path = "$env:USERPROFILE\.gemini\settings.json";         format = "json" }
+    cursor = @{ label = "Cursor";         path = "$env:USERPROFILE\.cursor\mcp.json";               format = "json" }
+    codex  = @{ label = "OpenAI Codex";   path = "$env:USERPROFILE\.codex\config.toml";             format = "toml" }
 }
-elseif (-not (Test-Path $ClaudeConfigPath)) {
-    Warn "No Claude config at $ClaudeConfigPath"
-}
+Info "[3/3] Cleaning MCP client config(s): $($Client -join ', ')"
+if ($KeepClientConfig) { Warn "Skipping (-KeepClientConfig)." }
 else {
-    try {
-        $raw = Get-Content $ClaudeConfigPath -Raw | ConvertFrom-Json
-        $servers = $raw.mcpServers
-        if ($servers) {
-            $toRemove = @($servers.PSObject.Properties.Name | Where-Object { $_ -match '^revit-\d{4}$' })
-            if ($toRemove.Count -gt 0) {
-                $backup = "$ClaudeConfigPath.bak-$(Get-Date -Format yyyyMMdd-HHmmss)"
-                Copy-Item $ClaudeConfigPath $backup -Force
-                Good "Backed up -> $backup"
-                foreach ($k in $toRemove) { $servers.PSObject.Properties.Remove($k) }
-                # PS 5.1 collapses single-element arrays; keep any surviving
-                # server's "args": ["x"] from decaying into a scalar.
-                $json = $raw | ConvertTo-Json -Depth 8
-                [regex]::Replace($json, '("args":\s*)"([^"]*)"', '$1["$2"]') |
-                    Set-Content $ClaudeConfigPath -Encoding UTF8
-                Good "Removed: $($toRemove -join ', ')"
+    foreach ($c in ($Client | Select-Object -Unique)) {
+        $t = $CLIENT_TARGETS[$c]
+        if (-not (Test-Path $t.path)) { continue }
+        try {
+            if ($t.format -eq "toml") {
+                $raw = Get-Content $t.path -Raw
+                $stripped = [regex]::Replace($raw, '(?ms)^\[mcp_servers\.revit-\d{4}\]\s*.*?(?=^\[|\z)', '')
+                if ($stripped -ne $raw) {
+                    Copy-Item $t.path "$($t.path).bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
+                    ($stripped.TrimEnd() + "`r`n") | Set-Content $t.path -Encoding UTF8
+                    Good "$($t.label): removed revit-* tables"
+                }
             }
-            else { Warn "No revit-<ver> entries to remove." }
+            else {
+                $raw = Get-Content $t.path -Raw | ConvertFrom-Json
+                $servers = $raw.mcpServers
+                if ($servers) {
+                    $toRemove = @($servers.PSObject.Properties.Name | Where-Object { $_ -match '^revit-\d{4}$' })
+                    if ($toRemove.Count -gt 0) {
+                        Copy-Item $t.path "$($t.path).bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
+                        foreach ($k in $toRemove) { $servers.PSObject.Properties.Remove($k) }
+                        # PS 5.1 collapses single-element arrays; keep surviving args as arrays.
+                        $json = $raw | ConvertTo-Json -Depth 8
+                        [regex]::Replace($json, '("args":\s*)"([^"]*)"', '$1["$2"]') | Set-Content $t.path -Encoding UTF8
+                        Good "$($t.label): removed $($toRemove -join ', ')"
+                    }
+                }
+            }
         }
+        catch { Warn "$($t.label): could not parse config - left untouched." }
     }
-    catch { Warn "Could not parse Claude config - left untouched." }
 }
 Write-Host ""
 

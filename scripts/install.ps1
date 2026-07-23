@@ -23,9 +23,14 @@ Install for every version present in the bundle, skip auto-detection.
 .PARAMETER NoClaudeConfig
 Do not touch the Claude Desktop config; just print the snippet.
 
-.PARAMETER ClaudeConfigPath
-Override the Claude config path (used for testing). Default:
-%APPDATA%\Claude\claude_desktop_config.json
+.PARAMETER Client
+Which MCP client(s) to configure. One or more of: claude, gemini, cursor, codex.
+Default: claude. Example: -Client codex,gemini. Each client's config file is
+merged in place (backed up first), leaving its other servers untouched.
+
+.PARAMETER NoClientConfig
+Install the add-in + server only; don't touch any client config, just print the
+snippet. (-NoClaudeConfig is kept as an alias.)
 
 .PARAMETER ServerInstallDir
 Where to install the MCP server. Default: %LOCALAPPDATA%\RevitMCPServer
@@ -34,15 +39,19 @@ Where to install the MCP server. Default: %LOCALAPPDATA%\RevitMCPServer
 Skip the npm install step.
 
 .EXAMPLE
-  .\install.ps1                       # auto-detect + full setup
+  .\install.ps1                       # auto-detect + configure Claude Desktop
+  .\install.ps1 -Client codex         # configure OpenAI Codex CLI instead
+  .\install.ps1 -Client claude,gemini,cursor,codex   # all clients at once
   .\install.ps1 -RevitVersions 2027   # just 2027
-  .\install.ps1 -NoClaudeConfig       # add-in + server only, print config
+  .\install.ps1 -NoClientConfig       # add-in + server only, print config
 #>
 param(
     [int[]]$RevitVersions,
     [switch]$AllVersions,
-    [switch]$NoClaudeConfig,
-    [string]$ClaudeConfigPath = "$env:APPDATA\Claude\claude_desktop_config.json",
+    [ValidateSet("claude", "gemini", "cursor", "codex")]
+    [string[]]$Client = @("claude"),
+    [Alias("NoClaudeConfig")]
+    [switch]$NoClientConfig,
     [string]$ServerInstallDir = "$env:LOCALAPPDATA\RevitMCPServer",
     [switch]$SkipNpm
 )
@@ -165,12 +174,17 @@ else {
 }
 Write-Host ""
 
-# -- 3. Merge into the Claude Desktop config -----------------------------------
+# -- 3. Configure the MCP client(s) --------------------------------------------
+# Every client we support wants the same logical entry: run "node <index.js>"
+# with REVIT_MCP_VERSION/PORT. Only the file location and the on-disk format
+# differ (JSON with an "mcpServers" object for claude/gemini/cursor; TOML with
+# "[mcp_servers.NAME]" tables for codex). We merge in place, backing up first
+# and leaving every other server the user already configured untouched.
+
 # Windows PowerShell 5.1 ConvertTo-Json collapses a single-element array to a
-# scalar ("args": "x" instead of "args": ["x"]). Claude requires args to be an
-# array, so re-expand any scalar "args" value. Multi-element args already
-# serialize as [..] and are left alone (the regex only matches a string value).
-function ConvertTo-ClaudeJson($obj) {
+# scalar ("args": "x" not ["x"]). Re-expand any scalar "args" value; multi-
+# element args already serialize as [..] and the regex leaves them alone.
+function ConvertTo-ClientJson($obj) {
     $json = $obj | ConvertTo-Json -Depth 8
     return [regex]::Replace($json, '("args":\s*)"([^"]*)"', '$1["$2"]')
 }
@@ -186,57 +200,91 @@ function ConvertTo-OrderedHashtable($obj) {
     return $obj
 }
 
-Info "[3/3] Configuring Claude Desktop"
-$configSnippet = [ordered]@{}
+# Client registry: config path + on-disk format.
+$CLIENT_TARGETS = @{
+    claude = @{ label = "Claude Desktop"; path = "$env:APPDATA\Claude\claude_desktop_config.json"; format = "json" }
+    gemini = @{ label = "Gemini CLI";     path = "$env:USERPROFILE\.gemini\settings.json";         format = "json" }
+    cursor = @{ label = "Cursor";         path = "$env:USERPROFILE\.cursor\mcp.json";               format = "json" }
+    codex  = @{ label = "OpenAI Codex";   path = "$env:USERPROFILE\.codex\config.toml";             format = "toml" }
+}
+
+# Build the logical server entries (one per installed Revit version).
+$entries = [ordered]@{}
 foreach ($ver in $installed) {
     $port = $PORT_BASE + ($ver - 2026)
-    $args = if ($serverIndex) { @(($serverIndex -replace '\\', '/')) } else { @("<path-to>/dist/index.js") }
-    $configSnippet["revit-$ver"] = [ordered]@{
+    $indexArg = if ($serverIndex) { ($serverIndex -replace '\\', '/') } else { "<path-to>/dist/index.js" }
+    $entries["revit-$ver"] = [ordered]@{
         command = "node"
-        args    = $args
+        args    = @($indexArg)
         env     = [ordered]@{ REVIT_MCP_VERSION = "$ver"; REVIT_MCP_PORT = "$port" }
     }
 }
 
-if ($NoClaudeConfig -or -not $serverIndex) {
-    if ($NoClaudeConfig) { Warn "Skipping Claude config (-NoClaudeConfig)." }
-    Write-Host "Add these entries under `"mcpServers`" in your Claude Desktop config:" -ForegroundColor Yellow
-    Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
+function Format-JsonSnippet { return ConvertTo-ClientJson ([ordered]@{ mcpServers = $entries }) }
+function Format-TomlSnippet {
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($name in $entries.Keys) {
+        $e = $entries[$name]
+        $argsToml = (($e.args | ForEach-Object { '"' + $_ + '"' }) -join ', ')
+        $envToml  = (($e.env.GetEnumerator() | ForEach-Object { "$($_.Key) = `"$($_.Value)`"" }) -join ', ')
+        [void]$sb.AppendLine("[mcp_servers.$name]")
+        [void]$sb.AppendLine("command = `"node`"")
+        [void]$sb.AppendLine("args = [$argsToml]")
+        [void]$sb.AppendLine("env = { $envToml }")
+        [void]$sb.AppendLine("")
+    }
+    return $sb.ToString().TrimEnd()
+}
+
+function Set-JsonClientConfig($path) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $path -Parent) | Out-Null
+    $config = [ordered]@{}
+    if (Test-Path $path) {
+        Copy-Item $path "$path.bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
+        try { $config = ConvertTo-OrderedHashtable (Get-Content $path -Raw | ConvertFrom-Json) }
+        catch { Warn "  $path is not valid JSON - left untouched; snippet printed below."; Write-Host (Format-JsonSnippet); return $false }
+    }
+    if (-not $config.Contains('mcpServers') -or $null -eq $config['mcpServers']) { $config['mcpServers'] = [ordered]@{} }
+    elseif ($config['mcpServers'] -isnot [System.Collections.IDictionary]) { $config['mcpServers'] = ConvertTo-OrderedHashtable $config['mcpServers'] }
+    foreach ($k in $entries.Keys) { $config['mcpServers'][$k] = $entries[$k] }
+    ConvertTo-ClientJson $config | Set-Content $path -Encoding UTF8
+    return $true
+}
+
+function Set-TomlClientConfig($path) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $path -Parent) | Out-Null
+    $head = ""
+    if (Test-Path $path) {
+        Copy-Item $path "$path.bak-$(Get-Date -Format yyyyMMdd-HHmmss)" -Force
+        # Strip any existing [mcp_servers.revit-YYYY] blocks (header to next table
+        # or EOF), preserving every other table. Then re-append fresh ones.
+        $head = [regex]::Replace((Get-Content $path -Raw), '(?ms)^\[mcp_servers\.revit-\d{4}\]\s*.*?(?=^\[|\z)', '').TrimEnd()
+    }
+    $out = if ($head) { "$head`r`n`r`n" + (Format-TomlSnippet) } else { Format-TomlSnippet }
+    ($out.TrimEnd() + "`r`n") | Set-Content $path -Encoding UTF8
+    return $true
+}
+
+Info "[3/3] Configuring MCP client(s): $($Client -join ', ')"
+if ($NoClientConfig -or -not $serverIndex) {
+    if ($NoClientConfig) { Warn "Skipping client config (-NoClientConfig)." }
+    Write-Host "JSON clients (Claude / Gemini / Cursor) - add under `"mcpServers`":" -ForegroundColor Yellow
+    Write-Host (Format-JsonSnippet) -ForegroundColor White
+    Write-Host "OpenAI Codex (~/.codex/config.toml):" -ForegroundColor Yellow
+    Write-Host (Format-TomlSnippet) -ForegroundColor White
 }
 else {
-    $claudeDir = Split-Path $ClaudeConfigPath -Parent
-    if (-not (Test-Path $claudeDir)) {
-        Warn "Claude Desktop config folder not found ($claudeDir) - Claude Desktop may not be installed."
-        Write-Host "When you install Claude Desktop, add these under `"mcpServers`":" -ForegroundColor Yellow
-        Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
-    }
-    else {
-        # Load existing config (or start fresh), preserving everything already there.
-        $config = [ordered]@{}
-        if (Test-Path $ClaudeConfigPath) {
-            $backup = "$ClaudeConfigPath.bak-$(Get-Date -Format yyyyMMdd-HHmmss)"
-            Copy-Item $ClaudeConfigPath $backup -Force
-            Good "Backed up existing config -> $backup"
-            try {
-                $config = ConvertTo-OrderedHashtable (Get-Content $ClaudeConfigPath -Raw | ConvertFrom-Json)
-            }
-            catch {
-                Warn "Existing config is not valid JSON - leaving it untouched and printing the snippet instead."
-                Write-Host ((ConvertTo-ClaudeJson ([ordered]@{ mcpServers = $configSnippet }))) -ForegroundColor White
-                $config = $null
-            }
+    foreach ($c in ($Client | Select-Object -Unique)) {
+        $t = $CLIENT_TARGETS[$c]
+        $dir = Split-Path $t.path -Parent
+        if (-not (Test-Path $dir) -and -not (Test-Path $t.path)) {
+            Warn "$($t.label): config folder not found ($dir) - is it installed? Creating it anyway."
         }
-        if ($null -ne $config) {
-            if (-not $config.Contains('mcpServers') -or $null -eq $config['mcpServers']) {
-                $config['mcpServers'] = [ordered]@{}
-            }
-            elseif ($config['mcpServers'] -isnot [System.Collections.IDictionary]) {
-                $config['mcpServers'] = ConvertTo-OrderedHashtable $config['mcpServers']
-            }
-            foreach ($key in $configSnippet.Keys) { $config['mcpServers'][$key] = $configSnippet[$key] }
-            ConvertTo-ClaudeJson $config | Set-Content $ClaudeConfigPath -Encoding UTF8
-            Good "Wrote $($installed.Count) server entr$(if($installed.Count -eq 1){'y'}else{'ies'}) to $ClaudeConfigPath"
-            Good "Other MCP servers in the file were left unchanged."
+        $existed = Test-Path $t.path
+        $ok = if ($t.format -eq "toml") { Set-TomlClientConfig $t.path } else { Set-JsonClientConfig $t.path }
+        if ($ok) {
+            Good "$($t.label): wrote $($installed.Count) entr$(if($installed.Count -eq 1){'y'}else{'ies'}) -> $($t.path)"
+            if ($existed) { Good "  (backed up first; your other servers were left unchanged)" }
         }
     }
 }
@@ -246,4 +294,5 @@ Write-Host ""
 Write-Host "Done." -ForegroundColor Green
 Write-Host "  Add-in installed for Revit: $($installed -join ', ')" -ForegroundColor White
 if ($serverIndex) { Write-Host "  MCP server: $ServerInstallDir" -ForegroundColor White }
-Write-Host "  Next: (re)start Revit, then restart Claude Desktop." -ForegroundColor White
+Write-Host "  Client(s) configured: $($Client -join ', ')" -ForegroundColor White
+Write-Host "  Next: (re)start Revit, then restart your MCP client." -ForegroundColor White

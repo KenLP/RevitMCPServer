@@ -139,9 +139,15 @@ REQUIREMENTS
   - Node.js 18+ in PATH   (only for the Claude bridge; the add-in works without it)
   - Claude Desktop        (optional; add-in is usable over HTTP without it)
 
+MCP CLIENTS (default: Claude Desktop)
+  .\install.ps1 -Client codex            configure OpenAI Codex CLI instead
+  .\install.ps1 -Client claude,gemini,cursor,codex   all of them at once
+  (gemini -> ~/.gemini/settings.json, cursor -> ~/.cursor/mcp.json,
+   codex -> ~/.codex/config.toml, claude -> %APPDATA%\Claude\...)
+
 OPTIONS
   .\install.ps1 -RevitVersions 2027      only a specific version
-  .\install.ps1 -NoClaudeConfig          don't touch the Claude config
+  .\install.ps1 -NoClientConfig          don't touch any client config
   .\uninstall.ps1                        remove everything
 
 Full docs: https://github.com/KenLP/RevitMCPServer

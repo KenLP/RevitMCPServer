@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.18** — 91 C# commands (86 exposed as MCP tools + 5 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 4-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.19** — 91 C# commands (86 exposed as MCP tools + 5 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 4-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -187,11 +187,36 @@ Claude bridge. (The add-in itself works over its local HTTP API without Node —
 Node is only needed for Claude Desktop/Code to talk to it, and a missing Node is
 a warning, not a failure.)
 
+### Other MCP clients (Codex, Gemini, Cursor)
+
+By default the installer configures **Claude Desktop**. Point it at a different
+client with `-Client` (one or more of `claude`, `gemini`, `cursor`, `codex`):
+
+```powershell
+.\install.ps1 -Client codex                     # OpenAI Codex CLI
+.\install.ps1 -Client claude,gemini,cursor,codex # all of them
+```
+
+Each client's config is merged in place (backed up first), leaving its other
+servers untouched:
+
+| Client | Config file | Format |
+| ------ | ----------- | ------ |
+| `claude` | `%APPDATA%\Claude\claude_desktop_config.json` | JSON `mcpServers` |
+| `gemini` | `%USERPROFILE%\.gemini\settings.json` | JSON `mcpServers` |
+| `cursor` | `%USERPROFILE%\.cursor\mcp.json` | JSON `mcpServers` |
+| `codex`  | `%USERPROFILE%\.codex\config.toml` | TOML `[mcp_servers.*]` |
+
+The server is the same stdio program for every client — only where each keeps
+its config differs. **Cloud-only clients that can't launch a local process (e.g.
+web ChatGPT) can't reach the loopback add-in**; use a local client (Codex CLI,
+Claude, Cursor, Gemini CLI) on the same machine as Revit.
+
 Options:
 
 ```powershell
 .\install.ps1 -RevitVersions 2027   # only one version
-.\install.ps1 -NoClaudeConfig       # don't touch the Claude config, just print the snippet
+.\install.ps1 -NoClientConfig       # don't touch any client config, just print the snippet
 .\uninstall.ps1                     # remove add-in, server, and the revit-<ver> config entries
 ```
 
@@ -200,7 +225,7 @@ Options:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.8.18, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.19, authEnabled=True
 ```
 
 Then restart Claude Desktop and click the 🔨 tools icon — you should see **89
@@ -318,7 +343,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.18
+   version   : 0.8.19
    authEnabled : True
    ```
 
@@ -475,7 +500,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.18, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.19, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.19] — 2026-07-23: Installer configures Codex / Gemini / Cursor too
+
+### Added
+
+- **`install.ps1 -Client <list>`** configures MCP clients beyond Claude Desktop. Accepts one or
+  more of `claude` (default), `gemini`, `cursor`, `codex` — e.g. `-Client codex,gemini` or
+  `-Client claude,gemini,cursor,codex`. Each client's config is merged in place, backed up first,
+  and every other server it already has is preserved:
+  - `claude` -> `%APPDATA%\Claude\claude_desktop_config.json` (JSON `mcpServers`)
+  - `gemini` -> `%USERPROFILE%\.gemini\settings.json` (JSON `mcpServers`)
+  - `cursor` -> `%USERPROFILE%\.cursor\mcp.json` (JSON `mcpServers`)
+  - `codex`  -> `%USERPROFILE%\.codex\config.toml` (**TOML** `[mcp_servers.NAME]` tables)
+  The three JSON clients share one merge path; Codex gets a TOML writer that strips and re-appends
+  only the `[mcp_servers.revit-*]` tables, leaving all other TOML content untouched.
+- `-NoClaudeConfig` is kept as an alias of the new `-NoClientConfig`.
+
+The server itself is unchanged and client-agnostic (stdio `node dist/index.js`); this only teaches
+the installer where each client keeps its config. Cloud-only clients that can't run a local stdio
+process (e.g. web ChatGPT) still can't reach the loopback add-in — use a local client (Codex CLI,
+Claude, Cursor, Gemini CLI) on the same machine as Revit.
+
+No functional change to the server: 89 MCP tools, 91 C# commands.
+
+---
+
 ## [0.8.18] — 2026-07-19: One-shot installer for all three Revit versions
 
 ### Added
