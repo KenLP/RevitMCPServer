@@ -164,10 +164,55 @@ RevitMCPServer/
         └── tsconfig.json
 ```
 
-## Install — beginner walk-through
+## Install (recommended) — one-step installer
 
-If you've never built a dev project before, follow this section top-to-bottom.
-Every step is copy-paste into **PowerShell** on Windows.
+Everything is in a single download; no cloning or compiling.
+
+1. **Download** `RevitMCPServer-v<latest>.zip` from the
+   [latest release](https://github.com/KenLP/RevitMCPServer/releases/latest)
+   (the combined bundle — **not** the `-R2025/-R2026/-R2027` per-version zips).
+2. **Close Revit** (the installer replaces the add-in DLL).
+3. **Extract** the zip, then right-click **`install.ps1` → Run with PowerShell**
+   (or, in a PowerShell window: `.\install.ps1`).
+4. **Restart Revit**, then **restart Claude Desktop**.
+
+`install.ps1` with no arguments auto-detects which Revit versions (2025 / 2026 /
+2027) you have installed, deploys the matching add-in to each, installs the MCP
+server to `%LOCALAPPDATA%\RevitMCPServer`, and merges a `revit-<ver>` entry into
+your Claude Desktop config — **backing it up first and leaving every other MCP
+server untouched**.
+
+**Only prerequisite:** [Node.js 18+](https://nodejs.org/) on your PATH, for the
+Claude bridge. (The add-in itself works over its local HTTP API without Node —
+Node is only needed for Claude Desktop/Code to talk to it, and a missing Node is
+a warning, not a failure.)
+
+Options:
+
+```powershell
+.\install.ps1 -RevitVersions 2027   # only one version
+.\install.ps1 -NoClaudeConfig       # don't touch the Claude config, just print the snippet
+.\uninstall.ps1                     # remove add-in, server, and the revit-<ver> config entries
+```
+
+**Verify:** open Revit, then run the health check (7890 = R2025, 7891 = R2026,
+7892 = R2027):
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:7891/health
+# → ok=True, service=revit-mcp-addin, version=0.8.18, authEnabled=True
+```
+
+Then restart Claude Desktop and click the 🔨 tools icon — you should see **89
+`revit_*` tools** per configured version.
+
+---
+
+## Build from source — advanced
+
+Most users should use the one-step installer above. Build from source only to run
+an unreleased commit or to hack on the code. Every step is copy-paste into
+**PowerShell** on Windows.
 
 ### Step 0 — What you'll install
 
@@ -201,12 +246,11 @@ Pick a folder (e.g. `C:\Dev\`) and clone:
 ```powershell
 mkdir C:\Dev -Force
 cd C:\Dev
-git clone https://github.com/<your-fork>/RevitMCPServer.git
+git clone https://github.com/KenLP/RevitMCPServer.git
 cd RevitMCPServer
 ```
 
-> Replace `<your-fork>` with the actual repo path. If you downloaded a ZIP
-> instead, unzip it to `C:\Dev\RevitMCPServer\`.
+> If you downloaded a source ZIP instead, unzip it to `C:\Dev\RevitMCPServer\`.
 
 ### Step 2 — Build the Revit addin (C#)
 
@@ -341,7 +385,7 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
 > `REVIT_MCP_VERSION` tells the bridge which port + token file to use.
 
 Save, then **fully quit and restart Claude Desktop** (right-click tray icon →
-Quit). When it relaunches, click the 🔨 tools icon — you should see **64
+Quit). When it relaunches, click the 🔨 tools icon — you should see **89
 `revit_*` tools** (doubled if you configured two versions).
 
 ### Step 6 — Try your first prompt
