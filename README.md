@@ -228,8 +228,10 @@ Invoke-RestMethod http://127.0.0.1:7891/health
 # → ok=True, service=revit-mcp-addin, version=0.8.19, authEnabled=True
 ```
 
-Then restart Claude Desktop and click the 🔨 tools icon — you should see **89
-`revit_*` tools** per configured version.
+Then restart Claude Desktop. The server shows up under **Connectors**
+(the **＋** menu → **Connectors**) as `revit-2026` / `revit-2027`, toggled on —
+open **Tool access** there to see the **89 `revit_*` tools** per version.
+(Older Claude builds showed these under a 🔨 tools icon instead.)
 
 ---
 
@@ -410,8 +412,10 @@ Paste this (adjust the path if you cloned somewhere other than `C:\Dev`).
 > `REVIT_MCP_VERSION` tells the bridge which port + token file to use.
 
 Save, then **fully quit and restart Claude Desktop** (right-click tray icon →
-Quit). When it relaunches, click the 🔨 tools icon — you should see **89
-`revit_*` tools** (doubled if you configured two versions).
+Quit). When it relaunches, the server appears under **Connectors** (**＋** menu →
+**Connectors**) as `revit-<ver>`, toggled on; open **Tool access** to see the
+**89 `revit_*` tools** (doubled if you configured two versions). (Older Claude
+builds showed these under a 🔨 tools icon instead.)
 
 ### Step 6 — Try your first prompt
 
