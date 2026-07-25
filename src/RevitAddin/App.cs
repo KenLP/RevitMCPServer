@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Security.Cryptography;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Commands;
+using RevitMCPAddin.Panel;
 using RevitMCPAddin.Server;
 
 namespace RevitMCPAddin;
@@ -31,6 +33,7 @@ public sealed class App : IExternalApplication
     private RevitMCPExternalEventHandler? _handler;
     private ExternalEvent? _externalEvent;
     private McpHttpServer? _httpServer;
+    private AutoAuditPanelView? _panelView;
 
     public Result OnStartup(UIControlledApplication application)
     {
@@ -60,6 +63,19 @@ public sealed class App : IExternalApplication
                 $"capability {BuildInfo.CapabilityHash(registry.Names)}");
 
             LogToConsole($"[RevitMCP] Listening on http://127.0.0.1:{port}/ (auth=ON)");
+
+            // AutoAudit dockable panel (P3-4). Just a browser onto the AutoAudit
+            // UI URL — a failure here must NEVER take down the MCP server above,
+            // so it gets its own try/catch.
+            try
+            {
+                RegisterAutoAuditPanel(application, revitVersion);
+            }
+            catch (Exception ex)
+            {
+                LogToConsole($"[RevitMCP] AutoAudit panel unavailable: {ex.Message}");
+            }
+
             return Result.Succeeded;
         }
         catch (Exception ex)
@@ -68,6 +84,53 @@ public sealed class App : IExternalApplication
                 "Failed to start MCP HTTP server:\n\n" + ex);
             return Result.Failed;
         }
+    }
+
+    private void RegisterAutoAuditPanel(
+        UIControlledApplication application, string revitVersion)
+    {
+        // Belt-and-braces: make sure our loose dependencies (the WebView2
+        // managed assemblies deployed next to this dll) resolve from the
+        // addin folder even if Revit's addin load-context probing misses
+        // them. First live run failed exactly there (silent TypeLoad at the
+        // call site).
+        var alc = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext(
+            Assembly.GetExecutingAssembly());
+        var addinDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        if (alc is not null)
+        {
+            alc.Resolving += (ctx, name) =>
+            {
+                var candidate = Path.Combine(addinDir, name.Name + ".dll");
+                return File.Exists(candidate) ? ctx.LoadFromAssemblyPath(candidate) : null;
+            };
+        }
+
+        _panelView = new AutoAuditPanelView(revitVersion);
+        application.RegisterDockablePane(
+            AutoAuditPaneProvider.PaneId, "AutoAudit",
+            new AutoAuditPaneProvider(_panelView));
+
+        // Revit's model-upgrade dialog can wedge WebView2's interop queue
+        // (archi-lab.net/webview2-and-revits-dockable-panel) — dispose the
+        // browser before a document transition, recreate after.
+        application.ControlledApplication.DocumentClosing +=
+            (_, _) => _panelView?.Suspend();
+        application.ControlledApplication.DocumentOpened +=
+            (_, _) => _panelView?.Resume();
+
+        var tab = "AutoAudit";
+        application.CreateRibbonTab(tab);
+        var ribbonPanel = application.CreateRibbonPanel(tab, "AutoAudit");
+        var button = new PushButtonData(
+            "AutoAuditShowPanel", "AutoAudit\nPanel",
+            Assembly.GetExecutingAssembly().Location,
+            typeof(ShowAutoAuditPanelCommand).FullName)
+        {
+            ToolTip = "Show the AutoAudit audit panel (WebView2). "
+                + "If the embedded view is unavailable it opens in your browser.",
+        };
+        ribbonPanel.AddItem(button);
     }
 
     public Result OnShutdown(UIControlledApplication application)

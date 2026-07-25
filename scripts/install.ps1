@@ -135,6 +135,16 @@ foreach ($ver in $targets) {
         Copy-Item (Join-Path $src "RevitMCPAddin.dll") $dest -Force
         Copy-Item (Join-Path $src "RevitMCP.Core.dll") $dest -Force
         Copy-Item $manifest $dest -Force
+        # AutoAudit panel runtime (WebView2). Copied when present in the bundle.
+        # NOTE: revit-mcp-panel.json (the user's panel URL config) is NEVER
+        # touched by this installer - the addin falls back to its default URL
+        # when the file is absent.
+        foreach ($wv in "Microsoft.Web.WebView2.Core.dll",
+                        "Microsoft.Web.WebView2.Wpf.dll",
+                        "WebView2Loader.dll") {
+            $wvSrc = Join-Path $src $wv
+            if (Test-Path $wvSrc) { Copy-Item $wvSrc $dest -Force }
+        }
         Good "Revit ${ver}: -> $dest"
         $installed += $ver
     }

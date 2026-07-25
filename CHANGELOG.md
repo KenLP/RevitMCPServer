@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.20] — 2026-07-25: AutoAudit dockable panel lands on main (installer no longer wipes it)
+
+### Added
+
+- **AutoAudit DockablePane (WebView2) is now part of `main` and the installer.** The panel — a thin
+  embedded browser onto the AutoAudit UI (`http://127.0.0.1:8601/ui/`, configurable via
+  `revit-mcp-panel.json`) — previously lived only on the unmerged `feat/spatialqc-panel` branch, so
+  every run of the v0.8.18/v0.8.19 one-shot installer (built from `main`) overwrote the deployed
+  add-in with a panel-less DLL. That regression class is closed: the panel ships in the DLL the
+  installer installs.
+  - Ported selectively from the branch: `Panel/{AutoAuditPaneProvider, AutoAuditPanelView,
+    PanelConfig, ShowAutoAuditPanelCommand}.cs` + registration in `App.cs` + WebView2 refs in the
+    csproj — **without** taking the branch's stale `App.cs`/csproj (which predate the 0.8.17
+    security hardening and the build-truth stamp; a straight merge would have reverted both).
+  - Behaviours preserved from the live-verified branch build: panel registration in its own
+    try/catch (a panel failure can never take down the MCP server), the visual-tree-before-init
+    WebView2 fix, suspend/resume around document transitions (archi-lab WebView2 gotcha), and the
+    AssemblyLoadContext resolver for the loose WebView2 assemblies.
+  - New ribbon tab "AutoAudit" with a show-panel button; browser fallback when WebView2 is absent.
+  - The SpatialQC pane (:8602) stays on the private branch — deliberately not ported (the handoff
+    allows splitting it out).
+- **Installer/bundle ship the WebView2 runtime pieces** (`Microsoft.Web.WebView2.Core.dll`,
+  `Microsoft.Web.WebView2.Wpf.dll`, `WebView2Loader.dll`) per Revit version, and the artifact gate
+  now fails the build if any is missing. `install.ps1` copies them; `uninstall.ps1` removes them.
+  **`revit-mcp-panel.json` (the user's panel-URL config) is never written or removed** by either
+  script.
+
+Counts unchanged: 89 MCP tools, 91 C# commands (the panel is UI, not an MCP command).
+Addresses `MultiAIagents-main/docs/handoff_addin_dockable_panel.md` (AU 2026 demo path).
+
+---
+
 ## [0.8.19] — 2026-07-23: Installer configures Codex / Gemini / Cursor too
 
 ### Added

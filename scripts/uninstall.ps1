@@ -45,8 +45,11 @@ foreach ($ver in $versions) {
     $targets = @(
         "RevitMCPAddin.dll", "RevitMCPAddin.pdb",
         "RevitMCP.Core.dll", "RevitMCP.Core.pdb",
-        "RevitMCPAddin.addin", "revit-mcp-token.txt"
+        "RevitMCPAddin.addin", "revit-mcp-token.txt",
+        "Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.Wpf.dll",
+        "WebView2Loader.dll"
     ) | ForEach-Object { Join-Path $dir $_ }
+    # revit-mcp-panel.json is the USER's panel-URL config - deliberately kept.
     $n = 0
     foreach ($t in $targets) { if (Test-Path $t) { Remove-Item $t -Force; $n++ } }
     if ($n -gt 0) { Good "Revit ${ver}: removed $n file(s) from $dir"; $removedAny = $true }

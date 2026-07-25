@@ -115,7 +115,16 @@ foreach ($rv in $RevitVersions) {
     Copy-Item "$buildDir/RevitMCPAddin.dll" "$addinDir/" -Force
     Copy-Item "$buildDir/RevitMCP.Core.dll" "$addinDir/" -Force
     Copy-Item "$root/src/RevitAddin/RevitMCPAddin.addin" "$addinDir/" -Force
-    OK "C# R$rv staged into addin/$rv/"
+    # AutoAudit panel: WebView2 managed assemblies + native loader. The loader
+    # may land top-level (CopyLocalLockFileAssemblies) or under runtimes/.
+    Copy-Item "$buildDir/Microsoft.Web.WebView2.Core.dll" "$addinDir/" -Force
+    Copy-Item "$buildDir/Microsoft.Web.WebView2.Wpf.dll"  "$addinDir/" -Force
+    if (Test-Path "$buildDir/WebView2Loader.dll") {
+        Copy-Item "$buildDir/WebView2Loader.dll" "$addinDir/" -Force
+    } elseif (Test-Path "$buildDir/runtimes/win-x64/native/WebView2Loader.dll") {
+        Copy-Item "$buildDir/runtimes/win-x64/native/WebView2Loader.dll" "$addinDir/" -Force
+    }
+    OK "C# R$rv staged into addin/$rv/ (incl. WebView2)"
 }
 
 # Quick-start readme
@@ -171,6 +180,9 @@ foreach ($rv in $RevitVersions) {
     $required += "addin/$rv/RevitMCPAddin.dll"
     $required += "addin/$rv/RevitMCP.Core.dll"
     $required += "addin/$rv/RevitMCPAddin.addin"
+    $required += "addin/$rv/Microsoft.Web.WebView2.Core.dll"
+    $required += "addin/$rv/Microsoft.Web.WebView2.Wpf.dll"
+    $required += "addin/$rv/WebView2Loader.dll"
 }
 $missing = @($required | Where-Object { -not (Test-Path (Join-Path $pkgDir $_)) })
 if ($missing.Count -gt 0) { Fail "Bundle is missing required file(s): $($missing -join ', ')" }

@@ -9,12 +9,14 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RootNamespace>RevitMCPAddin</RootNamespace>
     <AssemblyName>RevitMCPAddin</AssemblyName>
+    <!-- AutoAudit dockable panel hosts a WPF WebView2 control -->
+    <UseWPF>true</UseWPF>
     <LangVersion>latest</LangVersion>
 
     <!-- Single source of truth for the C# build's semver. Kept in lock-step with
          src/McpServer/package.json by scripts/check-version.mjs. /health reports
          this via the compiled AssemblyInformationalVersion — never a literal. -->
-    <Version>0.8.19</Version>
+    <Version>0.8.20</Version>
     <!-- MSB3277: harmless version conflict between .NET ref assemblies and Revit DLLs. -->
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
 
@@ -81,6 +83,13 @@
     <ProjectReference Include="..\RevitMCP.Core\RevitMCP.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- AutoAudit panel (P3-4). The WPF control needs the Evergreen WebView2
+         Runtime on the machine (ships with Windows 11 / Edge); when absent the
+         panel degrades to an "open in browser" fallback - never a crash. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
   <!-- Stamp the actual git commit / branch / dirty-state and a build timestamp
        into the assembly so /health reports what THIS dll really is, instead of a
        hand-typed version that can outrank a build with fewer commands. Runs on
@@ -133,8 +142,20 @@
           Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\RevitMCPAddin.addin"
           DestinationFolder="$(RevitAddinFolder)" />
+    <!-- AutoAudit panel: WebView2 managed assemblies + native loader.
+         WebView2Loader.dll must sit NEXT TO Microsoft.Web.WebView2.Core.dll
+         (the managed dll probes its own folder first). -->
+    <Copy SourceFiles="$(TargetDir)Microsoft.Web.WebView2.Core.dll"
+          DestinationFolder="$(RevitAddinFolder)"
+          Condition="Exists('$(TargetDir)Microsoft.Web.WebView2.Core.dll')" />
+    <Copy SourceFiles="$(TargetDir)Microsoft.Web.WebView2.Wpf.dll"
+          DestinationFolder="$(RevitAddinFolder)"
+          Condition="Exists('$(TargetDir)Microsoft.Web.WebView2.Wpf.dll')" />
+    <Copy SourceFiles="$(TargetDir)runtimes\win-x64\native\WebView2Loader.dll"
+          DestinationFolder="$(RevitAddinFolder)"
+          Condition="Exists('$(TargetDir)runtimes\win-x64\native\WebView2Loader.dll')" />
     <Message Importance="high"
-             Text="Deployed RevitMCPAddin (+ RevitMCP.Core) to $(RevitAddinFolder)" />
+             Text="Deployed RevitMCPAddin (+ RevitMCP.Core + WebView2) to $(RevitAddinFolder)" />
   </Target>
 
 </Project>
