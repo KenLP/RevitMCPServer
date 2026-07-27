@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.21] — 2026-07-27: `get_element_info` exposes `uniqueId`
+
+### Added
+
+- **`get_element_info` now returns `uniqueId`** — the element's stable Revit `UniqueId`
+  (45-char `<guid-36>-<8 hex>`). Purely additive: no field removed or renamed, envelope
+  `{ok,data}` unchanged, input schema unchanged, tool/command count unchanged (gate stays green).
+  - **Why:** downstream consumers that receive an ACC / BIM 360 Model Coordination `externalId`
+    (which *is* the Revit UniqueId) previously had to reverse-engineer the `ElementId` with the
+    XOR heuristic (`parseInt(uid[37:45],16) ^ parseInt(uid[28:36],16)`) and could not verify the
+    result — a wrong guess silently targets a different element. Returning `UniqueId` lets a caller
+    match the mover element exactly before any mutation. (Handoff: ClashDetection v1.2, 2026-07-27.)
+  - Adds ~45 bytes/element to the response; nowhere near the 1 MB envelope ceiling.
+
 ## [0.8.20] — 2026-07-25: AutoAudit dockable panel lands on main (installer no longer wipes it)
 
 ### Added

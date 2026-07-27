@@ -42,6 +42,10 @@ public sealed class GetElementInfoCommand : IRevitCommand
         {
             ["id"] = element.Id.Value,
             ["name"] = element.Name,
+            // Stable cross-session/cross-model identifier (45-char "<guid-36>-<8 hex>").
+            // Lets a caller round-trip an ACC/BIM 360 externalId back to a Revit element
+            // without reverse-engineering the ElementId via the XOR heuristic.
+            ["uniqueId"] = element.UniqueId,
             ["category"] = element.Category?.Name,
             ["categoryEnum"] = element.Category?.BuiltInCategory.ToString(),
             ["typeId"] = element.GetTypeId()?.Value,
