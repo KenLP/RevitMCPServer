@@ -142,5 +142,7 @@ public sealed class CommandRegistry
         Register(new ClearanceEnvelopeCommand());
         Register(new ClearanceEnvelopeBatchCommand());
         Register(new RaycastHeadroomCommand());
+        Register(new GetWallsCommand());
+        Register(new GetStairsCommand());
     }
 }
