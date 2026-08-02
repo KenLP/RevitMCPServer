@@ -109,7 +109,7 @@ src/RevitMCP.Core/                      # portable class library — the executi
     ├── ParamUtil.cs                    # P.Str / P.Dbl / P.Xyz / …
     ├── BatchPolicy.cs                  # mixed ModelWrite/UiAction batch rejection
     ├── RevitCommandException.cs        # typed domain error codes
-    └── …Command.cs                     # 91 commands, one file each
+    └── …Command.cs                     # 93 commands, one file each
 
 src/RevitAddin/                         # the Revit add-in host
 ├── App.cs                              # IExternalApplication; mints the auth token

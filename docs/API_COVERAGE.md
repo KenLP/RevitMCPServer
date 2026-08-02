@@ -27,18 +27,18 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.17)
+## Current command surface (v0.8.21)
 
-**91 commands** registered (86 exposed as MCP tools + 5 hidden) across read, write, UI, and
+**93 commands** registered (86 exposed as MCP tools + 7 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
 (`recipe_model_health_triage`, `recipe_clash_review`), that is **89 MCP tools**.
 
-The 5 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
+The 7 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
-**4-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
-`spatial_clearance_envelope_batch`, `spatial_raycast_headroom`) — pure-geometry primitives consumed
-programmatically by the AutomatedSpatialQC client, not by LLM tool routing (see the Spatial-QC pack
-section below).
+**6-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
+`spatial_clearance_envelope_batch`, `spatial_raycast_headroom`, `spatial_get_walls`,
+`spatial_get_stairs`) — pure-geometry primitives consumed programmatically by the AutomatedSpatialQC
+client, not by LLM tool routing (see the Spatial-QC pack section below).
 
 ### Implemented — Read / Introspection
 
@@ -139,6 +139,8 @@ curated command surface and avoid any future collision. Pure geometry, no depend
 | `spatial_clearance_envelope` | Volumetric MEP-aware clear-height check: extrudes a room footprint to a required clear volume and boolean-intersects every overhead element in host **and every linked RVT**; names each obstruction (category/id/link) with the clear height it leaves. |
 | `spatial_clearance_envelope_batch` | Same check for many rooms in one call; collects + extracts candidate geometry **once** over the union of all footprints and reuses it per room (removes repeated extraction, the dominant cost). |
 | `spatial_raycast_headroom` | Vertical headroom raycast: fires a ray up from each `(x,y)` on the floor, returns the lowest overhead soffit height (ceilings/floors-above/roofs/framing; stairs excluded). |
+| `spatial_get_walls` | Wall plan footprints (centreline offset by half the width) + Z range + the **declared** Interior/Exterior `Function`, in world metres. Feeds the storey-envelope flood fill that decides what is truly outdoors vs. an enclosed void — which in turn drives exterior-door detection (the old "door touches ≤ 1 room" heuristic breaks on thick and curtain walls). `isExternal` is emitted **verbatim**: it is a user declaration the consumer audits against geometry, never trusts. Curtain walls (Width ≈ 0) get a nominal 0.15 m footprint so the facade is not a gap. |
+| `spatial_get_stairs` | Placed stairs with Revit's own as-built riser height / tread depth / riser count, plus plan centroid and base level — the live-model equivalent of what the IFC path re-measures from the stair mesh, so max-riser / min-tread rules run without an IFC export. No per-riser breakdown exists in the API, so there is deliberately no `riserVariation`: the consumer reads a missing field as "unmeasured" (INFO) rather than a false PASS. |
 
 ### Implemented — UI Actions (no model transaction)
 

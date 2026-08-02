@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.21** — 91 C# commands (86 exposed as MCP tools + 5 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 4-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.21** — 93 C# commands (86 exposed as MCP tools + 7 hidden) + 1 batch tool + 2 workflow recipes = **89 MCP tools**. Hidden = `create_spot_elevation` + the 6-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -147,7 +147,7 @@ RevitMCPServer/
 │   ├── check-version.mjs           ← CI gate: version + tool-count consistency
 │   └── smoke-test.ps1              ← live-Revit smoke test
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 91 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 93 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)

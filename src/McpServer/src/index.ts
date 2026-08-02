@@ -449,6 +449,8 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // revit_spatial_clearance_envelope — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope)
 // revit_spatial_clearance_envelope_batch — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope_batch)
 // revit_spatial_raycast_headroom — hidden (HTTP-only spatial-QC pack; C# spatial_raycast_headroom)
+// revit_spatial_get_walls — hidden (HTTP-only spatial-QC pack; C# spatial_get_walls)
+// revit_spatial_get_stairs — hidden (HTTP-only spatial-QC pack; C# spatial_get_stairs)
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
