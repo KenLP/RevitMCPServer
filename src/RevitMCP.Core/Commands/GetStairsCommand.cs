@@ -40,7 +40,13 @@ public sealed class GetStairsCommand : IRevitCommand
         var arr = new JsonArray();
         foreach (var s in stairs)
         {
-            var lvl = doc.GetElement(s.LevelId) as Level;
+            // Stairs span storeys, so Element.LevelId comes back invalid — the base level lives in
+            // STAIRS_BASE_LEVEL_PARAM. (Verified live: LevelId alone reported levelName null for
+            // every stair in the R27 model.)
+            var lvl = doc.GetElement(s.LevelId) as Level
+                      ?? doc.GetElement(new ElementId(
+                             s.get_Parameter(BuiltInParameter.STAIRS_BASE_LEVEL_PARAM)
+                              ?.AsElementId()?.Value ?? -1L)) as Level;
             var bbox = s.get_BoundingBox(null);
             JsonNode? cx = null, cy = null;
             if (bbox is not null)
