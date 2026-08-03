@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.22] — 2026-08-03: resolve elements by `UniqueId`, never by a derived id
+
+Follow-up to 0.8.21. Exposing `uniqueId` let us finally *verify* how callers were turning an
+ACC `externalId` back into a Revit element — and the answer was: incorrectly.
+
+### Measured
+
+Against the live Revit 2027 add-in and the Autodesk Model Derivative API (project
+"Ken - MCP Testing", models Architectural / Structural / HVAC):
+
+- The trailing 8 hex characters of a `UniqueId`, parsed as hex, **are** the `ElementId`:
+  27/27 across three models, 9/9 on a random host sample spanning 9 distinct episode GUIDs.
+- The XOR heuristic circulating downstream (`hex[37..45] ^ hex[28..36]`) matched **0/27**.
+  It is not a stale formula — it was never correct. Autodesk documents the layout as
+  `EpisodeId(8-4-4-4-12) + "-" + hex(ElementId)`, with no XOR anywhere.
+- ACC `externalId` is byte-identical to Revit `UniqueId` for the same element (verified on
+  ids 619340 and 619404 against the running add-in).
+
+### Added
+
+- **`find_element_by_unique_id`** (MCP tool `revit_find_element_by_unique_id`) — resolves an
+  element through `Document.GetElement(string)`, so no id derivation happens at all.
+  - `linkId` searches exactly one `RevitLinkInstance`; `searchLinks=true` sweeps every loaded
+    link when the host has no match. Returns `foundIn` ("host"/"link") plus link context, and
+    transforms link bounding boxes into host coordinates.
+  - Guards a sharper hazard than the bad formula: `ElementId` is numbered **per document**, so
+    an id lifted from a linked model can silently resolve to a *different* real element in the
+    host. (In the Snowdon sample the 5 ids tested happened to miss — chance, not safety: the
+    host id range 593k–2.8M fully overlaps the HVAC and Structural ranges.)
+- **`get_linked_elements` now returns `uniqueId`** per element. Without it, elements inside a
+  link — where clash-driven tools do most of their work — had no cross-document identity at all.
+
+### Changed
+
+- Tool surface 89 → **90** (94 C# commands, 7 hidden). `revit_find_element_by_unique_id` joins
+  the `core` profile.
+
 ## [0.8.21] — 2026-07-27: `get_element_info` exposes `uniqueId`
 
 ### Added

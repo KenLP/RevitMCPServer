@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.21)
+## Current command surface (v0.8.22)
 
-**93 commands** registered (86 exposed as MCP tools + 7 hidden) across read, write, UI, and
+**94 commands** registered (87 exposed as MCP tools + 7 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
-(`recipe_model_health_triage`, `recipe_clash_review`), that is **89 MCP tools**.
+(`recipe_model_health_triage`, `recipe_clash_review`), that is **90 MCP tools**.
 
 The 7 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
@@ -48,7 +48,8 @@ client, not by LLM tool routing (see the Spatial-QC pack section below).
 | `get_revit_version` | Revit version, build, language |
 | `get_document_info` | File path, phases, project info |
 | `list_elements` | Filter by category, optional limit |
-| `get_element_info` | All parameters + bbox |
+| `get_element_info` | All parameters + bbox, plus `uniqueId` — the identifier ACC / BIM 360 reports as `externalId` |
+| `find_element_by_unique_id` | Resolve an element from its `UniqueId` via `Document.GetElement(string)`. `linkId` searches one link only; `searchLinks=true` sweeps every loaded link when the host has no match. Returns `foundIn` ("host"/"link") + link context. **Use this instead of deriving an ElementId from the string** — ElementId is numbered per document, so an id lifted from a linked model can address a different element in the host |
 | `get_element_geometry` | Solid/curve geometry as JSON |
 | `get_parameter` | Single parameter read |
 | `find_elements` | Generic query: category + parameter predicates |
@@ -68,7 +69,7 @@ client, not by LLM tool routing (see the Spatial-QC pack section below).
 | `get_active_view` | Current UI view |
 | `get_selected_elements` | UIDocument selection |
 | `get_linked_files` | Linked Revit files — list instances with metadata |
-| `get_linked_elements` | Read elements **inside** a linked RVT; bboxes in host coords |
+| `get_linked_elements` | Read elements **inside** a linked RVT; bboxes in host coords. Each element carries `uniqueId` (stable across documents) alongside `id` (valid **only** inside that link) |
 | `get_view_image` | Export any view to PNG; returns base64 + MCP Image content |
 | `get_element_rooms` | Phase-aware Room/FromRoom/ToRoom containment for family instances (batch) |
 | `export_view_pdf` | Export a view or sheet to PDF on disk |

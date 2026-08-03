@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.21 — 86 commands + 1 batch + 2 recipes = 89 MCP tools** (7 hidden: `create_spot_elevation` + the 6-command spatial-QC HTTP pack `spatial_*`; 93 C# commands registered; workflow recipes are Node-only).
+> **v0.8.22 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (7 hidden: `create_spot_elevation` + the 6-command spatial-QC HTTP pack `spatial_*`; 94 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -31,7 +31,8 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_version`               | `get_revit_version`     | ✅        | Revit version, build, language, user                      |
 | `revit_get_document_info`         | `get_document_info`     | ✅        | File path, phases, project info                           |
 | `revit_list_elements`             | `list_elements`         | ✅        | List instances, optionally filtered by category           |
-| `revit_get_element_info`          | `get_element_info`      | ✅        | All parameters + bbox of one element                      |
+| `revit_get_element_info`          | `get_element_info`      | ✅        | All parameters + bbox of one element (incl. `uniqueId`)   |
+| `revit_find_element_by_unique_id` | `find_element_by_unique_id` | ✅    | Resolve an element from its `UniqueId` (= ACC/BIM 360 `externalId`). Optional `linkId` to target one link, `searchLinks` to sweep all loaded links |
 | `revit_get_element_geometry`      | `get_element_geometry`  | ✅        | Solid/curve geometry, volume, surface area                |
 | `revit_get_parameter`             | `get_parameter`         | ✅        | Single parameter value                                    |
 | `revit_find_elements`             | `find_elements`         | ✅        | Query: category + parameter predicates (instance→type), optional `view_id` scope |

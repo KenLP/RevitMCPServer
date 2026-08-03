@@ -132,7 +132,7 @@ Diagnostic-only commands (`ping`, `get_revit_version`) work without an open proj
 **Symptom:** The client only sees some tools (e.g. no `revit_create_*`).
 
 **Fix:** Check the `REVIT_MCP_PROFILE` env var in your MCP client config. When set, only the
-listed groups (+ `core`) are exposed. Remove it to expose all 89 tools, or add the group you
+listed groups (+ `core`) are exposed. Remove it to expose all 90 tools, or add the group you
 need (`inspection`, `architecture`, `documentation`, `editing`, `view`, `model-health`,
 `coordination`). The MCP server logs the active profiles and tool count to stderr on startup.
 

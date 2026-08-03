@@ -16,7 +16,7 @@
     <!-- Single source of truth for the C# build's semver. Kept in lock-step with
          src/McpServer/package.json by scripts/check-version.mjs. /health reports
          this via the compiled AssemblyInformationalVersion — never a literal. -->
-    <Version>0.8.21</Version>
+    <Version>0.8.22</Version>
     <!-- MSB3277: harmless version conflict between .NET ref assemblies and Revit DLLs. -->
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
 

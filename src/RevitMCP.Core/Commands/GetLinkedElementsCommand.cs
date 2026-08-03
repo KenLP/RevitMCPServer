@@ -88,6 +88,10 @@ public sealed class GetLinkedElementsCommand : IRevitCommand
             arr.Add(new JsonObject
             {
                 ["id"] = el.Id.Value,
+                // Stable across documents, unlike id — which is numbered per document
+                // and therefore meaningless (or worse, wrong) outside this link.
+                // Matches the externalId ACC / BIM 360 reports for the same element.
+                ["uniqueId"] = el.UniqueId,
                 ["name"] = el.Name,
                 ["category"] = el.Category?.Name,
                 ["categoryEnum"] = el.Category?.BuiltInCategory.ToString(),

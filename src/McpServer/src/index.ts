@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.21 (stdio).
+ * Revit MCP Server v0.8.22 (stdio).
  *
- * 89 tools covering diagnostics, inspection, creation, editing, family,
+ * 90 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.21" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.22" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -47,7 +47,7 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
 };
 
 // ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
-// With 89 tools, loading the whole catalog into every conversation wastes tokens
+// With 90 tools, loading the whole catalog into every conversation wastes tokens
 // and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
 // list (e.g. "documentation,view") to expose only those groups; "core" is always
 // included. Unset = all tools (default, fully backward compatible).
@@ -55,6 +55,7 @@ const PROFILES: Record<string, string[]> = {
   core: [
     "revit_ping", "revit_get_version", "revit_get_document_info",
     "revit_find_elements", "revit_get_element_info", "revit_get_parameter",
+    "revit_find_element_by_unique_id",
     "revit_batch",
   ],
   inspection: [
@@ -160,6 +161,17 @@ server.tool("revit_list_elements",
 server.tool("revit_get_element_info", "Full parameters + bbox of one element.", {
   id: z.number().int(),
 }, fwd("get_element_info"));
+
+server.tool("revit_find_element_by_unique_id",
+  "Resolve an element from its UniqueId — the 45-char identifier ACC/BIM 360 reports as externalId. " +
+  "Use this instead of deriving an ElementId from the string: ElementId is numbered per document, so an id " +
+  "taken from a linked model can silently address a different element in the host.",
+  {
+    uniqueId: z.string().describe("45-char '<guid-36>-<8 hex>', e.g. an ACC externalId."),
+    linkId: z.number().int().optional().describe("Search ONLY inside this RevitLinkInstance (from revit_get_linked_files)."),
+    searchLinks: z.boolean().optional().describe("If the host has no such element, sweep every loaded link. Ignored when linkId is given. Default false."),
+  },
+  fwd("find_element_by_unique_id"));
 
 server.tool("revit_find_elements",
   "Query elements by category + parameter filters. Returns matched elements with optional field " +
@@ -944,7 +956,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.21 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.22 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +
