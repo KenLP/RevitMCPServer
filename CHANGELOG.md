@@ -41,6 +41,24 @@ Against the live Revit 2027 add-in and the Autodesk Model Derivative API (projec
 - Tool surface 89 → **90** (94 C# commands, 7 hidden). `revit_find_element_by_unique_id` joins
   the `core` profile.
 
+### Fixed
+
+- **CI published unusable release archives.** The `release` job kept its own hand-written copy
+  list instead of calling `scripts/build-release.ps1`, and that list was never updated after the
+  0.8.15 packaging fix. Because the job only runs on a tag, and no tag was cut between 0.8.19 and
+  0.8.22, the drift sat undetected until v0.8.22 was tagged. The 64 KB per-version zips it
+  produced were missing:
+  - `RevitMCP.Core.dll` — the entire command kernel, so the add-in had no commands at all;
+  - `dist/revitClient.js` and `dist/recipes.js` — both imported by `index.js`, so the MCP server
+    died at startup with `ERR_MODULE_NOT_FOUND`;
+  - the three WebView2 assemblies the AutoAudit panel loads.
+
+  The job now runs `scripts/build-release.ps1`, which already gates on 26 required files *and*
+  resolves every relative import in the emitted JS before zipping — so an incomplete bundle now
+  fails the build instead of being published. The v0.8.22 assets were replaced with the verified
+  1.08 MB bundle (SHA-256 `19C24DFF…3386`); the broken per-version zips were deleted. The same
+  broken zips are still attached to **v0.8.19** alongside its good combined bundle.
+
 ## [0.8.21] — 2026-07-27: `get_element_info` exposes `uniqueId`
 
 ### Added

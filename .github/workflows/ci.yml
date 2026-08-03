@@ -81,86 +81,23 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: npm ci + build
-        working-directory: src/McpServer
-        run: |
-          npm ci
-          npm run build
-
-      - name: Build R2025 artifacts
-        run: |
-          dotnet build src/RevitAddin/RevitMCPAddin.csproj `
-            -p:RevitVersion=2025 `
-            -p:DeployToRevit=false `
-            -p:OutputPath="${{ github.workspace }}/release/.build-R2025" `
-            -c Release
-
-      - name: Build R2026 artifacts
-        run: |
-          dotnet build src/RevitAddin/RevitMCPAddin.csproj `
-            -p:RevitVersion=2026 `
-            -p:DeployToRevit=false `
-            -p:OutputPath="${{ github.workspace }}/release/.build-R2026" `
-            -c Release
-
-      - name: Build R2027 artifacts
-        run: |
-          dotnet build src/RevitAddin/RevitMCPAddin.csproj `
-            -p:RevitVersion=2027 `
-            -p:DeployToRevit=false `
-            -p:OutputPath="${{ github.workspace }}/release/.build-R2027" `
-            -c Release
-
-      - name: Package R2025 zip
+      # scripts/build-release.ps1 is the SINGLE source of truth for packaging.
+      # It runs the version gate, npm ci + tests, the per-Revit-version C#
+      # builds, and — the part that matters here — the artifact completeness
+      # gate: every runtime dependency must be present and every relative
+      # import in the emitted JS must resolve inside the bundle, or the build
+      # fails instead of publishing.
+      #
+      # This job used to hand-maintain its own copy list. It drifted: the list
+      # was never updated after the 0.8.15 packaging fix, so the tagged
+      # releases it produced shipped without RevitMCP.Core.dll (the whole
+      # command kernel), without dist/revitClient.js and dist/recipes.js (which
+      # index.js imports, so the server died on startup), and without the
+      # WebView2 assemblies the AutoAudit panel needs. Never duplicate the list
+      # again — extend the script.
+      - name: Build release bundle
         shell: pwsh
-        run: |
-          $version = (Get-Content src/McpServer/package.json | ConvertFrom-Json).version
-          $pkg = "release/RevitMCPServer-v$version-R2025"
-          New-Item -ItemType Directory -Force "$pkg/mcp-server/dist" | Out-Null
-          Copy-Item "release/.build-R2025/RevitMCPAddin.dll"   "$pkg/"
-          Copy-Item "src/RevitAddin/RevitMCPAddin.addin"       "$pkg/"
-          Copy-Item "src/McpServer/dist/index.js"              "$pkg/mcp-server/dist/"
-          Copy-Item "src/McpServer/package.json"               "$pkg/mcp-server/"
-          Copy-Item "src/McpServer/package-lock.json"          "$pkg/mcp-server/"
-          Copy-Item "scripts/install.ps1"                      "$pkg/"
-          Copy-Item "scripts/uninstall.ps1"                    "$pkg/"
-          Compress-Archive -Path "$pkg/*" -DestinationPath "release/RevitMCPServer-v$version-R2025.zip"
-          $hash = (Get-FileHash "release/RevitMCPServer-v$version-R2025.zip" -Algorithm SHA256).Hash
-          "$hash  RevitMCPServer-v$version-R2025.zip" | Out-File "release/RevitMCPServer-v$version-R2025.zip.sha256" -Encoding ascii
-
-      - name: Package R2026 zip
-        shell: pwsh
-        run: |
-          $version = (Get-Content src/McpServer/package.json | ConvertFrom-Json).version
-          $pkg = "release/RevitMCPServer-v$version-R2026"
-          New-Item -ItemType Directory -Force "$pkg/mcp-server/dist" | Out-Null
-          Copy-Item "release/.build-R2026/RevitMCPAddin.dll"   "$pkg/"
-          Copy-Item "src/RevitAddin/RevitMCPAddin.addin"       "$pkg/"
-          Copy-Item "src/McpServer/dist/index.js"              "$pkg/mcp-server/dist/"
-          Copy-Item "src/McpServer/package.json"               "$pkg/mcp-server/"
-          Copy-Item "src/McpServer/package-lock.json"          "$pkg/mcp-server/"
-          Copy-Item "scripts/install.ps1"                      "$pkg/"
-          Copy-Item "scripts/uninstall.ps1"                    "$pkg/"
-          Compress-Archive -Path "$pkg/*" -DestinationPath "release/RevitMCPServer-v$version-R2026.zip"
-          $hash = (Get-FileHash "release/RevitMCPServer-v$version-R2026.zip" -Algorithm SHA256).Hash
-          "$hash  RevitMCPServer-v$version-R2026.zip" | Out-File "release/RevitMCPServer-v$version-R2026.zip.sha256" -Encoding ascii
-
-      - name: Package R2027 zip
-        shell: pwsh
-        run: |
-          $version = (Get-Content src/McpServer/package.json | ConvertFrom-Json).version
-          $pkg = "release/RevitMCPServer-v$version-R2027"
-          New-Item -ItemType Directory -Force "$pkg/mcp-server/dist" | Out-Null
-          Copy-Item "release/.build-R2027/RevitMCPAddin.dll"   "$pkg/"
-          Copy-Item "src/RevitAddin/RevitMCPAddin.addin"       "$pkg/"
-          Copy-Item "src/McpServer/dist/index.js"              "$pkg/mcp-server/dist/"
-          Copy-Item "src/McpServer/package.json"               "$pkg/mcp-server/"
-          Copy-Item "src/McpServer/package-lock.json"          "$pkg/mcp-server/"
-          Copy-Item "scripts/install.ps1"                      "$pkg/"
-          Copy-Item "scripts/uninstall.ps1"                    "$pkg/"
-          Compress-Archive -Path "$pkg/*" -DestinationPath "release/RevitMCPServer-v$version-R2027.zip"
-          $hash = (Get-FileHash "release/RevitMCPServer-v$version-R2027.zip" -Algorithm SHA256).Hash
-          "$hash  RevitMCPServer-v$version-R2027.zip" | Out-File "release/RevitMCPServer-v$version-R2027.zip.sha256" -Encoding ascii
+        run: ./scripts/build-release.ps1
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
