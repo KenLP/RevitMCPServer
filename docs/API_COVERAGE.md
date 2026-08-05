@@ -27,7 +27,7 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.22)
+## Current command surface (v0.8.23)
 
 **94 commands** registered (87 exposed as MCP tools + 7 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes

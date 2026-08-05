@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.23] — 2026-08-05: `configure_schedule` can filter on a numeric field
+
+Reported by bim-orchestrator, which auto-creates the native Revit schedules a reviewer uses to
+re-check a compliance run. Four of its five schedules worked; the one carrying a threshold —
+`Width less than 900 mm` — produced a schedule listing **every** door.
+
+### Fixed
+
+- **`configure_schedule` filters accept a number** (`filters[].value` is now
+  `string | number` on the bridge, was `string` only). A JSON number previously failed MCP input
+  validation *above* the bridge, and the SDK returns that as plain text, so the caller got no
+  `{ok,error}` envelope at all — just an unparseable result and a schedule left unconfigured.
+- **A numeric filter now actually reaches Revit.** `ConfigureScheduleCommand` read the value with
+  `GetValue<string>()` *outside* the per-filter `try` (a number threw and failed the whole
+  command), then only ever called the `string` `ScheduleFilter` constructor — which Revit refuses
+  on a Double/Integer field. The refusal was caught and demoted to a `warnings` entry, so the
+  response stayed `ok:true` and the filter was **silently absent**. The value is now read as a raw
+  `JsonNode` and offered to Revit as an ordered list of overloads (`double` → `int` → `string` for
+  a JSON number; `string` → `double` → `int` for a JSON string), letting Revit's own validation
+  pick the one that fits. Measured on R27 Snowdon: `Width < 2.9527559055118114` went from 100 rows
+  (the unfiltered read cap over 149 doors) to **13**, identical for the number and the string form.
+
+  The retry wraps `ScheduleDefinition.AddFilter`, **not** the `ScheduleFilter` constructor. The
+  constructor happily builds a string filter for a Double field; Revit only refuses it on add —
+  its message ends `Parameter name: filter`, naming `AddFilter`'s argument. A ctor-level ladder
+  compiles, looks right, and never reaches its second rung (measured: it fixed the number form and
+  left the string form failing exactly as before). Each rung also catches `Exception` rather than
+  `ArgumentException`: Revit throws from `Autodesk.Revit.Exceptions`, whose `ArgumentException`
+  does not derive from the BCL one, so a type-filtered ladder stops at rung one. A rung can only
+  succeed by actually adding the filter, and the last refusal is rethrown verbatim — a genuinely
+  invalid value still becomes the same `warnings` entry it does today (verified).
+
+  The `int` overload is offered only when the value is integral: truncating 2.95 → 2 on an Integer
+  field would yield a filter that applies cleanly and quietly means something else.
+
+Two things that look like bugs and are not, now documented and covered by tests:
+
+- The value is in Revit **internal units** and passes through untouched — callers convert
+  (900 mm → 2.9527559055118114 ft) and an addin-side conversion would corrupt every filter.
+- Numeric strings parse with **invariant culture**. Current-culture parsing on a de-DE machine
+  reads `"2.9527559055118114"` as ~2.95×10¹⁶ — the filter would apply and match nothing.
+
+Filters on text fields are unchanged: the ladder tries the `string` overload first, so
+`Mark equals "S10"` still resolves as text and not as a number.
+
 ## [0.8.22] — 2026-08-03: resolve elements by `UniqueId`, never by a derived id
 
 Follow-up to 0.8.21. Exposing `uniqueId` let us finally *verify* how callers were turning an

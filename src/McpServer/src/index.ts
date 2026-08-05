@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.22 (stdio).
+ * Revit MCP Server v0.8.23 (stdio).
  *
  * 90 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.22" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.23" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -854,7 +854,10 @@ server.tool("revit_configure_schedule",
         "equals", "not_equals", "greater", "greater_equal", "less", "less_equal",
         "contains", "not_contains", "begins_with", "ends_with", "has_value", "has_no_value",
       ]).optional().describe("Filter operator. Default 'equals'."),
-      value: z.string().optional().describe("Filter value (not used for has_value / has_no_value)."),
+      value: z.union([z.string(), z.number()]).optional().describe(
+        "Filter value (not used for has_value / has_no_value). Numeric fields take a number " +
+        "in Revit internal units (feet for length) — 900 mm is 2.9527559055118114. " +
+        "A numeric string is accepted too and parsed with invariant culture."),
     })).optional().describe("Filters to add to the schedule."),
     sortFields: z.array(z.object({
       field: z.string().describe("Schedule field name to sort/group by."),
@@ -956,7 +959,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.22 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.23 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

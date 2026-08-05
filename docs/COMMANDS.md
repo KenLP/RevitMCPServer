@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.22 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (7 hidden: `create_spot_elevation` + the 6-command spatial-QC HTTP pack `spatial_*`; 94 C# commands registered; workflow recipes are Node-only).
+> **v0.8.23 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (7 hidden: `create_spot_elevation` + the 6-command spatial-QC HTTP pack `spatial_*`; 94 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -455,12 +455,20 @@ Params:
   `operator`: `equals` | `not_equals` | `greater` | `greater_equal` | `less` |
   `less_equal` | `contains` | `not_contains` | `begins_with` | `ends_with` |
   `has_value` | `has_no_value`. Default `"equals"`.
+  `value` *(string | number, optional)* — omitted for `has_value` / `has_no_value`.
+  **Numeric fields take Revit internal units** (feet for length: 900 mm →
+  `2.9527559055118114`); nothing is unit-converted on the way in. A numeric string
+  (`"2.9527559055118114"`) is accepted and parsed with invariant culture, so both
+  forms behave identically. Text fields keep taking plain strings.
 - `sortFields` *(array, optional)* — each item: `{ field, ascending?, groupBy? }`.
   `groupBy: true` adds a group-header row for each distinct value.
 - `exportCsv` *(bool, optional)* — export the schedule to CSV and return content in response.
 - `dryRun` *(bool, optional)*.
 
 Data: `scheduleId`, `scheduleName`, `filtersAdded`, `sortFieldsAdded`, optional `csvContent`, optional `warnings`.
+
+A filter Revit refuses is reported in `warnings` while the envelope stays `ok:true` —
+so a schedule can exist and be *unfiltered*. Check `filtersAdded`, not just `ok`.
 
 ---
 

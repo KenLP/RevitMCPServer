@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -64,7 +66,9 @@ public sealed class ConfigureScheduleCommand : IRevitCommand
 
                 var fieldName = P.Str(f, "field");
                 var op        = P.StrOrNull(f, "operator") ?? "equals";
-                var value     = f["value"]?.GetValue<string>() ?? "";
+                // Raw node, never GetValue<string>(): a JSON number would throw here, outside
+                // the per-filter try below, and take the whole command down with it.
+                var valueNode = f["value"];
 
                 var fieldId = FindOrAddFieldId(def, doc, schedulableFields, fieldName, warnings);
                 if (fieldId is null) continue;
@@ -78,16 +82,12 @@ public sealed class ConfigureScheduleCommand : IRevitCommand
 
                 try
                 {
-                    var filter = filterType is ScheduleFilterType.HasValue or ScheduleFilterType.HasNoValue
-                        ? new ScheduleFilter(fieldId, filterType)
-                        : new ScheduleFilter(fieldId, filterType, value);
-
-                    def.AddFilter(filter);
+                    AddFilterUsingBestOverload(def, fieldId, filterType, valueNode);
                     filtersAdded.Add(new JsonObject
                     {
                         ["field"]    = fieldName,
                         ["operator"] = op,
-                        ["value"]    = value,
+                        ["value"]    = ReadFilterValue(valueNode).Text,
                     });
                 }
                 catch (Exception ex)
@@ -175,6 +175,103 @@ public sealed class ConfigureScheduleCommand : IRevitCommand
         if (warnings.Count > 0)    result["warnings"]    = warnings;
         if (csvContent is not null) result["csvContent"] = csvContent;
         return result;
+    }
+
+    /// <summary>
+    /// Reads a filter value node without asserting its JSON kind — <c>GetValue&lt;string&gt;()</c>
+    /// throws on a JsonValue holding a number, which is what used to fail the whole command.
+    /// Returns the text rendering (used for the response echo and the string overload), whether
+    /// the node arrived as a JSON number, and its invariant-culture numeric reading.
+    /// </summary>
+    public static (bool WasJsonNumber, string Text, bool IsNumeric, double Number) ReadFilterValue(JsonNode? node)
+    {
+        if (node is null) return (false, "", false, 0d);
+
+        if (node is JsonValue jv && jv.TryGetValue<double>(out var num))
+            return (true, jv.ToString(), true, num);
+
+        var text = node is JsonValue sv && sv.TryGetValue<string>(out var s) ? s : node.ToString();
+
+        // InvariantCulture is load-bearing: current-culture parsing on a de-DE machine reads
+        // "2.9527559055118114" as 29527559055118114 — the filter would apply and match nothing.
+        var isNumeric = double.TryParse(
+            text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed);
+        return (false, text, isNumeric, parsed);
+    }
+
+    /// <summary>
+    /// Adds a filter using the value overload the field actually accepts.
+    ///
+    /// The retry has to wrap <c>AddFilter</c>, NOT the <c>ScheduleFilter</c> constructor: the
+    /// constructor happily builds a string filter for a Double field, and Revit only rejects it
+    /// when the filter is added — measured, its message ends "Parameter name: filter", naming
+    /// AddFilter's argument. A ctor-only ladder never reaches its second rung.
+    ///
+    /// Overload order is deliberate. A JSON number tries numeric first; a JSON string tries the
+    /// string overload first so TEXT fields keep behaving exactly as they did (a Mark of "100"
+    /// must stay text). Nothing here resolves the field's storage type — Document/ParameterElement
+    /// walks are version-fragile, and AddFilter is the authoritative validator anyway.
+    ///
+    /// The value arrives in Revit INTERNAL units (feet for length) and is passed straight through —
+    /// callers convert before sending, so any unit conversion here would corrupt every filter.
+    /// </summary>
+    private static void AddFilterUsingBestOverload(
+        ScheduleDefinition def,
+        ScheduleFieldId fieldId,
+        ScheduleFilterType filterType,
+        JsonNode? valueNode)
+    {
+        if (filterType is ScheduleFilterType.HasValue or ScheduleFilterType.HasNoValue)
+        {
+            def.AddFilter(new ScheduleFilter(fieldId, filterType));
+            return;
+        }
+
+        var (wasJsonNumber, text, isNumeric, number) = ReadFilterValue(valueNode);
+
+        // The int overload is offered only for an integral value: truncating 2.95 to 2 on an
+        // Integer field would produce a filter that "works" and silently means something else.
+        var integral = isNumeric && number == Math.Floor(number)
+                       && number >= int.MinValue && number <= int.MaxValue;
+
+        var candidates = new List<Func<ScheduleFilter>>();
+        if (wasJsonNumber)
+        {
+            candidates.Add(() => new ScheduleFilter(fieldId, filterType, number));
+            if (integral) candidates.Add(() => new ScheduleFilter(fieldId, filterType, (int)number));
+            candidates.Add(() => new ScheduleFilter(fieldId, filterType, text));
+        }
+        else
+        {
+            candidates.Add(() => new ScheduleFilter(fieldId, filterType, text));
+            if (isNumeric)
+            {
+                candidates.Add(() => new ScheduleFilter(fieldId, filterType, number));
+                if (integral) candidates.Add(() => new ScheduleFilter(fieldId, filterType, (int)number));
+            }
+        }
+
+        // Catch plainly rather than filtering on exception type: Revit throws from
+        // Autodesk.Revit.Exceptions, whose ArgumentException does NOT derive from the BCL one, so
+        // a type-filtered ladder silently stops at its first rung. A rung can only "succeed" by
+        // actually adding the filter, so a broad catch costs nothing but an extra attempt, and the
+        // last refusal is rethrown verbatim — same warning surface as before this fix existed.
+        Exception? lastRejection = null;
+        foreach (var makeFilter in candidates)
+        {
+            try
+            {
+                def.AddFilter(makeFilter());
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastRejection = ex;
+            }
+        }
+
+        throw lastRejection ?? new InvalidOperationException(
+            $"No ScheduleFilter overload accepted the value '{text}'.");
     }
 
     /// <summary>
