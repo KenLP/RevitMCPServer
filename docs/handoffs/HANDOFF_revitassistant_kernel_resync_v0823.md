@@ -50,9 +50,13 @@ git -C extern/RevitMCPCore checkout <ref>
 git add extern/RevitMCPCore && git commit -m "chore: bump RevitMCPCore to <ref>"
 ```
 
-**Chú ý `<ref>`:** các bạn đang pin theo tag, nhưng **v0.8.23 chưa có tag** — tag mới nhất là
-`v0.8.22`. Hai lựa chọn: pin commit `2ee2c1b` trực tiếp, hoặc báo chúng tôi tag `v0.8.23` rồi pin
-theo tag như cũ. Nói một tiếng là tag.
+**`<ref>` dùng `v0.8.23`.** Bản sửa đầu của handoff này nói chưa có tag; đã tag rồi, nên cứ pin
+theo tag như thói quen của các bạn:
+
+```bash
+git -C extern/RevitMCPCore fetch origin --tags
+git -C extern/RevitMCPCore checkout v0.8.23
+```
 
 ## Thay đổi hành vi cần biết
 
@@ -97,4 +101,4 @@ Gửi `"2.9527559055118114"` dạng string phải ra kết quả giống hệt.
 
 - **Không yêu cầu bump gấp.** Không có lỗ hổng bảo mật, không có breaking change ở HTTP contract.
 - **Chúng tôi không sửa/push gì sang repo các bạn** — theo quy ước liên repo.
-- **Không tag v0.8.23 sẵn.** Chờ các bạn xác nhận có cần tag không, tránh rác tag.
+- **Tag `v0.8.23` đã có** (2026-08-07) — không cần hỏi lại, cứ pin theo tag.
