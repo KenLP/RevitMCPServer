@@ -154,6 +154,7 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
         // Model-write commands always need a document + a transaction.
         var doc = ctx.RequireDoc();
         using var tx = new Transaction(doc, $"MCP: {commandName}");
+        if (command.SuppressWarningsOnCommit) SuppressCommitWarnings(tx);
         try
         {
             tx.Start();
@@ -255,6 +256,9 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
         var hadFailure = false;
 
         using var tx = new Transaction(doc, $"MCP: Batch ({resolved.Count} ops)");
+        // One opted-in step is enough: the batch commits as ONE transaction, so a single step's
+        // commit-time warning dialog would deadlock the whole batch exactly like a single call.
+        if (resolved.Any(r => r.cmd.SuppressWarningsOnCommit)) SuppressCommitWarnings(tx);
         tx.Start();
         try
         {
@@ -377,6 +381,31 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
 
     public string GetName() => "RevitMCPExternalEventHandler";
 
+    /// <summary>
+    /// Installs a failures preprocessor that deletes WARNINGS at commit so no modal warning dialog
+    /// can fire on the UI thread — which, for a headless HTTP caller, deadlocks the entire add-in
+    /// until a human clicks the box. Errors are left alone: they still fail the transaction and
+    /// surface through the normal error envelope. Only applied for commands that opted in via
+    /// <see cref="IRevitCommand.SuppressWarningsOnCommit"/>; those commands are responsible for
+    /// reporting the suppressed condition in their own response.
+    /// </summary>
+    private static void SuppressCommitWarnings(Transaction tx)
+    {
+        var options = tx.GetFailureHandlingOptions();
+        options.SetFailuresPreprocessor(CommitWarningSwallower.Instance);
+        tx.SetFailureHandlingOptions(options);
+    }
+
+    private sealed class CommitWarningSwallower : IFailuresPreprocessor
+    {
+        public static readonly CommitWarningSwallower Instance = new();
+
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
+        {
+            accessor.DeleteAllWarnings();
+            return FailureProcessingResult.Continue;
+        }
+    }
 
     private enum RequestKind { Single, Batch }
 

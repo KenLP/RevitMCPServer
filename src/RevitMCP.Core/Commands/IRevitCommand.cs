@@ -63,5 +63,17 @@ public interface IRevitCommand
     /// </summary>
     ExecutionKind Execution => IsReadOnly ? ExecutionKind.ReadOnly : ExecutionKind.ModelWrite;
 
+    /// <summary>
+    /// When true, the dispatcher installs a failures preprocessor on the wrapping transaction that
+    /// deletes WARNINGS at commit time (errors still fail the transaction normally). Opt in when
+    /// the underlying Revit API is known to raise commit-time warning dialogs — a modal dialog on
+    /// the UI thread deadlocks the whole add-in for a headless caller (measured: PathOfTravel's
+    /// crop-region warning fires at COMMIT, not inside Create, so no suppression scoped to the
+    /// command body can catch it). Commands that opt in must surface the suppressed condition in
+    /// their own response (e.g. a <c>warning</c> field) — swallowing it silently is not an option.
+    /// Default false: every other command keeps Revit's normal warning behaviour.
+    /// </summary>
+    bool SuppressWarningsOnCommit => false;
+
     JsonNode? Execute(CommandContext ctx);
 }

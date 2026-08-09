@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.25] — 2026-08-09: `create_detail_line` honours `color`/`weight`; `spatial_create_path_of_travel`
+
+Two AutomatedSpatialQC handoffs closed in one build.
+
+### Fixed
+
+- **`create_detail_line` no longer silently drops `color` and `weight`.** The command had accepted
+  both from callers since `revit_adapter.py::mark_min_in_revit` shipped and had never read either —
+  every line it has ever drawn came out in the view's default style. The consumer only tolerated it
+  because the call sits inside a bare `try/except: pass`, so the miss was invisible. Colour and
+  weight are view-specific graphic overrides rather than curve properties, so they apply via
+  `View.SetElementOverrides` — but **in the same transaction that creates the curve**, so one call
+  still yields one finished line instead of a follow-up `override_element_graphics` round-trip.
+
+  The two are **independent**: `weight` alone sets just the weight, against the default colour.
+  The handoff nested `weight` inside the `color` branch and left the alone-case to the maintainer;
+  neither consumer sends it alone today, and silently ignoring a parameter is exactly the bug being
+  fixed here. `weight` is validated to Revit's pen range 1-16 — out of range otherwise throws deep
+  inside `SetProjectionLineWeight` with a message that never names the parameter.
+
+- **`create_detail_line` returns `id`.** It returned only `detailLineId`, but the consumer reads
+  `ln.get("id")` — so `mark_min_in_revit`'s `created["lines"]` has always been a list of `None`.
+  `id` is now returned alongside `detailLineId`; every other `create_*` command already uses `id`
+  as the primary key. `detailLineId` is kept, so nothing that reads it breaks.
+
+### Added
+
+- **`spatial_create_path_of_travel`** (HTTP-only spatial-QC pack; not an MCP tool) — places Revit's
+  native `PathOfTravel` between two points in a floor plan view, the WRITE mirror of
+  `spatial_get_paths_of_travel`. Returns `{ id, viewId, lengthMeters, timeSeconds, warning }`.
+  Verified live on R27 Snowdon: the pair taken from a hand-placed PoT reproduces Revit's own
+  numbers to 0.14% (15.026 m / 11.204 s vs 15.047 m / 11.220 s).
+
+  Everything below was **measured against the live add-in** — each point differs from what the
+  handoff's sketch (or the API docs' surface) suggested:
+
+  - **Failure arrives BOTH ways.** `PathOfTravel.Create` has an out-`PathOfTravelCalculationStatus`
+    overload, but not every failure routes through it: coincident endpoints and points outside the
+    view crop **throw `Autodesk.Revit.Exceptions.InvalidOperationException`** instead of returning
+    `StartAndEndPointsTooClose`/`PointOutsideActiveCrop`. Both paths map to one `no_route` contract
+    with Revit's own sentence passed through. The catch is at the `Autodesk.Revit.Exceptions` base
+    (derives from `ApplicationException`, not the BCL types — 0.8.23's trap, again).
+  - **`ResultAffectedByCrop` is a success, not a failure.** Revit computes and places a real route
+    and reports the crop influenced it. Measured: the exact endpoints of an EXISTING hand-placed
+    PoT come back with this status — rejecting it would fail on essentially every cropped
+    life-safety view. Accepted, surfaced as `warning`; a genuinely failed status still deletes the
+    partial element before erroring (the dispatcher commits on the way out, and a half-computed
+    PathOfTravel would otherwise survive).
+  - **The crop warning dialog fires at transaction COMMIT, not inside `Create`** — it is Revit
+    failures-processing, so no suppression scoped to the command body can catch it. A modal dialog
+    on the UI thread deadlocks the whole add-in for a headless caller (measured: 400+s hung, every
+    later request queued, until a human clicked OK). New opt-in
+    **`IRevitCommand.SuppressWarningsOnCommit`**: the dispatcher installs an `IFailuresPreprocessor`
+    that deletes **warnings** at commit (errors untouched) — for this command and for any batch
+    containing it. Default false: the other 95 commands keep Revit's normal warning behaviour.
+    The suppressed condition is NOT swallowed — it is exactly the `warning` field, driven by the
+    out-status (deterministic), with `DialogBoxShowing` capture kept as a fallback for
+    Create-time dialogs.
+  - Length/time/level parameters are the ones verified in 0.8.24 (`CURVE_ELEM_LENGTH`,
+    `PATH_OF_TRAVEL_TIME`). **Consumer note:** first `Create` in a session can take 90+ s on a
+    real model (route-analysis warm-up; ~10 s warm) — HTTP callers should budget a ≥3-minute
+    timeout for this command.
+
 ## [0.8.24] — 2026-08-09: `spatial_get_paths_of_travel` — read Revit's own Path of Travel elements
 
 Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel.md`, branch

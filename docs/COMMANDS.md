@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.24 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (8 hidden: `create_spot_elevation` + the 7-command spatial-QC HTTP pack `spatial_*`; 95 C# commands registered; workflow recipes are Node-only).
+> **v0.8.25 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (9 hidden: `create_spot_elevation` + the 8-command spatial-QC HTTP pack `spatial_*`; 96 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -62,7 +62,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_doors`                 | `get_doors`             | ✅        | All doors with width, plan XY, level, and swing geometry (facing/hand orientation vectors) for ADA/egress checks |
 | `revit_load_family`               | `load_family`           | ❌        | Load a family (.rfa) from disk; returns family id + types |
 | `revit_duplicate_family_type`     | `duplicate_family_type` | ❌        | Duplicate a FamilySymbol under a new name |
-| `revit_create_detail_line`        | `create_detail_line`    | ❌        | View-specific detail line in a 2D view (projected onto view plane) |
+| `revit_create_detail_line`        | `create_detail_line`    | ❌        | View-specific detail line in a 2D view (projected onto view plane); optional `color`/`weight` line overrides |
 | `revit_create_filled_region`      | `create_filled_region`  | ❌        | Filled region from a closed boundary in a 2D view |
 | `revit_create_wall`               | `create_wall`           | ❌        | Single straight wall                                      |
 | `revit_create_floor`              | `create_floor`          | ❌        | Floor from a closed polygonal profile                     |

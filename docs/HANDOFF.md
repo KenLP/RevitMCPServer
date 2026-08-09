@@ -7,6 +7,10 @@ Nguồn quy ước: [`CROSS_REPO_ACTIONS_2026-07-17.md`](../CROSS_REPO_ACTIONS_2
 
 ## Handoff đang mở
 
+- [AutomatedSpatialQC — `create_detail_line` color/weight + `spatial_create_path_of_travel` đã ship ở v0.8.25](handoffs/HANDOFF_spatialqc_detail_line_color_and_create_pot_shipped.md)
+  — đóng 2 handoff trong một build. Ba phát hiện error-handling khác sketch (exception vs status,
+  `ResultAffectedByCrop` = success + warning, dialog crop nổ lúc COMMIT → opt-in
+  `SuppressWarningsOnCommit` ở dispatcher); consumer cần timeout ≥ 3 phút cho create-PoT.
 - [AutomatedSpatialQC — `spatial_get_paths_of_travel` đã ship ở v0.8.24](handoffs/HANDOFF_spatialqc_paths_of_travel_shipped.md)
   — phản hồi `HANDOFF_get_paths_of_travel.md`; contract đúng nguyên bản, consumer không cần sửa.
   Kèm đáp án 2 câu hỏi mở về API/BuiltInParameter (dùng lại được cho `create_path_of_travel`) và

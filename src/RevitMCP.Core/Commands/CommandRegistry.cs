@@ -146,5 +146,6 @@ public sealed class CommandRegistry
         Register(new GetWallsCommand());
         Register(new GetStairsCommand());
         Register(new GetPathsOfTravelCommand());
+        Register(new CreatePathOfTravelCommand());
     }
 }
