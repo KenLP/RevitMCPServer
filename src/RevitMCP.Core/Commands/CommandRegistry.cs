@@ -145,5 +145,6 @@ public sealed class CommandRegistry
         Register(new RaycastHeadroomCommand());
         Register(new GetWallsCommand());
         Register(new GetStairsCommand());
+        Register(new GetPathsOfTravelCommand());
     }
 }

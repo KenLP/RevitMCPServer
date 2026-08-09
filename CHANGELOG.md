@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.24] — 2026-08-09: `spatial_get_paths_of_travel` — read Revit's own Path of Travel elements
+
+Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel.md`, branch
+`feat/pot-parity`): the READ side of `bim-nav benchmark-pot` (SPEC_pot-parity.md Block C). A client
+who trusts Revit's native `Analyze > Path of Travel` drops a few `PathOfTravel` elements into the
+model by hand; the consumer reads them back, reruns the same (from, to) pair through its own
+occupancy-grid router, and prints both distances side by side — a credibility benchmark, not a
+verdict. Ships independently of the WRITE side (`spatial_create_path_of_travel`, still pending).
+
+### Added
+
+- **`spatial_get_paths_of_travel`** (HTTP-only spatial-QC pack; not an MCP tool) — every
+  `PathOfTravel` element with `levelName`, `from`/`to` (route-curve endpoints, world metres,
+  Revit frame), `lengthMeters`, `timeSeconds`, all read verbatim from the element.
+
+### Notes — the handoff's two flagged unknowns, resolved against RevitAPI.dll (2027 metadata)
+
+- Route geometry: `PathOfTravel.GetCurves()` (the sketch's `GetCurve()`/`NumberOfCurveLoops` does
+  not exist). `from`/`to` = first curve's start / last curve's end; elements whose route failed to
+  compute (`GetCurves()` empty) are **skipped** — a 0-length row would read as a real measurement.
+- Parameters: there is **no** `PATH_OF_TRAVEL_LENGTH` and no "Actual Length"/"Actual Time".
+  Length is `CURVE_ELEM_LENGTH` (the UI "Length"), with a curve-length-sum fallback; time is
+  `PATH_OF_TRAVEL_TIME` (internal unit seconds), emitted as `null` when absent — never a fake 0.
+  Level comes from `PATH_OF_TRAVEL_LEVEL_NAME` (the UI "Level"), falling back to the owning view's
+  `GenLevel`. `HANDOFF_create_path_of_travel.md` §2 asks for exactly these names when the WRITE
+  side gets picked up.
+
 ## [0.8.23] — 2026-08-05: `configure_schedule` can filter on a numeric field
 
 Reported by bim-orchestrator, which auto-creates the native Revit schedules a reviewer uses to

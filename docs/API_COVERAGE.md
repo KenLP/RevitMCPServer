@@ -27,18 +27,19 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.23)
+## Current command surface (v0.8.24)
 
-**94 commands** registered (87 exposed as MCP tools + 7 hidden) across read, write, UI, and
+**95 C# commands** registered (87 exposed as MCP tools + 8 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
 (`recipe_model_health_triage`, `recipe_clash_review`), that is **90 MCP tools**.
 
-The 7 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
+The 8 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
-**6-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
+**7-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
 `spatial_clearance_envelope_batch`, `spatial_raycast_headroom`, `spatial_get_walls`,
-`spatial_get_stairs`) — pure-geometry primitives consumed programmatically by the AutomatedSpatialQC
-client, not by LLM tool routing (see the Spatial-QC pack section below).
+`spatial_get_stairs`, `spatial_get_paths_of_travel`) — pure-geometry primitives consumed
+programmatically by the AutomatedSpatialQC client, not by LLM tool routing (see the Spatial-QC pack
+section below).
 
 ### Implemented — Read / Introspection
 

@@ -7,6 +7,10 @@ Nguồn quy ước: [`CROSS_REPO_ACTIONS_2026-07-17.md`](../CROSS_REPO_ACTIONS_2
 
 ## Handoff đang mở
 
+- [AutomatedSpatialQC — `spatial_get_paths_of_travel` đã ship ở v0.8.24](handoffs/HANDOFF_spatialqc_paths_of_travel_shipped.md)
+  — phản hồi `HANDOFF_get_paths_of_travel.md`; contract đúng nguyên bản, consumer không cần sửa.
+  Kèm đáp án 2 câu hỏi mở về API/BuiltInParameter (dùng lại được cho `create_path_of_travel`) và
+  cảnh báo `levelName` là tên tầng Revit, có thể không khớp storey của `GridSet`.
 - [bim-orchestrator — `configure_schedule` numeric filter đã đóng ở v0.8.23](handoffs/HANDOFF_bimorch_schedule_filter_numeric_closed.md)
   — phản hồi handoff của họ; không cần họ sửa gì để hưởng fix, chỉ có dọn dẹp tuỳ chọn
   (`tests/_mocks.py` đang chặt hơn addin thật).
