@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.26] — 2026-08-10: `spatial_get_paths_of_travel` emits the full route `polyline`
+
+Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel_polyline.md`). Their
+benchmark now agrees with Revit within ±10% on 69/78 routes; of the 9 outliers, 4 were explained
+from existing data (grid quantisation, 8-direction error) and **5 are stuck** — Revit's bounding
+box is up to 5.6 m wider, so it demonstrably detours, but a bounding box cannot say *where*.
+Furniture was ruled out (88 obstacles vs 10 changed 0/78 routes). The route vertices are the one
+missing input, and the command already had them in hand.
+
+### Added
+
+- **`polyline`** on every element in `spatial_get_paths_of_travel` — all route vertices, metres,
+  world XYZ, same frame as `from`/`to` (shares the same `XyzToJson`). Always emitted; no opt-in
+  flag (78 routes × 2–8 curves is a few thousand numbers — a parameter would be YAGNI).
+
+  Built from `Curve.Tessellate()`, not the curves' endpoints: a PathOfTravel can contain an **Arc**
+  where Revit rounds a corner around an obstacle, and taking only an arc's two ends would drop the
+  exact detour the consumer is measuring. The shared vertex between consecutive curves is
+  de-duplicated so no zero-length segment appears.
+
+  Worth knowing before it reads as a rounding bug: summing the polyline's segments matches
+  `lengthMeters` almost exactly for an all-`Line` route, but comes out slightly **short** when an
+  Arc is present — a tessellated chord is shorter than its arc.
+
+Purely additive: no existing field changed, no other command touched, and the consumer ignores
+unknown keys, so an old spatial-qc against this build is unaffected. The **command** contract needed
+no version bump; the **add-in** gets one because 0.8.25 is already tagged and pushed, and editing a
+released version's changelog would falsify it. RevitAssistant pins by tag, so a new tag is also how
+this reaches them.
+
 ## [0.8.25] — 2026-08-09: `create_detail_line` honours `color`/`weight`; `spatial_create_path_of_travel`
 
 Two AutomatedSpatialQC handoffs closed in one build.

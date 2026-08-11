@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Autodesk.Revit.DB;
@@ -25,7 +26,8 @@ namespace RevitMCPAddin.Commands;
 ///
 /// Output:
 ///   { count, paths: [ { id, levelName, from: {x,y,z}, to: {x,y,z},
-///                       lengthMeters, timeSeconds } ] }   // metres, world XYZ, Revit frame
+///                       lengthMeters, timeSeconds, polyline: [{x,y,z}, ...] } ] }
+///   (metres, world XYZ, Revit frame)
 /// </summary>
 public sealed class GetPathsOfTravelCommand : IRevitCommand
 {
@@ -81,10 +83,40 @@ public sealed class GetPathsOfTravelCommand : IRevitCommand
                 ["timeSeconds"] = timeParam is not null && timeParam.HasValue
                     ? JsonValue.Create(timeParam.AsDouble())
                     : null,
+                ["polyline"] = PolylineToJson(curves),
             });
         }
 
         return new JsonObject { ["count"] = arr.Count, ["paths"] = arr };
+    }
+
+    /// <summary>
+    /// Every vertex of the whole route, metres, world XYZ — same frame and units as from/to,
+    /// because it goes through the same <see cref="XyzToJson"/>.
+    ///
+    /// Uses Tessellate() rather than the curves' endpoints: a PathOfTravel may contain an Arc
+    /// (Revit rounds the corner around an obstacle), and taking only an arc's two ends would drop
+    /// the very detour the consumer is trying to measure. Consecutive curves share a vertex, so
+    /// the duplicate is dropped — otherwise the polyline carries zero-length segments.
+    ///
+    /// Consequence worth knowing before reading it as a rounding bug: summing the polyline's
+    /// segments matches <c>lengthMeters</c> almost exactly for an all-Line route, but comes out
+    /// slightly SHORT when an Arc is present — a tessellated chord is shorter than its arc.
+    /// </summary>
+    private static JsonArray PolylineToJson(IList<Curve> curves)
+    {
+        var pts = new List<XYZ>();
+        foreach (var c in curves)
+        {
+            var tess = c.Tessellate();
+            if (tess is null || tess.Count == 0) continue;
+            var start = pts.Count > 0 && pts[pts.Count - 1].IsAlmostEqualTo(tess[0]) ? 1 : 0;
+            for (var i = start; i < tess.Count; i++) pts.Add(tess[i]);
+        }
+
+        var arr = new JsonArray();
+        foreach (var p in pts) arr.Add(XyzToJson(p));
+        return arr;
     }
 
     private static JsonObject XyzToJson(XYZ p) => new()
