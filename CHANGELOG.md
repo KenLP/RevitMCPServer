@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.28] — 2026-08-19: a mistyped parameter returns 400, not a bare 500
+
+### Fixed
+
+- **Type-mismatched parameters escaped the error envelope.** Every `P.*` accessor read its value
+  through `JsonNode.GetValue<T>()`, which throws `InvalidOperationException` on a mismatch. That
+  exception is not a `RevitCommandException`, so it slipped past the dispatcher's error mapping and
+  reached the caller as a bare **HTTP 500 with no `{ok,error}` body**. Measured against the live
+  add-in on Revit 2027:
+
+  ```
+  get_element_info  id=619404     -> ok=True            get_element_info id=999999999 -> 404 + envelope
+  get_element_info  id="619404"   -> HTTP 500  (no envelope)
+  get_element_geometry id="..."   -> HTTP 500
+  list_elements     limit="10"    -> HTTP 500
+  find_elements     view_id="..." -> HTTP 500
+  ```
+
+  Genuine domain errors were fine; only the type mismatch broke. Nine accessors were affected
+  (`Str`, `StrOrNull`, `Dbl`, `DblOr`, `Int`, `IntOr`, `Long`, `LongOrNull`, `BoolOr`), so in
+  practice any command taking a numeric parameter.
+
+  Two things made this worth fixing beyond tidiness. It breaks the envelope contract every consumer
+  reads (`DEPENDENCIES.yaml`: *"envelope {ok,data} / {ok,error}"*, *"not_found -> 404, SpatialQC
+  degrades on 404"*) — and `spatial_get_room_boundary`, which AutomatedSpatialQC calls directly, was
+  one of the affected commands. And an LLM emitting `"5"` instead of `5` is a routine slip, not an
+  exotic one; a bodiless 500 gives it nothing to correct from.
+
+  Values now pass through a coercion layer:
+  - Conversions that are exact are accepted — a numeric string (`"619404"`) and an integral double
+    (`5.0`). Neither can yield a wrong answer, and rejecting them buys nothing.
+  - Anything else raises **`invalid_parameter`** (mapped to 400), naming the key, the expected type
+    and the offending value.
+  - A mistyped value is **never** swallowed into `null` or a default. The unmerged branch version of
+    `LongOrNull` did exactly that, and it is the more dangerous behaviour: a dropped `view_id`
+    silently widens a view-scoped query to the whole document.
+
+- 20 tests added (`ParamUtilCoercionTests`) covering both directions; the existing 140 still pass.
+
 ## [0.8.27] — 2026-08-12: `query_where` / `update_where` / `import_parameters` land on main
 
 Recovered from `feat/clearance-envelope`, the last unmerged work on that branch. Everything else the
