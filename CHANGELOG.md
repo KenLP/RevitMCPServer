@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.27] — 2026-08-12: `query_where` / `update_where` / `import_parameters` land on main
+
+Recovered from `feat/clearance-envelope`, the last unmerged work on that branch. Everything else the
+two local feature branches carried — the AutoAudit and SpatialQC panes, `get_doors` with swing
+geometry, `create_detail_line`, and the whole spatial-QC pack — had already been ported to main by
+hand; a content comparison showed only these three commands (plus their shared `WhereSupport` helper)
+were still branch-only. `git cherry` reported all 12 commits as unmerged, but that compares patch-ids
+and the earlier work was hand-ported, not cherry-picked — the registry comparison is what settled it.
+
+Ported file-by-file rather than merged: the branch predates the 0.8.17 security hardening and still
+carries the `REVIT_MCP_AUTH=false` escape hatch in `App.cs`, so a merge would have resurrected it.
+
+### Added
+
+- **`query_where`** (`revit_query_where`, read-only) — deterministic query returning a true `count`
+  plus rows. A superset of `find_elements` filtering: adds `regex`, `not_regex`, `starts_with`,
+  `ends_with`, `gte`, `lte`, `is_empty`, `not_empty` (13 operators vs 5), and an explicit per-condition
+  `scope` (`auto` | `instance` | `type`). `count` stays exact when `limit` truncates the rows.
+- **`update_where`** (`revit_update_where`, write, risk `medium`) — sets one parameter on every element
+  matching where-conditions, selecting by condition instead of by id list, then **re-reads each written
+  value to confirm it actually took**. `atomic` defaults to **true**: a single failed read-back rolls
+  the whole call back. Nothing else in the repo verifies its own writes.
+- **`import_parameters`** (`revit_import_parameters`, write, risk `medium`) — spreadsheet-shaped import
+  where each row is one `(elementId, parameterName, value, units?)`, so different rows may write
+  different parameters. Complements `set_parameter_batch`, which writes the *same* parameter to many
+  elements and cannot express a per-row parameter. All rows share one transaction = one undo step.
+- **`WhereSupport`** — shared helper behind the two where-based commands: scope-aware parameter
+  resolution (instance, then Type — many parameters such as "Fire Rating" live on the type, and an
+  instance-only lookup silently matches nothing) and a single predictable operator set. Tolerant of
+  key aliases small models emit (`parameterName`/`param`/`field`, `op`, `=`/`>`/`!=`).
+
+### Changed
+
+- Tool surface 90 → **93**; C# commands 96 → **99** (9 hidden, unchanged). `revit_query_where` joins
+  the `inspection` profile; the two write commands join `editing`.
+
 ## [0.8.26] — 2026-08-10: `spatial_get_paths_of_travel` emits the full route `polyline`
 
 Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel_polyline.md`). Their

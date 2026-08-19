@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.26 — 87 commands + 1 batch + 2 recipes = 90 MCP tools** (9 hidden: `create_spot_elevation` + the 8-command spatial-QC HTTP pack `spatial_*`; 96 C# commands registered; workflow recipes are Node-only).
+> **v0.8.27 — 90 commands + 1 batch + 2 recipes = 93 MCP tools** (9 hidden: `create_spot_elevation` + the 8-command spatial-QC HTTP pack `spatial_*`; 99 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -36,6 +36,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_element_geometry`      | `get_element_geometry`  | ✅        | Solid/curve geometry, volume, surface area                |
 | `revit_get_parameter`             | `get_parameter`         | ✅        | Single parameter value                                    |
 | `revit_find_elements`             | `find_elements`         | ✅        | Query: category + parameter predicates (instance→type), optional `view_id` scope |
+| `revit_query_where`               | `query_where`           | ✅        | Deterministic query: true `count` + rows. Adds regex/starts_with/ends_with/gte/lte/is_empty/not_empty and explicit instance-vs-type `scope` |
 | `revit_list_levels`               | `list_levels`           | ✅        | All Levels, sorted by elevation                           |
 | `revit_list_wall_types`           | `list_wall_types`       | ✅        | All WallTypes                                             |
 | `revit_list_floor_types`          | `list_floor_types`      | ✅        | All FloorTypes                                            |
@@ -83,6 +84,8 @@ The HTTP command name is the name without the prefix (used in
 | `revit_place_view_on_sheet`       | `place_view_on_sheet`   | ❌        | Add viewport to sheet                                     |
 | `revit_set_parameter`             | `set_parameter`         | ❌        | Set one parameter on one element (with unit conversion)   |
 | `revit_set_parameter_batch`       | `set_parameter_batch`   | ❌        | Same parameter on N elements (atomic or best-effort)      |
+| `revit_update_where`              | `update_where`          | ❌        | Set one parameter on every element matching where-conditions, then **re-read to verify each write took**. `atomic` defaults true (any failed verify rolls everything back) |
+| `revit_import_parameters`         | `import_parameters`     | ❌        | Spreadsheet import: one `(elementId, parameterName, value)` per row, so rows may target different parameters. One transaction = one undo step |
 | `revit_rename_element`            | `rename_element`        | ❌        | Family, FamilySymbol, or generic element                  |
 | `revit_change_element_type`       | `change_element_type`   | ❌        | Swap element type (wall type, floor type, family symbol)  |
 | `revit_apply_view_template`       | `apply_view_template`   | ❌        | Apply or remove a view template; lookup by id or name     |

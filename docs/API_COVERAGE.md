@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.26)
+## Current command surface (v0.8.27)
 
-**96 C# commands** registered (87 exposed as MCP tools + 9 hidden) across read, write, UI, and
+**99 C# commands** registered (90 exposed as MCP tools + 9 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
-(`recipe_model_health_triage`, `recipe_clash_review`), that is **90 MCP tools**.
+(`recipe_model_health_triage`, `recipe_clash_review`), that is **93 MCP tools**.
 
 The 9 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
@@ -54,6 +54,7 @@ tool routing (see the Spatial-QC pack section below).
 | `get_element_geometry` | Solid/curve geometry as JSON |
 | `get_parameter` | Single parameter read |
 | `find_elements` | Generic query: category + parameter predicates |
+| `query_where` | Deterministic query returning a TRUE `count` plus rows. Superset of `find_elements` filtering: adds `regex`/`not_regex`, `starts_with`, `ends_with`, `gte`, `lte`, `is_empty`, `not_empty`, and an explicit `scope` (`auto`\|`instance`\|`type`) per condition. Text compares use the display value, numeric compares the raw number |
 | `list_levels` | All Levels, sorted by elevation |
 | `list_wall_types` | All WallTypes |
 | `list_floor_types` | All FloorTypes |
@@ -101,6 +102,8 @@ tool routing (see the Spatial-QC pack section below).
 | `create_opening_in_wall` | Rectangular opening |
 | `set_parameter` | Single param on one element (with unit conversion) |
 | `set_parameter_batch` | Same param on N elements |
+| `update_where` | Set one parameter on every element matching where-conditions, then **re-read each written value to verify it took**. `atomic` defaults to **true** — a failed verification rolls the whole call back. The only command in the repo that proves its own writes |
+| `import_parameters` | Spreadsheet-shaped import: each item is one `(elementId, parameterName, value, units?)` row, so different rows may write different parameters. Complements `set_parameter_batch` (same parameter, many elements). One transaction = one undo step |
 | `delete_elements` | Delete by ids |
 | `move_element` | Translate by vector |
 | `copy_element` | Copy with offset |

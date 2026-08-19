@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.26 (stdio).
+ * Revit MCP Server v0.8.27 (stdio).
  *
- * 90 tools covering diagnostics, inspection, creation, editing, family,
+ * 93 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.26" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.27" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -47,7 +47,7 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
 };
 
 // ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
-// With 90 tools, loading the whole catalog into every conversation wastes tokens
+// With 93 tools, loading the whole catalog into every conversation wastes tokens
 // and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
 // list (e.g. "documentation,view") to expose only those groups; "core" is always
 // included. Unset = all tools (default, fully backward compatible).
@@ -59,6 +59,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_batch",
   ],
   inspection: [
+    "revit_query_where",
     "revit_list_elements", "revit_list_levels", "revit_list_wall_types",
     "revit_list_floor_types", "revit_list_categories", "revit_list_families",
     "revit_list_family_types", "revit_list_sheets", "revit_list_rooms",
@@ -87,7 +88,8 @@ const PROFILES: Record<string, string[]> = {
     "revit_create_aligned_dimension", "revit_create_detail_line", "revit_create_filled_region",
   ],
   editing: [
-    "revit_set_parameter", "revit_set_parameter_batch", "revit_rename_element",
+    "revit_set_parameter", "revit_set_parameter_batch", "revit_update_where",
+    "revit_import_parameters", "revit_rename_element",
     "revit_change_element_type", "revit_apply_view_template",
     "revit_copy_parameters", "revit_set_level_elevation", "revit_move_element",
     "revit_rotate_element", "revit_copy_element", "revit_mirror_element",
@@ -188,6 +190,33 @@ server.tool("revit_find_elements",
   limit: z.number().int().min(1).max(5000).optional().describe("Page size. Default 200."),
   offset: z.number().int().min(0).optional().describe("Page start index. Default 0. Use nextOffset from the previous page."),
 }, fwd("find_elements"));
+
+// Shared by revit_query_where / revit_update_where. The C# side (WhereSupport)
+// also accepts aliases like parameterName/param/field and "="/">"/"!=", but the
+// canonical spelling below is what tools should emit.
+const whereField = z.array(z.object({
+  parameter: z.string().describe("Parameter name. Resolved on the instance first, then on the element's Type."),
+  operator: z.enum([
+    "eq", "neq", "contains", "starts_with", "ends_with", "regex", "not_regex",
+    "gt", "lt", "gte", "lte", "is_empty", "not_empty",
+  ]).optional().describe("Default 'eq'. Text compares use the display value; gt/lt/gte/lte use the raw number."),
+  value: z.union([z.string(), z.number(), z.boolean()]).optional()
+    .describe("Omit for is_empty / not_empty."),
+  scope: z.enum(["auto", "instance", "type"]).optional()
+    .describe("Where to read the parameter. Default 'auto' = instance, then Type."),
+})).optional().describe("Conditions ANDed together. Omit to match the whole category.");
+
+server.tool("revit_query_where",
+  "Deterministic element query: a TRUE total count plus matching rows, each condition resolved at the correct scope " +
+  "(instance or element Type). Richer than revit_find_elements: adds regex/not_regex, starts_with, ends_with, gte, lte, " +
+  "is_empty, not_empty and explicit instance-vs-type scope. count stays exact even when rows are cut by limit.", {
+  category: z.string().describe("BuiltInCategory name, e.g. 'OST_Doors'."),
+  where: whereField,
+  select: z.array(z.string()).optional().describe("Parameter names to return per row."),
+  view_id: z.number().int().positive().optional()
+    .describe("Scope to elements visible in this view (non-template View id). Omit for the whole document."),
+  limit: z.number().int().min(1).max(1000).optional().describe("Max rows returned. Default 100. Does not affect count."),
+}, fwd("query_where"));
 
 server.tool("revit_get_parameter", "Get one parameter's value from an element.", {
   id: z.number().int(),
@@ -545,6 +574,40 @@ server.tool("revit_set_parameter_batch", "Set the same parameter on multiple ele
   atomic: z.boolean().optional().describe("All-or-nothing. If true, any element failure rolls back the entire batch. Default false (best-effort)."),
   dryRun: dryRunField,
 }, fwdWrite("set_parameter_batch"));
+
+server.tool("revit_update_where",
+  "Set one parameter on EVERY element matching where-conditions, then re-read each written value to confirm it " +
+  "actually took. Selection is by condition, not by id list, so no find-then-write round trip. atomic defaults to " +
+  "TRUE: if any element fails read-back verification the whole call rolls back. Use dryRun to preview matched " +
+  "count and before/after values without touching the model.", {
+  category: z.string().describe("BuiltInCategory name, e.g. 'OST_Doors'."),
+  where: whereField,
+  set: z.object({
+    parameter: z.string().describe("Parameter to write."),
+    value: z.union([z.string(), z.number(), z.boolean()]),
+    units: z.enum(["meters", "feet", "square_meters", "square_feet", "cubic_meters", "cubic_feet", "internal"]).optional()
+      .describe("Unit for numeric double parameters. Default 'internal'."),
+    scope: z.enum(["auto", "instance", "type"]).optional()
+      .describe("Write on the instance or on the element's Type. Default 'auto'."),
+  }).describe("The write applied to every matched element."),
+  atomic: z.boolean().optional()
+    .describe("All-or-nothing. Default TRUE — any failed verification rolls the whole call back."),
+  dryRun: dryRunField,
+}, fwdWrite("update_where"));
+
+server.tool("revit_import_parameters",
+  "Spreadsheet-shaped import: each row sets ONE parameter on ONE element, so different rows may target different " +
+  "elements AND different parameters. (Use revit_set_parameter_batch instead when writing the SAME parameter to many " +
+  "elements.) Every row runs inside one Revit transaction, so the whole import is a single undo step.", {
+  items: z.array(z.object({
+    elementId: z.number().int(),
+    parameterName: z.string(),
+    value: z.union([z.string(), z.number(), z.boolean()]),
+    units: z.enum(["meters", "feet", "square_meters", "square_feet", "cubic_meters", "cubic_feet", "internal"]).optional()
+      .describe("Unit for numeric double parameters. Default 'internal'."),
+  })).min(1).describe("One entry per (element, parameter, value) — typically one spreadsheet row each."),
+  dryRun: dryRunField,
+}, fwdWrite("import_parameters"));
 
 server.tool("revit_rename_element", "Rename an element — supports Family, FamilySymbol (type name), and any other element. For Family/FamilySymbol uses direct property setter; validates system families, illegal chars, and name collisions. Returns before/after diff with instancesAffected count.", {
   id: z.number().int(),
@@ -963,7 +1026,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.26 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.27 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

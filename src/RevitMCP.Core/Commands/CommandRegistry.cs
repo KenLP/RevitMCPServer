@@ -36,6 +36,7 @@ public sealed class CommandRegistry
         Register(new FindElementByUniqueIdCommand());
         Register(new GetElementRoomsCommand());
         Register(new FindElementsCommand());
+        Register(new QueryWhereCommand());
         Register(new GetParameterCommand());
         Register(new ListLevelsCommand());
         Register(new ListWallTypesCommand());
@@ -98,6 +99,8 @@ public sealed class CommandRegistry
         // === Edit — parameters ===
         Register(new SetParameterCommand());
         Register(new SetParameterBatchCommand());
+        Register(new UpdateWhereCommand());
+        Register(new ImportParametersCommand());
         Register(new RenameElementCommand());
         Register(new CopyParametersCommand());
         Register(new ChangeElementTypeCommand());
