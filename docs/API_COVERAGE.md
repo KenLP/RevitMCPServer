@@ -133,7 +133,7 @@ tool routing (see the Spatial-QC pack section below).
 ### Spatial-QC pack — HTTP-only
 
 Registered in C# (callable via HTTP `/mcp`) but **not exposed as MCP tools** — they are consumed
-programmatically by the [AutomatedSpatialQC](https://github.com/KenLP/AutomatedSpatialQC) client (its
+programmatically by the AutomatedSpatialQC client (a separate, non-public tool; its
 inputs, e.g. `loops`/`points`, are produced by other calls in the pipeline), so surfacing them to LLM
 tool routing would only dilute the tool list. Prefixed `spatial_` to namespace them apart from the
 curated command surface and avoid any future collision. Pure geometry, no dependency on newer infra.

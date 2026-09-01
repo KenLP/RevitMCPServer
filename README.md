@@ -101,6 +101,37 @@ Recipes orchestrate verified kernel commands in the Node layer; they are the P4 
 
 Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
+## Ribbon panels (optional, and inert on their own)
+
+Installing the add-in also adds **two ribbon tabs**, each with a dockable panel.
+Neither is a feature of this add-in by itself: both are WebView2 browsers pointed
+at a local service, so with nothing listening on the port the panel shows a
+connection error. That is the service being absent, not the add-in being broken.
+
+| Ribbon tab | Loads by default | Service | Config file (per Revit version) |
+| ---------- | ---------------- | ------- | ------------------------------- |
+| **AutoAudit** | `http://127.0.0.1:8601/ui/` | [KenLP/autoaudit-bim](https://github.com/KenLP/autoaudit-bim) | `revit-mcp-panel.json` |
+| **Spatial QC** | `http://127.0.0.1:8602/ui/` | AutomatedSpatialQC (separate tool, not public) | `revit-mcp-spatialqc-panel.json` |
+
+Override either URL by dropping its config file into
+`%APPDATA%\Autodesk\Revit\Addins\<version>\`:
+
+```jsonc
+{ "url": "http://127.0.0.1:9000/ui/" }
+```
+
+The installer never writes or deletes these files, so a URL you set survives every
+upgrade. A missing or malformed file falls back to the default above.
+
+**A blank panel or a connection error almost always means the service is not
+running**, or its web UI was never built — check the service's own README for the
+build step before filing anything here.
+
+Ignore both tabs entirely if you only want the MCP tool surface. They are additive:
+nothing in the tool surface depends on them, and a panel that fails to load cannot
+take the MCP server down with it.
+
+
 ### Tool profiles (token efficiency)
 
 Exposing all 93 tools to every conversation costs tokens and degrades tool-selection
