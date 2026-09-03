@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.30] — 2026-09-03: the dockable panes can recover from "paused"
+
+### Fixed
+
+- **A paused panel stayed paused for the rest of the Revit session, and both of its own recovery
+  buttons were inert.** Reported by the BIM Orchestrator team on 2026-08-25 while preparing AU demos
+  (`revit_mcp_panel_suspend_gap.md`). Verified in the source rather than by reproduction — the fault
+  is structural, not intermittent:
+  - `_suspended` is set in exactly one place (`Suspend()`) and cleared in exactly one place
+    (`Resume()`), and `Resume()` was reachable from exactly one event, `DocumentOpened`.
+  - `DocumentClosing` fires for **any** document, including a background one closed while another
+    stays open. No `DocumentOpened` follows, so nothing ever cleared the flag. Reproduce: open model
+    A, open model B, close A.
+  - `EnsureWebViewCore()` returns early while `_suspended` is set, and both "Retry embedded view"
+    and "Reload" routed straight into it — so the only affordance offered for the paused state could
+    not leave it, silently. `_panelView` is constructed once at startup, so toggling the pane reused
+    the same instance and the flag survived that too.
+
+  The reporter's own follow-up smoke on 2026-08-28 did **not** reproduce it, and noted so. That is
+  consistent: the smoke left the panel up for 11 minutes without closing a document, which is the
+  trigger. Absence of a repro there was not evidence of absence.
+
+  Two changes, matching the report's suggestions:
+  - An explicit user action now clears the flag (`ForceRebuild()`): pressing Retry or Reload *is* the
+    statement that the transition is over.
+  - `ViewActivated` is wired to `Resume()`, so the panel self-heals after a close that leaves another
+    document open — Revit activates a view in the survivor. Safe to fire repeatedly: `Resume()`
+    collapses bursts through the dispatcher and `EnsureWebViewCore` returns early once the browser
+    exists.
+
+  `DocumentClosing -> Suspend()` is unchanged; it is what protects WebView2's interop queue from the
+  model-upgrade dialog wedge. The bug was the missing way back, not the suspend.
+
+- **Both panes were affected, not just AutoAudit.** The report covers the AutoAudit pane; the Spatial
+  QC pane registered at `App.cs` had the identical event pair and the identical dead-end. Fixed for
+  both.
+
+- **The Spatial QC pane called itself "AutoAudit" in every message the user reads.** Both panes are
+  instances of `AutoAuditPanelView`, which hardcoded the name in three user-visible strings — so the
+  Spatial QC pane announced *"AutoAudit panel is paused"*, offered *"Open AutoAudit in browser"*, and
+  said *"AutoAudit keeps working at http://127.0.0.1:8602/ui/"*, pointing at the wrong tool and the
+  wrong port in one sentence. The pane name is now a constructor parameter.
+
 ## [0.8.29] — 2026-09-03: `isolate_elements_in_view` works again; `spatial_create_model_line`
 
 Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured against v0.8.28.

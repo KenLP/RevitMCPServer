@@ -132,6 +132,16 @@ public sealed class App : IExternalApplication
         application.ControlledApplication.DocumentOpened +=
             (_, _) => _panelView?.Resume();
 
+        // DocumentClosing fires for ANY document, including a background one
+        // closed while another stays open — and then no DocumentOpened follows,
+        // so Resume() never runs and the pane stays paused for the rest of the
+        // session (reproduce: open A, open B, close A). Revit activates a view
+        // in the surviving document after such a close, so ViewActivated is the
+        // missing way back. Cheap to fire repeatedly: Resume() collapses bursts
+        // through the dispatcher and EnsureWebViewCore returns early once the
+        // browser already exists.
+        application.ViewActivated += (_, _) => _panelView?.Resume();
+
         var tab = "AutoAudit";
         application.CreateRibbonTab(tab);
         var ribbonPanel = application.CreateRibbonPanel(tab, "AutoAudit");
@@ -170,7 +180,7 @@ public sealed class App : IExternalApplication
         var userDataFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "RevitMCPAddin", "WebView2", "SpatialQc", revitVersion);
-        _spatialQcPanelView = new AutoAuditPanelView(url, userDataFolder);
+        _spatialQcPanelView = new AutoAuditPanelView(url, userDataFolder, "Spatial QC");
         application.RegisterDockablePane(
             SpatialQcPaneProvider.PaneId, "Spatial QC",
             new SpatialQcPaneProvider(_spatialQcPanelView));
@@ -179,6 +189,16 @@ public sealed class App : IExternalApplication
             (_, _) => _spatialQcPanelView?.Suspend();
         application.ControlledApplication.DocumentOpened +=
             (_, _) => _spatialQcPanelView?.Resume();
+
+        // DocumentClosing fires for ANY document, including a background one
+        // closed while another stays open — and then no DocumentOpened follows,
+        // so Resume() never runs and the pane stays paused for the rest of the
+        // session (reproduce: open A, open B, close A). Revit activates a view
+        // in the surviving document after such a close, so ViewActivated is the
+        // missing way back. Cheap to fire repeatedly: Resume() collapses bursts
+        // through the dispatcher and EnsureWebViewCore returns early once the
+        // browser already exists.
+        application.ViewActivated += (_, _) => _spatialQcPanelView?.Resume();
 
         // Own ribbon tab — decoupled from AutoAudit's tab (either registration may fail
         // independently, so neither may assume the other created a tab).

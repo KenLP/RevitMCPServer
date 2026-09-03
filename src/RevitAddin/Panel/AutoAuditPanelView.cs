@@ -34,12 +34,14 @@ public sealed class AutoAuditPanelView : UserControl
     private readonly TextBlock _fallbackMessage;
     private WebView2? _webView;
     private bool _suspended;
+    private readonly string _label;
 
     public AutoAuditPanelView(string revitVersion)
         : this(PanelConfig.ResolveUrl(revitVersion),
                Path.Combine(
                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                   "RevitMCPAddin", "WebView2", revitVersion))
+                   "RevitMCPAddin", "WebView2", revitVersion),
+               "AutoAudit")
     {
     }
 
@@ -48,10 +50,17 @@ public sealed class AutoAuditPanelView : UserControl
     /// host — and every gotcha fix in it — instead of duplicating ~250 lines. Each pane MUST pass a
     /// DISTINCT userDataFolder: two WebView2 profiles sharing one folder can lock each other out.
     /// </summary>
-    public AutoAuditPanelView(string url, string userDataFolder)
+    /// <param name="label">
+    /// Pane name used in every message the user reads. Required because BOTH
+    /// dockable panes are instances of this class: with "AutoAudit" hardcoded,
+    /// the Spatial QC pane told users "AutoAudit panel is paused" and pointed
+    /// them at AutoAudit while showing :8602.
+    /// </param>
+    public AutoAuditPanelView(string url, string userDataFolder, string label)
     {
         _url = url;
         _userDataFolder = userDataFolder;
+        _label = label;
 
         // Explicit surface colors: the pane host gives WPF a transparent
         // backdrop that renders BLACK under Revit's dark theme — the first
@@ -85,7 +94,7 @@ public sealed class AutoAuditPanelView : UserControl
     {
         _suspended = true;
         TearDownWebView();
-        ShowFallback("AutoAudit panel is paused while Revit switches documents.");
+        ShowFallback($"{_label} panel is paused while Revit switches documents.");
     }
 
     /// <summary>Recreate the browser after the document transition ends.</summary>
@@ -110,7 +119,7 @@ public sealed class AutoAuditPanelView : UserControl
         reload.Click += (_, _) =>
         {
             if (_webView?.CoreWebView2 is not null) _webView.CoreWebView2.Reload();
-            else EnsureWebView();
+            else ForceRebuild();
         };
         var external = new Button { Content = "Open in browser", Padding = new Thickness(8, 2, 8, 2) };
         external.Click += (_, _) => OpenExternal();
@@ -130,7 +139,7 @@ public sealed class AutoAuditPanelView : UserControl
 
         var open = new Button
         {
-            Content = "Open AutoAudit in browser",
+            Content = $"Open {_label} in browser",
             Padding = new Thickness(10, 4, 10, 4),
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new Thickness(0, 0, 0, 4),
@@ -144,7 +153,7 @@ public sealed class AutoAuditPanelView : UserControl
             Padding = new Thickness(10, 4, 10, 4),
             HorizontalAlignment = HorizontalAlignment.Left,
         };
-        retry.Click += (_, _) => EnsureWebView();
+        retry.Click += (_, _) => ForceRebuild();
         panel.Children.Add(retry);
         return panel;
     }
@@ -161,6 +170,20 @@ public sealed class AutoAuditPanelView : UserControl
     /// dispatcher (the exact silent-black-panel failure seen live
     /// 2026-07-12).
     /// </summary>
+    /// <summary>
+    /// A user pressing "Retry embedded view" or "Reload" IS the statement that
+    /// the document transition is over, so it clears the suspend flag before
+    /// rebuilding. <see cref="EnsureWebViewCore"/> returns early while
+    /// <c>_suspended</c> is set, so routing these buttons straight there left
+    /// the only affordance offered for the paused state unable to leave it —
+    /// an inert button with no message, for the rest of the Revit session.
+    /// </summary>
+    private void ForceRebuild()
+    {
+        _suspended = false;
+        EnsureWebView();
+    }
+
     private void EnsureWebView()
     {
         try
@@ -262,7 +285,7 @@ public sealed class AutoAuditPanelView : UserControl
 
     private void ShowFallback(string message)
     {
-        _fallbackMessage.Text = message + $"\n\nAutoAudit keeps working at {_url}";
+        _fallbackMessage.Text = message + $"\n\n{_label} keeps working at {_url}";
         _fallback.Visibility = Visibility.Visible;
     }
 
