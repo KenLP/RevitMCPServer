@@ -63,16 +63,20 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
 
 - **Type-mismatched parameters escaped the error envelope.** Every `P.*` accessor read its value
   through `JsonNode.GetValue<T>()`, which throws `InvalidOperationException` on a mismatch. That
-  exception is not a `RevitCommandException`, so it slipped past the dispatcher's error mapping and
-  reached the caller as a bare **HTTP 500 with no `{ok,error}` body**. Measured against the live
-  add-in on Revit 2027:
+  exception is not a `RevitCommandException`, so it was reported as a generic command failure:
+  **HTTP 500** with `code: "command_failed"` and a message naming .NET types rather than the
+  offending parameter (*"An element of type 'String' cannot be converted to a 'System.Int64'."*).
+  The envelope was present — an earlier revision of this entry claimed it was not, which was wrong;
+  the defect is the status and the code, not a missing body. A client fault was being reported as a
+  server fault, and nothing in the message said which key to fix. Measured against the live add-in on
+  Revit 2027:
 
   ```
   get_element_info  id=619404     -> ok=True            get_element_info id=999999999 -> 404 + envelope
-  get_element_info  id="619404"   -> HTTP 500  (no envelope)
-  get_element_geometry id="..."   -> HTTP 500
-  list_elements     limit="10"    -> HTTP 500
-  find_elements     view_id="..." -> HTTP 500
+  get_element_info  id="619404"   -> HTTP 500  command_failed
+  get_element_geometry id="..."   -> HTTP 500  command_failed
+  list_elements     limit="10"    -> HTTP 500  command_failed
+  find_elements     view_id="..." -> HTTP 500  command_failed
   ```
 
   Genuine domain errors were fine; only the type mismatch broke. Nine accessors were affected

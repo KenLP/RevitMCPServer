@@ -104,16 +104,30 @@ thống nhất ở handoff `create_detail_line` (v0.8.25) khi cho `weight` độ
 Chưa gửi handoff riêng nên ghi ở đây, vì `spatial_get_room_boundary` nằm trong nhóm bị ảnh hưởng.
 
 Trước v0.8.28, mọi accessor `P.*` đọc qua `JsonNode.GetValue<T>()`, ném
-`InvalidOperationException` — không phải `RevitCommandException` — nên **lọt qua error mapping và ra
-HTTP 500 không có body**. Đo được trên `get_element_info`, `get_element_geometry`, `list_elements`,
-`find_elements`, và **`spatial_get_room_boundary`**.
+`InvalidOperationException` — không phải `RevitCommandException` — nên bị báo như
+một lỗi thực thi chung: **HTTP 500** với `code: "command_failed"`.
+
+**Đính chính:** bản đầu của handoff này viết là "500 không có body" — **sai**.
+Envelope vẫn có; đo lại trên v0.8.29 vẫn còn nhánh cũ (`delete_elements` với `ids:["abc"]`):
+
+```json
+{"ok":false,"error":{"code":"command_failed",
+ "message":"An element of type 'String' cannot be converted to a 'System.Int64'.",
+ "type":"System.InvalidOperationException"}}
+```
+
+Khiếm khuyết thực sự là: **status 500** (lỗi server) cho một lỗi **client**, `code`
+`command_failed` thay vì `invalid_parameter`, và message nói về kiểu .NET chứ **không
+nêu tham số nào sai** — nên parse được nhưng không tự sửa được.
+Đo được trên `get_element_info`, `get_element_geometry`, `list_elements`, `find_elements`,
+và **`spatial_get_room_boundary`**.
 
 Từ v0.8.28:
 
 | Đầu vào | Trước | Sau |
 | --- | --- | --- |
-| `{"id": "826376"}` (chuỗi số) | HTTP 500, không body | **nhận** — chuyển đổi chính xác |
-| `{"id": "abc"}` / `5.5` / `true` | HTTP 500, không body | **400** `invalid_parameter` + tên key + kiểu mong đợi |
+| `{"id": "826376"}` (chuỗi số) | HTTP 500 `command_failed` | **nhận** — chuyển đổi chính xác |
+| `{"id": "abc"}` / `5.5` / `true` | HTTP 500 `command_failed`, message nói kiểu .NET | **400** `invalid_parameter` + tên key + kiểu mong đợi |
 | `{"id": 999999999}` | 404 `not_found` | không đổi |
 | thiếu key | `bad_request` | không đổi |
 
