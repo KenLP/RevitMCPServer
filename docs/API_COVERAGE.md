@@ -27,11 +27,11 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.30)
+## Current command surface (v0.8.31)
 
-**100 C# commands** registered (90 exposed as MCP tools + 10 hidden) across read, write, UI, and
+**101 C# commands** registered (91 exposed as MCP tools + 10 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
-(`recipe_model_health_triage`, `recipe_clash_review`), that is **93 MCP tools**.
+(`recipe_model_health_triage`, `recipe_clash_review`), that is **94 MCP tools**.
 
 The 10 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
@@ -73,7 +73,7 @@ tool routing (see the Spatial-QC pack section below).
 | `get_selected_elements` | UIDocument selection |
 | `get_linked_files` | Linked Revit files — list instances with metadata |
 | `get_linked_elements` | Read elements **inside** a linked RVT; bboxes in host coords. Each element carries `uniqueId` (stable across documents) alongside `id` (valid **only** inside that link) |
-| `get_view_image` | Export any view to PNG; returns base64 + MCP Image content |
+| `get_view_image` | Export any view to PNG; returns base64 + MCP Image content, plus `width`/`height`. **`pixelSize`** (default 512, clamp 128–4096) sets the image width — `dpi` is print metadata only and never changed the pixel count |
 | `get_element_rooms` | Phase-aware Room/FromRoom/ToRoom containment for family instances (batch) |
 | `export_view_pdf` | Export a view or sheet to PDF on disk |
 | `get_tags_in_view` | List IndependentTag elements in a view (optional category filter) |
@@ -96,7 +96,8 @@ tool routing (see the Spatial-QC pack section below).
 | `create_room` | Room by point on level |
 | `create_sheet` | New sheet with title block |
 | `create_schedule` | ViewSchedule for a category |
-| `create_3d_view` | Named 3D view |
+| `create_3d_view` | Named 3D view (isometric, or a duplicate of the active view) |
+| `create_perspective_view` | Perspective 3D view(s) with the camera at explicit coordinates — the only way to place an eye. `azimuthsDeg` makes N views sharing ONE eye, rotated about vertical, which is what image-based reconstruction needs (mixing eye heights folds the reconstructed plan). `units` accepts `meters`/`feet` only. Returns each view's `eye` and unit `forward` vector in the requested units |
 | `create_floor_plan_view` | Floor plan for a level |
 | `create_section_view` | Section view |
 | `create_text_note` | Text note in a view |

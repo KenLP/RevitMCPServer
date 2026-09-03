@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.30 — 90 commands + 1 batch + 2 recipes = 93 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command spatial-QC HTTP pack `spatial_*`; 100 C# commands registered; workflow recipes are Node-only).
+> **v0.8.31 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command spatial-QC HTTP pack `spatial_*`; 101 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -55,7 +55,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_linked_files`          | `get_linked_files`      | ✅        | List Revit link instances (metadata)                      |
 | `revit_get_linked_elements`       | `get_linked_elements`   | ✅        | Elements inside a linked RVT (bboxes in host coords)      |
 | `revit_check_clearance`           | `check_clearance`       | ✅        | Hard clash + clearance check, host and cross-linked-file  |
-| `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block       |
+| `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block       | Use `pixelSize` (default 512) for resolution; `dpi` is metadata only. Returns `width`/`height` |
 | `revit_get_element_rooms`         | `get_element_rooms`     | ✅        | Room containment for family instances — Room/FromRoom/ToRoom per element (batch) |
 | `revit_get_model_health`          | `get_model_health`      | ✅        | One-shot model health scorecard: warnings (+ /1000-element ratio), file size, imports/links (CAD, PDF, RVT, point cloud), in-place families, groups, unused views, worksets, purgeable |
 | `revit_get_worksets`              | `get_worksets`          | ✅        | User worksets with per-workset element counts; flags empty worksets and default 'Workset1' name |
@@ -76,6 +76,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_create_sheet`              | `create_sheet`          | ❌        | New sheet with title block                                |
 | `revit_create_schedule`           | `create_schedule`       | ❌        | ViewSchedule for a category                               |
 | `revit_create_3d_view`            | `create_3d_view`        | ❌        | Named 3D view                                             |
+| `revit_create_perspective_view`   | `create_perspective_view` | ❌    | Perspective 3D view(s) with the camera at explicit `eye`/`target`. `azimuthsDeg` → N views from the SAME eye rotated about vertical |
 | `revit_create_floor_plan_view`    | `create_floor_plan_view`| ❌        | Floor plan for a level                                    |
 | `revit_create_section_view`       | `create_section_view`   | ❌        | Section view                                              |
 | `revit_create_text_note`          | `create_text_note`      | ❌        | Text note in a view                                       |

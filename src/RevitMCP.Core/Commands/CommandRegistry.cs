@@ -80,6 +80,7 @@ public sealed class CommandRegistry
         Register(new CreateFloorPlanViewCommand());
         Register(new CreateSectionViewCommand());
         Register(new Create3DViewCommand());
+        Register(new CreatePerspectiveViewCommand());
         Register(new CreateScheduleCommand());
         Register(new TagElementCommand());
         Register(new TagAllInViewCommand());

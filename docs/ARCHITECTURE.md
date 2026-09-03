@@ -109,7 +109,7 @@ src/RevitMCP.Core/                      # portable class library — the executi
     ├── ParamUtil.cs                    # P.Str / P.Dbl / P.Xyz / …
     ├── BatchPolicy.cs                  # mixed ModelWrite/UiAction batch rejection
     ├── RevitCommandException.cs        # typed domain error codes
-    └── …Command.cs                     # 100 commands, one file each
+    └── …Command.cs                     # 101 commands, one file each
 
 src/RevitAddin/                         # the Revit add-in host
 ├── App.cs                              # IExternalApplication; mints the auth token
@@ -177,7 +177,7 @@ in-flight, and average / peak duration.
 
 ## Tool profiles
 
-The 93-tool surface can be narrowed per client via the `REVIT_MCP_PROFILE` env var
+The 94-tool surface can be narrowed per client via the `REVIT_MCP_PROFILE` env var
 (comma-separated group names; `core` is always included; unset = all tools). It is a
 runtime gate over `server.tool` in `index.ts`, so the registration call sites stay
 untouched and the CI tool-count gate is unaffected. See the README for the group list.

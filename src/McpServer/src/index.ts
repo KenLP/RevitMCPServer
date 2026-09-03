@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.30 (stdio).
+ * Revit MCP Server v0.8.31 (stdio).
  *
- * 93 tools covering diagnostics, inspection, creation, editing, family,
+ * 94 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.30" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.31" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -47,7 +47,7 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
 };
 
 // ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
-// With 93 tools, loading the whole catalog into every conversation wastes tokens
+// With 94 tools, loading the whole catalog into every conversation wastes tokens
 // and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
 // list (e.g. "documentation,view") to expose only those groups; "core" is always
 // included. Unset = all tools (default, fully backward compatible).
@@ -82,7 +82,8 @@ const PROFILES: Record<string, string[]> = {
   documentation: [
     "revit_create_sheet", "revit_place_view_on_sheet",
     "revit_create_floor_plan_view", "revit_create_section_view",
-    "revit_create_3d_view", "revit_create_schedule", "revit_configure_schedule",
+    "revit_create_3d_view", "revit_create_perspective_view",
+    "revit_create_schedule", "revit_configure_schedule",
     "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
     "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
     "revit_create_aligned_dimension", "revit_create_detail_line", "revit_create_filled_region",
@@ -424,6 +425,24 @@ server.tool("revit_create_3d_view", "Create an isometric 3D view.", {
   viewName: z.string().optional(),
   dryRun: dryRunField,
 }, fwdWrite("create_3d_view"));
+
+server.tool("revit_create_perspective_view",
+  "Create perspective 3D view(s) with the camera at explicit coordinates. Unlike revit_create_3d_view " +
+  "(isometric, or a duplicate of the active view) this places the eye and aims it, so a set of renders can " +
+  "share one viewpoint. Pass azimuthsDeg to get several views from the SAME eye rotated about vertical — " +
+  "images shot from different eye heights reconstruct badly.",
+  {
+    eye: xyz.describe("Camera position."),
+    target: xyz.describe("Point the camera looks at. Must differ from eye."),
+    units: unitsField,
+    azimuthsDeg: z.array(z.number()).min(1).optional()
+      .describe("One view per angle, all from the same eye. 0 = the eye→target direction; positive turns clockwise seen from above."),
+    viewName: z.string().optional().describe("Base name. With azimuthsDeg each view gets ' - {az}deg'."),
+    viewTemplateId: z.number().int().optional(),
+    detailLevel: z.enum(["coarse", "medium", "fine"]).optional(),
+    dryRun: dryRunField,
+  },
+  fwdWrite("create_perspective_view"));
 
 server.tool("revit_create_schedule", "Create a ViewSchedule for a category, optionally adding field columns.", {
   category: z.string().describe("BuiltInCategory, e.g. 'OST_Walls'."),
@@ -821,10 +840,14 @@ server.tool("revit_check_clearance",
 
 server.tool("revit_get_view_image",
   "Export a Revit view to PNG and return it as an image. Omit viewId to capture the active view. " +
-  "Useful for visual coordination review — capture a section or 3D view showing potential clashes.",
+  "Useful for visual coordination review — capture a section or 3D view showing potential clashes. " +
+  "Returns width/height alongside the image.",
   {
     viewId: z.number().int().optional().describe("ElementId of the view to export. Omit for active view."),
-    dpi: z.number().int().min(36).max(300).optional().describe("Image resolution (snaps to 72/150/300). Default 72."),
+    pixelSize: z.number().int().min(128).max(4096).optional()
+      .describe("Image WIDTH in pixels; height follows the view's aspect ratio. Default 512. This is the parameter that changes resolution."),
+    dpi: z.number().int().min(36).max(300).optional()
+      .describe("Print DPI metadata only (snaps to 72/150/300, default 72) — it does NOT change the pixel dimensions. Use pixelSize for that."),
   },
   async (params) => {
     const envelope = await callRevit("get_view_image", params);
@@ -1027,7 +1050,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.30 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.31 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

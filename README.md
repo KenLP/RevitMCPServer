@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.30** — 100 C# commands (90 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **93 MCP tools**. Hidden = `create_spot_elevation` + the 9-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.31** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (90 commands + 1 batch + 2 recipes = 93 MCP tools)
+## Tool surface (91 commands + 1 batch + 2 recipes = 94 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -66,8 +66,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ### Creation: Architecture (10 write)
 `revit_create_wall` | `revit_create_floor` | `revit_create_level` | `revit_create_grid` | `revit_create_room` | `revit_create_column` | `revit_create_beam` | `revit_create_ceiling` | `revit_create_opening_in_wall` | `revit_place_family_instance`
 
-### Creation: Documentation (8 write)
-`revit_create_sheet` | `revit_place_view_on_sheet` | `revit_create_floor_plan_view` | `revit_create_section_view` | `revit_create_3d_view` | `revit_create_schedule` | `revit_tag_element` | `revit_create_text_note`
+### Creation: Documentation (9 write)
+`revit_create_sheet` | `revit_place_view_on_sheet` | `revit_create_floor_plan_view` | `revit_create_section_view` | `revit_create_3d_view` | `revit_create_perspective_view` | `revit_create_schedule` | `revit_tag_element` | `revit_create_text_note`
 
 ### Annotation & Detailing (5 read/write)
 `revit_tag_all_in_view` | `revit_get_tags_in_view` | `revit_create_aligned_dimension` | `revit_create_detail_line` | `revit_create_filled_region`
@@ -134,7 +134,7 @@ take the MCP server down with it.
 
 ### Tool profiles (token efficiency)
 
-Exposing all 93 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 94 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -178,7 +178,7 @@ RevitMCPServer/
 │   ├── check-version.mjs           ← CI gate: version + tool-count consistency
 │   └── smoke-test.ps1              ← live-Revit smoke test
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 100 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 101 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
@@ -256,7 +256,7 @@ Options:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.8.30, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.31, authEnabled=True
 ```
 
 Then restart Claude Desktop. The server shows up under **Connectors**
@@ -376,7 +376,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.30
+   version   : 0.8.31
    authEnabled : True
    ```
 
@@ -535,7 +535,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.30, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.31, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
@@ -583,7 +583,7 @@ Two versions side-by-side (port auto-assigned):
 }
 ```
 
-Restart the client. You should see 93 `revit_*` tools per configured version.
+Restart the client. You should see 94 `revit_*` tools per configured version.
 
 ### 3. Try it
 

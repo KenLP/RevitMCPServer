@@ -148,6 +148,12 @@ public static class P
             ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
             : AsLong(node, label);
 
+    /// <summary>Same as <see cref="LongFrom"/> for a floating-point array element.</summary>
+    public static double DblFrom(JsonNode? node, string label) =>
+        node is null
+            ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
+            : AsDouble(node, label);
+
     public static bool BoolOr(JsonObject obj, string key, bool @default) =>
         obj[key] is { } n ? AsBool(n, key) : @default;
 

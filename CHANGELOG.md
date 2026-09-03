@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.31] — 2026-09-03: `get_view_image` can change resolution; `create_perspective_view`
+
+Both from a World Labs probe handoff (`_probes/worldlabs`, 2026-09-03) building a Revit -> world-model
+render loop. Every claim in it checked out against the source.
+
+### Fixed
+
+- **`get_view_image` ignored `dpi` for sizing — every export came back 512 px wide.** The command set
+  `ImageResolution` but never `PixelSize`, and under `ExportRange.SetOfViews` `ImageResolution` only
+  writes print-DPI metadata into the PNG; Revit's default `PixelSize` of 512 decided the actual
+  dimensions. Worse than inert: `dpi` was validated (clamped 36–300, snapped to 72/150/300) and echoed
+  back in the response, so it looked like it worked.
+
+  New **`pixelSize`** (default **512**, clamp 128–4096) sets the image width; height follows the view's
+  aspect ratio. The default is deliberately the value Revit was already producing, so consumers parsing
+  the old small images — bim-orchestrator, RevitAssistant — get byte-identical behaviour until they ask
+  for more. `dpi` is kept and now documented as metadata-only.
+
+  The response also carries **`width`** and **`height`**, read from the PNG IHDR chunk, so a caller
+  never has to decode the image to learn its size or to check that `pixelSize` was honoured.
+
+  One correction to the handoff's sketch: the property is `ZoomType` of type **`ZoomFitType`**, not
+  `ZoomType.FitToPage` as written there.
+
+### Added
+
+- **`create_perspective_view`** (MCP tool `revit_create_perspective_view`) — perspective 3D views with
+  the camera at explicit coordinates. `create_3d_view` only makes an isometric view or duplicates the
+  active one; nothing in the surface let a caller say where the camera stands.
+  - `azimuthsDeg` creates N views sharing **one** eye, the view direction rotated about world Z. That
+    is the point of the command: image-based reconstruction fed renders from different eye heights
+    folds the recovered floor plan diagonally, so the eye has to be identical across a set.
+  - `up` is world Z projected onto the plane normal to the view direction, with a fallback axis for a
+    camera looking straight up or down — `ViewOrientation3D` throws if up is not perpendicular.
+  - `units` accepts `meters`/`feet` only, rejecting anything else, for the same reason as
+    `spatial_create_model_line` in 0.8.29: `P.Xyz` silently treats every non-`feet` unit as metres.
+  - A duplicate `viewName` is reported in `warnings` rather than failing the call — the view is created
+    and usable either way.
+  - Echoes each view's `eye` (in the requested units) and unit `forward` vector, so a caller can verify
+    placement without repeating the unit conversion.
+
+### Changed
+
+- Tool surface 93 → **94**; C# commands 100 → **101** (10 hidden, unchanged).
+- `P.DblFrom` added alongside `P.LongFrom`, and `get_view_image` now reads `viewId` through the guarded
+  path — continuing the array-element half of the 0.8.28 coercion fix.
+
 ## [0.8.30] — 2026-09-03: the dockable panes can recover from "paused"
 
 ### Fixed
