@@ -7,6 +7,10 @@ Nguồn quy ước: [`CROSS_REPO_ACTIONS_2026-07-17.md`](../CROSS_REPO_ACTIONS_2
 
 ## Handoff đang mở
 
+- [bim-orchestrator — panel kẹt "paused" đã đóng ở v0.8.30 (cả hai pane)](handoffs/HANDOFF_bimorch_panel_suspend_fixed.md)
+  — làm đúng cả hai đề xuất của họ (ForceRebuild + ViewActivated). Thêm 2 thứ report chưa nêu: pane
+  **Spatial QC** dính đúng lỗi đó, và nó tự gọi mình là "AutoAudit" trong 3 chuỗi hiển thị (sai cả tên
+  lẫn cổng). Workaround "mở model cần dùng SAU cùng" trong report bỏ được.
 - [AutomatedSpatialQC — bug `isolate_elements_in_view` fix + `spatial_create_model_line` ship ở v0.8.29](handoffs/HANDOFF_spatialqc_isolate_fix_and_model_line_shipped.md)
   — đóng 2 handoff trong một build. **1 việc bắt buộc phía họ:** spec ghi `units:"mm"` nhưng `P.Xyz` coi
   mọi thứ không phải `feet` là mét, nên `mm` bị từ chối (400) thay vì vẽ sai 1000 lần — áp
