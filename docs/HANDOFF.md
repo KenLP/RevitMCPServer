@@ -7,6 +7,11 @@ Nguồn quy ước: [`CROSS_REPO_ACTIONS_2026-07-17.md`](../CROSS_REPO_ACTIONS_2
 
 ## Handoff đang mở
 
+- [AutomatedSpatialQC — bug `isolate_elements_in_view` fix + `spatial_create_model_line` ship ở v0.8.29](handoffs/HANDOFF_spatialqc_isolate_fix_and_model_line_shipped.md)
+  — đóng 2 handoff trong một build. **1 việc bắt buộc phía họ:** spec ghi `units:"mm"` nhưng `P.Xyz` coi
+  mọi thứ không phải `feet` là mét, nên `mm` bị từ chối (400) thay vì vẽ sai 1000 lần — áp
+  cho mọi lệnh dùng `P.Xyz`. Kèm: `reset` cũng cần transaction (kết luận trong handoff của họ
+  sai), và v0.8.28 đổi tham số sai kiểu từ 500 sang 400.
 - [AutomatedSpatialQC — `create_detail_line` color/weight + `spatial_create_path_of_travel` đã ship ở v0.8.25](handoffs/HANDOFF_spatialqc_detail_line_color_and_create_pot_shipped.md)
   — đóng 2 handoff trong một build. Ba phát hiện error-handling khác sketch (exception vs status,
   `ResultAffectedByCrop` = success + warning, dialog crop nổ lúc COMMIT → opt-in
