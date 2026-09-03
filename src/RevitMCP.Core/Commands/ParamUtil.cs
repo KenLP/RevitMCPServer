@@ -136,6 +136,18 @@ public static class P
     public static long? LongOrNull(JsonObject obj, string key) =>
         obj[key] is { } n ? AsLong(n, key) : null;
 
+    /// <summary>
+    /// Coerce one element of an array (or any bare node) to long with the same
+    /// rules as <see cref="Long"/>. Array elements used to call GetValue&lt;long&gt;()
+    /// directly, which throws past the error mapping and reaches callers as a
+    /// bare 500 — the same defect fixed for object keys in 0.8.28.
+    /// <paramref name="label"/> names the source in the error, e.g. "ids[2]".
+    /// </summary>
+    public static long LongFrom(JsonNode? node, string label) =>
+        node is null
+            ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
+            : AsLong(node, label);
+
     public static bool BoolOr(JsonObject obj, string key, bool @default) =>
         obj[key] is { } n ? AsBool(n, key) : @default;
 

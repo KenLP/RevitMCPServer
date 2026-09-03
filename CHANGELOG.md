@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.29] — 2026-09-03: `isolate_elements_in_view` works again; `spatial_create_model_line`
+
+Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured against v0.8.28.
+
+### Fixed
+
+- **`isolate_elements_in_view` failed on every call that passed `ids`** with
+  *"Attempt to modify the model outside of transaction"*. The command declared
+  `ExecutionKind.UiAction` with the comment *"temporary view mode — no transaction"*, and the
+  dispatcher gives UiAction commands no transaction — but `View.IsolateElementsTemporary()` is a model
+  change and needs one. The `reset` branch calls `DisableTemporaryViewMode()`, which does not, which is
+  why reset kept working and masked the bug. Its sibling commands were unaffected:
+  `override_element_graphics` declares `ModelWrite`, `hide_elements_in_view` takes the default.
+
+  Fixed by opening a transaction around the isolate branch **while keeping `UiAction`**, rather than by
+  promoting the command to `ModelWrite` as the handoff suggested. Promoting it would have made
+  `BatchPolicy` reject `[open_view, isolate_elements_in_view, zoom_to_elements]` — a batch may not mix
+  ModelWrite and UiAction, and those other two are UiAction, so the natural view-navigation sequence
+  (exactly what the reporting consumer's "3D in Revit" button does) would have started failing. Keeping
+  UiAction also preserves the dispatcher's dry-run no-op for UI actions.
+
+  Consumer impact: the spatial-qc panel's "Cô lập" button was dead on v0.8.28 and works again.
+
+### Added
+
+- **`spatial_create_model_line`** (HTTP-only, `spatial_*` pack, not an MCP tool) — draws a straight
+  `ModelCurve` between two world points. `create_detail_line` cannot serve this: it makes a
+  view-specific `DetailCurve` and throws `unsupported_view` in a 3D view by design, so its line does not
+  exist in 3D space. A model curve does, and shows in any view that cuts it.
+  - `units` accepts **`meters` or `feet` only**. The handoff's spec listed `mm`, but `P.Xyz` treats
+    every non-`feet` unit as metres, so `"mm"` would have silently drawn a line 1000x too long. It is
+    now rejected with `invalid_parameter` instead.
+  - `color` requires `viewId` (a graphic override is per view, and a model curve belongs to no single
+    view); `lineStyle` falls back to the default when the named `GraphicsStyle` does not exist. Both
+    skips are reported in `warnings` rather than passing silently, since a silently ignored option is
+    indistinguishable from an applied one at the call site.
+  - Returns `{ id, length }`, length always in metres. The `id` is a real element with a usable
+    `GetReference()`, so it can later be passed to `create_aligned_dimension`.
+
+### Changed
+
+- C# commands 99 → **100** (10 hidden — the spatial-QC pack is now 9). MCP tool surface unchanged at
+  **93**: the new command is HTTP-only.
+- `P.LongFrom(JsonNode, label)` added, extending the 0.8.28 coercion fix to array elements. 29 command
+  files still call `GetValue<>()` directly on array items and remain exposed to the bare-500 defect;
+  `isolate_elements_in_view` is converted here as the first.
+
 ## [0.8.28] — 2026-08-19: a mistyped parameter returns 400, not a bare 500
 
 ### Fixed

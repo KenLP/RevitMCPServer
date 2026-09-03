@@ -150,5 +150,6 @@ public sealed class CommandRegistry
         Register(new GetStairsCommand());
         Register(new GetPathsOfTravelCommand());
         Register(new CreatePathOfTravelCommand());
+        Register(new CreateModelLineCommand());
     }
 }

@@ -24,7 +24,16 @@ public sealed class IsolateElementsInViewCommand : IRevitCommand
 {
     public string Name => "isolate_elements_in_view";
     public bool IsReadOnly => false;
-    public ExecutionKind Execution => ExecutionKind.UiAction; // temporary view mode — no transaction
+    // Stays UiAction deliberately. IsolateElementsTemporary DOES need an open
+    // transaction (the comment here used to claim otherwise, and every call with
+    // `ids` failed with "Attempt to modify the model outside of transaction"),
+    // but promoting this to ModelWrite would make BatchPolicy reject the natural
+    // sequence [open_view, isolate_elements_in_view, zoom_to_elements] — those
+    // three are UiAction and a batch may not mix the two kinds. So the command
+    // opens its own transaction for the branch that needs one instead, keeping
+    // it batchable with the other view-navigation commands and preserving the
+    // dry-run no-op the dispatcher applies to UI actions.
+    public ExecutionKind Execution => ExecutionKind.UiAction;
     public string RiskLevel => "medium";
 
     public JsonNode? Execute(CommandContext ctx)
@@ -41,9 +50,15 @@ public sealed class IsolateElementsInViewCommand : IRevitCommand
 
         var idsArr = P.Arr(p, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr) { if (n is not null) ids.Add(new ElementId(n.GetValue<long>())); }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
+        // DisableTemporaryViewMode (the reset branch above) does not need a
+        // transaction, which is why reset kept working while this branch did not.
+        using var tx = new Transaction(doc, "MCP: isolate_elements_in_view");
+        tx.Start();
         view.IsolateElementsTemporary(ids);
+        tx.Commit();
 
         return new JsonObject
         {

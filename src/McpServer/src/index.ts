@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.28 (stdio).
+ * Revit MCP Server v0.8.29 (stdio).
  *
  * 93 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.28" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.29" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -492,6 +492,7 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // revit_spatial_raycast_headroom — hidden (HTTP-only spatial-QC pack; C# spatial_raycast_headroom)
 // revit_spatial_get_walls — hidden (HTTP-only spatial-QC pack; C# spatial_get_walls)
 // revit_spatial_get_stairs — hidden (HTTP-only spatial-QC pack; C# spatial_get_stairs)
+// revit_spatial_create_model_line — hidden (HTTP-only spatial-QC pack; C# spatial_create_model_line)
 // revit_spatial_get_paths_of_travel — hidden (HTTP-only spatial-QC pack; C# spatial_get_paths_of_travel)
 // revit_spatial_create_path_of_travel — hidden (HTTP-only spatial-QC pack; C# spatial_create_path_of_travel)
 
@@ -1026,7 +1027,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.28 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.29 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

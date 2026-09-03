@@ -27,17 +27,18 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.28)
+## Current command surface (v0.8.29)
 
-**99 C# commands** registered (90 exposed as MCP tools + 9 hidden) across read, write, UI, and
+**100 C# commands** registered (90 exposed as MCP tools + 10 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
 (`recipe_model_health_triage`, `recipe_clash_review`), that is **93 MCP tools**.
 
-The 9 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
+The 10 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
 tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
-**8-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
+**9-command spatial-QC pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
 `spatial_clearance_envelope_batch`, `spatial_raycast_headroom`, `spatial_get_walls`,
-`spatial_get_stairs`, `spatial_get_paths_of_travel`, `spatial_create_path_of_travel`) —
+`spatial_get_stairs`, `spatial_get_paths_of_travel`, `spatial_create_path_of_travel`,
+`spatial_create_model_line`) —
 pure-geometry primitives consumed programmatically by the AutomatedSpatialQC client, not by LLM
 tool routing (see the Spatial-QC pack section below).
 
@@ -148,6 +149,7 @@ curated command surface and avoid any future collision. Pure geometry, no depend
 | `spatial_get_stairs` | Placed stairs with Revit's own as-built riser height / tread depth / riser count, plus plan centroid and base level — the live-model equivalent of what the IFC path re-measures from the stair mesh, so max-riser / min-tread rules run without an IFC export. No per-riser breakdown exists in the API, so there is deliberately no `riserVariation`: the consumer reads a missing field as "unmeasured" (INFO) rather than a false PASS. |
 | `spatial_get_paths_of_travel` | The `PathOfTravel` elements a reviewer already placed via `Analyze > Path of Travel`, with Revit's own route length/time — the read side of the consumer's benchmark, which reruns the same `(from, to)` through its grid router and prints both distances. `from`/`to` are the route curve's endpoints (`GetCurves()`), **not** the clicked points. Also emits `polyline`: every route vertex in the same metres/world-XYZ frame, via `Curve.Tessellate()` so an Arc (Revit rounding a corner around an obstacle) keeps its detour instead of collapsing to a chord — that is what lets the consumer find *where* two routes diverge, not just that they differ. Summing polyline segments ≈ `lengthMeters`, slightly short when an Arc is present. Length is `CURVE_ELEM_LENGTH` and time is `PATH_OF_TRAVEL_TIME` (already seconds) — there is no `PATH_OF_TRAVEL_LENGTH`. Elements whose route failed to compute are skipped rather than emitted as a 0-length measurement. |
 | `spatial_create_path_of_travel` | **Write.** Asks Revit to compute and place its own `PathOfTravel` between two points in a floor plan view, so its line sits next to the consumer's detail-line route for comparison. `PathOfTravel.Create` accepts only two endpoints — it routes by itself and cannot be handed an existing polyline, so this can never draw the consumer's own path. Failure arrives both as an out-`PathOfTravelCalculationStatus` AND as thrown `Autodesk.Revit.Exceptions` (measured: coincident/out-of-crop points throw rather than status) — both map to `no_route`. `ResultAffectedByCrop` is accepted as success with a `warning` field; its warning dialog fires at transaction **commit**, so the command opts into `SuppressWarningsOnCommit` (dispatcher-level `IFailuresPreprocessor` that deletes commit warnings) — without it the modal box deadlocks the add-in for headless callers. A genuinely failed element is deleted before the error is raised. First call in a session can take 90+ s (route-analysis warm-up); budget a ≥3-minute HTTP timeout. |
+| `spatial_create_model_line` | Straight `ModelCurve` between two world points. Unlike `create_detail_line` (a view-specific `DetailCurve` that **refuses to run in a 3D view**), a model curve lives in the model and shows in every view that cuts it — which is what lets the spatial-QC panel draw its measured min-width chord inside the 3D view it opens. `units` accepts `meters`/`feet` only and rejects anything else rather than silently scaling. Optional `color` needs a `viewId` (an override is per view); optional `lineStyle` is reported in `warnings` when not found instead of being silently dropped. Returns `{id, length}` with length always in metres; the `id` has a usable `GetReference()` so it can feed `create_aligned_dimension`. |
 
 ### Implemented — UI Actions (no model transaction)
 
