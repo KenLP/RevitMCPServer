@@ -18,7 +18,13 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
   why reset kept working and masked the bug. Its sibling commands were unaffected:
   `override_element_graphics` declares `ModelWrite`, `hide_elements_in_view` takes the default.
 
-  Fixed by opening a transaction around the isolate branch **while keeping `UiAction`**, rather than by
+  **`reset` needed one too.** The handoff reported `reset` as working and concluded
+  `DisableTemporaryViewMode()` does not require a transaction. It does — live testing after fixing the
+  `ids` branch showed `reset` throwing the identical exception. The earlier "reset works" reading held
+  only because reset had never been exercised against a view that isolate had actually modified. Both
+  branches now run inside the transaction.
+
+  Fixed by opening a transaction around both branches **while keeping `UiAction`**, rather than by
   promoting the command to `ModelWrite` as the handoff suggested. Promoting it would have made
   `BatchPolicy` reject `[open_view, isolate_elements_in_view, zoom_to_elements]` — a batch may not mix
   ModelWrite and UiAction, and those other two are UiAction, so the natural view-navigation sequence
