@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.34] — 2026-09-04: `check_clearance` validates `axis` and `direction`
+
+Found while verifying the 0.8.33 sweep: a test asserted the wrong thing, and chasing why exposed a
+real defect that predates the sweep.
+
+### Fixed
+
+- **`axis` and `direction` accepted any value and silently picked a branch.** Both are documented as
+  closed sets (`"bbox" | "Z"`, `"below" | "above"`) but each was compared against a single value with
+  everything else falling through:
+
+  ```csharp
+  var useRaycast = axis.Equals("Z", ...);        // anything else -> bbox
+  var isDown = direction.Equals("below", ...);   // anything else -> above
+  ```
+
+  So `axis: "vertical"` ran the **bbox** algorithm — a different measurement entirely — while the
+  response echoed `"axis": "vertical"` back, and a caller reading their own input reflected would
+  believe it had been honoured. Worse, `direction: "belwo"` fired the raycast **upward**: a reversed
+  measurement returned as success.
+
+  Both now reject an unlisted value with `invalid_parameter` naming what was allowed. Case-insensitive
+  matching is unchanged, so `"BBOX"` and `"z"` still work.
+
+  This is the same defect class as `units: "mm"` in 0.8.29 and the 3D-view dimension in 0.8.32: the
+  command reports success for something it did not do.
+
 ## [0.8.33] — 2026-09-04: finish the coercion sweep — no command reads JSON unguarded
 
 Closes the debt left by 0.8.28 and 0.8.29, and promised to AutomatedSpatialQC in the v0.8.29 handoff

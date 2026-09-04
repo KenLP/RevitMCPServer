@@ -56,8 +56,22 @@ public sealed class CheckClearanceCommand : IRevitCommand
         var clearanceMm = P.DblOr(p, "clearanceMm", 0.0);
         var maxResults = Math.Clamp(P.IntOr(p, "maxResults", 200), 1, 2000);
         var clearanceFt = clearanceMm / 304.8;
+        // Both are closed sets, and both used to be compared against ONE value with
+        // everything else falling through to the other branch. So axis:"vertical" ran
+        // the bbox algorithm while the response echoed "vertical" back, and a typo like
+        // direction:"belwo" silently fired the raycast UPWARD - a reversed measurement
+        // reported as success. Validate instead of guessing.
         var axis = P.StrOrNull(p, "axis") ?? "bbox";
+        if (!axis.Equals("bbox", StringComparison.OrdinalIgnoreCase) &&
+            !axis.Equals("Z", StringComparison.OrdinalIgnoreCase))
+            throw new RevitCommandException("invalid_parameter",
+                $"axis must be 'bbox' or 'Z', got '{axis}'.");
+
         var direction = P.StrOrNull(p, "direction") ?? "below";
+        if (!direction.Equals("below", StringComparison.OrdinalIgnoreCase) &&
+            !direction.Equals("above", StringComparison.OrdinalIgnoreCase))
+            throw new RevitCommandException("invalid_parameter",
+                $"direction must be 'below' or 'above', got '{direction}'.");
         var viewIdNode = p["viewId"];
         var sampleCount = Math.Clamp(P.IntOr(p, "sampleCount", 3), 1, 10);
 
