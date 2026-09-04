@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.31 (stdio).
+ * Revit MCP Server v0.8.32 (stdio).
  *
  * 94 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.31" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.32" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -481,7 +481,7 @@ server.tool("revit_tag_all_in_view", "Tag all (untagged) elements of a category 
   dryRun: dryRunField,
 }, fwdWrite("tag_all_in_view"));
 
-server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain between two or more element references in a view. Supports Grids, Walls (centreline or face), ReferencePlanes, columns, beams, and FamilyInstances. Wall side: 'auto'/'centre' = wall centreline (default), 'exterior'/'interior' = outer/inner face, 'core' = core centre. The dimension line must cross all references and they must be visible in the target view.", {
+server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain between two or more element references in a view. Supports Grids, Walls (centreline or face), ReferencePlanes, columns, beams, and FamilyInstances. Wall side: 'auto'/'centre' = wall centreline (default), 'exterior'/'interior' = outer/inner face, 'core' = core centre. The dimension line must cross all references and they must be visible in the target view. NOT usable in a 3D view: Revit never draws a dimension there, locked or not, though the API reports success. Returns value in FEET plus valueMetres.", {
   references: z.array(z.object({
     elementId: z.number().int().describe("ElementId of the grid, wall, column, beam, or other element to dimension to."),
     side: z.enum(["auto", "exterior", "interior", "centre", "core"]).optional()
@@ -1050,7 +1050,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.31 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.32 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

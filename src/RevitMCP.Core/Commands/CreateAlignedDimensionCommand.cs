@@ -28,7 +28,21 @@ namespace RevitMCPAddin.Commands;
 ///       Other elements (Grid, column, FamilyInstance, etc.): element reference used directly.
 ///   - line:    { start: {x,y,z}, end: {x,y,z} } — position and direction of the dimension line
 ///   - viewId:  long, optional (defaults to active view)
-///   - units:   "meters"|"feet", default "meters"
+///   - units:   "meters"|"feet", default "meters". Applies to the INPUT coordinates
+///             (line.start / line.end) only. The returned <c>value</c> is Revit
+///             internal units (FEET) whatever units says; <c>valueMetres</c> is
+///             provided alongside it so the two cannot be confused.
+///
+/// Requires at least TWO references: a dimension measures between things, so a single
+/// element (e.g. one model line spanning the distance) is not enough - add a second
+/// reference at the far end.
+///
+/// NOT AVAILABLE IN 3D VIEWS. Revit's API happily creates the dimension and returns a
+/// valid element with a correct value, but never draws it and does not consider it part
+/// of the view - measured 2026-09-04 on Revit 2027, both before AND after locking the
+/// view. (A view-scoped FilteredElementCollector reports 0 dimensions in the 3D view and
+/// 1 in an otherwise identical plan view, while model lines created the same way report
+/// 2/2 in both.) Rejecting is better than handing back an id for something invisible.
 /// </summary>
 public sealed class CreateAlignedDimensionCommand : IRevitCommand
 {
@@ -48,6 +62,16 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
 
         var view = doc.GetElement(viewId) as View
             ?? throw new RevitCommandException("not_found", $"View {viewId.Value} not found.");
+
+        // See the class remarks: the API creates a dimension here that Revit never
+        // renders, so a caller would get ok:true plus an id for an element that does not
+        // exist as far as the view is concerned. Locking the view does not help.
+        if (view is View3D)
+            throw new RevitCommandException("invalid_parameter",
+                $"View {viewId.Value} is a 3D view. Revit does not display dimensions in a 3D view "
+                + "even after View > Lock 3D View, although the API will create one and report "
+                + "success. Place the dimension in a plan, section, elevation, drafting or detail "
+                + "view instead.");
 
         // Dimension line
         var lineObj = p["line"] as JsonObject
@@ -74,7 +98,7 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
             var refObj = refNode as JsonObject
                 ?? throw new RevitCommandException("bad_request", "Each reference entry must be a JSON object.");
 
-            var eid = new ElementId(refObj["elementId"]!.GetValue<long>());
+            var eid = new ElementId(P.LongFrom(refObj["elementId"], "references[].elementId"));
             var element = doc.GetElement(eid)
                 ?? throw new RevitCommandException("not_found", $"Element {eid.Value} not found.");
 
@@ -91,7 +115,11 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
         return new JsonObject
         {
             ["dimensionId"] = dim.Id.Value,
+            // value is Revit internal units (feet) regardless of the units parameter,
+            // which governs the input coordinates only. Both are returned because
+            // reading one as the other is a silent 3.28x error.
             ["value"] = dim.Value,
+            ["valueMetres"] = dim.Value * P.FeetToMeters,
             ["segments"] = dim.Segments?.Size ?? 1,
             ["viewId"] = viewId.Value,
             ["references"] = methods,

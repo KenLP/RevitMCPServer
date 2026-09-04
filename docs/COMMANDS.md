@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.31 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command spatial-QC HTTP pack `spatial_*`; 101 C# commands registered; workflow recipes are Node-only).
+> **v0.8.32 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command spatial-QC HTTP pack `spatial_*`; 101 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -55,7 +55,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_get_linked_files`          | `get_linked_files`      | ✅        | List Revit link instances (metadata)                      |
 | `revit_get_linked_elements`       | `get_linked_elements`   | ✅        | Elements inside a linked RVT (bboxes in host coords)      |
 | `revit_check_clearance`           | `check_clearance`       | ✅        | Hard clash + clearance check, host and cross-linked-file  |
-| `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block       | Use `pixelSize` (default 512) for resolution; `dpi` is metadata only. Returns `width`/`height` |
+| `revit_get_view_image`            | `get_view_image`        | ✅        | Export view to PNG; returns MCP Image content block. Use `pixelSize` (default 512) to set resolution — `dpi` is print metadata only. Returns `width`/`height` |
 | `revit_get_element_rooms`         | `get_element_rooms`     | ✅        | Room containment for family instances — Room/FromRoom/ToRoom per element (batch) |
 | `revit_get_model_health`          | `get_model_health`      | ✅        | One-shot model health scorecard: warnings (+ /1000-element ratio), file size, imports/links (CAD, PDF, RVT, point cloud), in-place families, groups, unused views, worksets, purgeable |
 | `revit_get_worksets`              | `get_worksets`          | ✅        | User worksets with per-workset element counts; flags empty worksets and default 'Workset1' name |
@@ -105,7 +105,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_tag_element`               | `tag_element`           | ❌        | Tag an element in a view                                  |
 | `revit_tag_all_in_view`           | `tag_all_in_view`       | ❌        | Tag all untagged elements of a category in a view         |
 | `revit_get_tags_in_view`          | `get_tags_in_view`      | ✅        | List all IndependentTag elements in a view (optional category filter) |
-| `revit_create_aligned_dimension`  | `create_aligned_dimension` | ❌     | Aligned dimension chain: Grids, Walls (centreline/face), columns, beams |
+| `revit_create_aligned_dimension`  | `create_aligned_dimension` | ❌     | Aligned dimension chain: Grids, Walls (centreline/face), columns, beams. **Rejects a 3D view** — Revit never draws dimensions there, locked or not. Needs ≥2 references. `value` is FEET; `valueMetres` alongside |
 | `revit_apply_view_filter`         | `apply_view_filter`     | ❌        | ParameterFilterElement + SetFilterOverrides               |
 | `revit_color_override_by_param`   | `color_override_by_param`| ❌       | Per-bucket color overrides by parameter value             |
 | `revit_hide_elements_in_view`     | `hide_elements_in_view` | ❌        | Hide by ids in view                                       |

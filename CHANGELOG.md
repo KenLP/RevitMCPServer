@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.32] — 2026-09-04: `create_aligned_dimension` refuses a 3D view instead of faking success
+
+From an AutomatedSpatialQC handoff (`HANDOFF_dimension_in_3d_view.md`, 2026-09-04), which framed it
+using the rule this repo set for itself at `spatial_create_model_line`: *a silent skip looks
+identical to success from the caller's side*.
+
+### Fixed
+
+- **A dimension created in a 3D view returned `ok: true`, a real `dimensionId` and a correct `value`
+  — and Revit never drew it.** `doc.Create.NewDimension` does not enforce the restriction the Revit
+  UI does, so the element existed (`get_element_info` confirmed `OST_Dimensions`) while the view did
+  not contain it.
+
+  Their evidence had a control, which is what made it conclusive rather than "we couldn't see it": a
+  view-scoped `FilteredElementCollector` reported **0** dimensions in a 3D view and **1** in an
+  otherwise identical plan view, while two model lines created the same way reported **2/2 in both**
+  and were visually confirmed in the 3D view.
+
+  **The handoff proposed gating on `view is View3D && !view.IsLocked`. Measured on the live model,
+  locking makes no difference — the dimension stays invisible after `View > Lock 3D View`.** So the
+  guard is on **any** `View3D`, and the error message says the lock will not help, which saves the
+  next caller the same experiment.
+
+  Option (a) from the handoff (reject) over (b) (warn): with locking ruled out there is no path on
+  which the element becomes useful, so returning an id for it is only ever misleading. No
+  `lock_3d_view` command was added — it would open a door that leads nowhere.
+
+### Added
+
+- **`valueMetres` in the response.** `value` is Revit internal units (feet) whatever `units` says,
+  because `units` governs the input coordinates only. That asymmetry is easy to misread as metres — a
+  silent 3.28x error — and the repo was already inconsistent about it: `spatial_create_model_line`
+  returns `length` always in metres. Both numbers are now returned so neither can be mistaken.
+
+### Changed
+
+- Docstring and MCP tool description state the 3D-view restriction, that `units` applies to input
+  coordinates only, and the two-reference minimum (already enforced, now documented — the natural
+  case of measuring across a single chord gives only one reference).
+- `references[].elementId` is read through `P.LongFrom`. It used `refObj["elementId"]!`, so a missing
+  key was a NullReferenceException surfacing as a bare 500 rather than a named parameter error.
+- Fixed a malformed row in `docs/COMMANDS.md`: the 0.8.31 edit to `get_view_image` left a stray pipe,
+  rendering it as a five-column row in a four-column table.
+
 ## [0.8.31] — 2026-09-03: `get_view_image` can change resolution; `create_perspective_view`
 
 Both from a World Labs probe handoff (`_probes/worldlabs`, 2026-09-03) building a Revit -> world-model
