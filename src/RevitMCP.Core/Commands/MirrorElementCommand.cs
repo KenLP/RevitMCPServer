@@ -30,11 +30,8 @@ public sealed class MirrorElementCommand : IRevitCommand
 
         var idsArr = P.Arr(p, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr)
-        {
-            if (n is null) continue;
-            ids.Add(new ElementId(n.GetValue<long>()));
-        }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
         var origin = P.Xyz(p, "origin", units);
         var normal = P.Xyz(p, "normal", "feet"); // unitless direction

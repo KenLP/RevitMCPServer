@@ -37,14 +37,14 @@ public sealed class ImportParametersCommand : IRevitCommand
 
         foreach (var item in items.OfType<JsonObject>())
         {
-            var elementId = RequireLong(item, "elementId");
-            var paramName = item["parameterName"]?.GetValue<string>()
+            var elementId = P.Long(item, "elementId");
+            var paramName = P.StrOrNull(item, "parameterName")
                 ?? throw new RevitCommandException("bad_request",
                     "Each item requires 'parameterName'.");
             var valueNode = item["value"]
                 ?? throw new RevitCommandException("bad_request",
                     "Each item requires 'value'.");
-            var units = item["units"]?.GetValue<string>() ?? "internal";
+            var units = P.StrOrNull(item, "units") ?? "internal";
 
             try
             {
@@ -123,13 +123,5 @@ public sealed class ImportParametersCommand : IRevitCommand
                 throw new InvalidOperationException(
                     $"Unsupported StorageType '{param.StorageType}' for '{param.Definition.Name}'.");
         }
-    }
-
-    private static long RequireLong(JsonObject obj, string key)
-    {
-        var n = obj[key] ?? throw new RevitCommandException("bad_request", $"Missing '{key}'.");
-        try { return n.GetValue<long>(); } catch { }
-        try { return n.GetValue<int>(); } catch { }
-        throw new RevitCommandException("bad_request", $"Cannot parse '{key}' as long.");
     }
 }

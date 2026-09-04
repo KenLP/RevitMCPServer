@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.33] — 2026-09-04: finish the coercion sweep — no command reads JSON unguarded
+
+Closes the debt left by 0.8.28 and 0.8.29, and promised to AutomatedSpatialQC in the v0.8.29 handoff
+("28 file command vẫn gọi GetValue<>() trần... sẽ quét nốt").
+
+### Fixed
+
+- **Every remaining direct `JsonNode.GetValue<T>()` in the command files now goes through the guarded
+  helpers.** 0.8.28 fixed object keys and 0.8.29 fixed one array, leaving 76 call sites across 28
+  files where a type mismatch still threw `InvalidOperationException` — reported as HTTP 500
+  `command_failed` with a message about .NET types instead of 400 `invalid_parameter` naming the
+  parameter.
+
+  Of the 76, **14 were already safe** and were left alone: `TryGetValue<T>` calls, and the deliberate
+  try-each-type fallbacks in `WhereSupport.GetNum` and `ImportParametersCommand`. The other **62 were
+  converted**, in four shapes:
+
+  | Shape | Where | Became |
+  |---|---|---|
+  | `n.GetValue<long>()` over an `ids` array | 10 commands incl. `delete_elements`, `select_elements`, `zoom_to_elements` | `P.LongFrom(arr[i], $"ids[{i}]")` |
+  | a single required node | `apply_view_template`, `check_clearance`, `export_view_pdf`, `get_element_rooms`, `list_spaces`, `set_parameter_batch`, `copy_parameters`, `override_element_graphics` | `P.LongFrom` / `P.StrFrom` / `P.DblFrom` |
+  | `obj["k"]?.GetValue<T>() ?? default` | `check_clearance`, `create_aligned_dimension`, `import_parameters`, `override_element_graphics` | `P.StrOrNull` / `P.IntOr` / `P.BoolOr` |
+  | the parameter-write switch | `set_parameter`, `set_parameter_batch`, `update_where` | `P.StrFrom` / `P.IntFrom` / `P.BoolFrom` / `P.DblFrom` / `P.LongFrom` |
+
+  The last shape is the one that changes behaviour most usefully. Those switches pick a type from
+  Revit's `StorageType` and then read the JSON as exactly that, so writing a String parameter with a
+  JSON number threw. `set_parameter {value: 101}` on a text parameter such as Mark now writes "101"
+  instead of returning a 500 — `import_parameters` already coerced this way on purpose, and the three
+  write paths now agree with it.
+
+- Removed `ImportParametersCommand.RequireLong`, a private duplicate of what `P.Long` does, and does
+  better: it also accepts numeric strings and integral doubles, and its error names the expected type
+  rather than saying "cannot parse as long".
+
+### Added
+
+- `P.StrFrom`, `P.IntFrom`, `P.BoolFrom` complete the bare-node set alongside `LongFrom` / `DblFrom`.
+  Each takes a label (`"ids[2]"`, `"set.value"`) that appears verbatim in the error, so a caller is
+  told which element of which array was wrong.
+- 10 tests covering the new helpers, including that a null node is rejected rather than defaulted —
+  the failure mode that makes a mistyped optional silently change a query's scope. 170 C# tests total.
+
 ## [0.8.32] — 2026-09-04: `create_aligned_dimension` refuses a 3D view instead of faking success
 
 From an AutomatedSpatialQC handoff (`HANDOFF_dimension_in_3d_view.md`, 2026-09-04), which framed it

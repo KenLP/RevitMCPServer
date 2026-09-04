@@ -45,7 +45,7 @@ public sealed class CreateScheduleCommand : IRevitCommand
 
             foreach (var fn in fieldsArr)
             {
-                var fieldName = fn?.GetValue<string>();
+                var fieldName = fn is null ? null : P.StrFrom(fn, "fields[]");
                 if (fieldName is null) continue;
 
                 var sf = schedulableFields.FirstOrDefault(

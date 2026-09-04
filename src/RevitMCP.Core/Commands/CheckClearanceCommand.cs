@@ -56,16 +56,16 @@ public sealed class CheckClearanceCommand : IRevitCommand
         var clearanceMm = P.DblOr(p, "clearanceMm", 0.0);
         var maxResults = Math.Clamp(P.IntOr(p, "maxResults", 200), 1, 2000);
         var clearanceFt = clearanceMm / 304.8;
-        var axis = p["axis"]?.GetValue<string>() ?? "bbox";
-        var direction = p["direction"]?.GetValue<string>() ?? "below";
+        var axis = P.StrOrNull(p, "axis") ?? "bbox";
+        var direction = P.StrOrNull(p, "direction") ?? "below";
         var viewIdNode = p["viewId"];
         var sampleCount = Math.Clamp(P.IntOr(p, "sampleCount", 3), 1, 10);
 
         var setAItems = CollectItems(doc, setANode);
         var setBItems = CollectItems(doc, setBNode);
 
-        var sourceA = setANode["source"]?.GetValue<string>() ?? "host";
-        var sourceB = setBNode["source"]?.GetValue<string>() ?? "host";
+        var sourceA = P.StrOrNull(setANode, "source") ?? "host";
+        var sourceB = P.StrOrNull(setBNode, "source") ?? "host";
         var bothHost = sourceA == "host" && sourceB == "host";
 
         var useRaycast = axis.Equals("Z", StringComparison.OrdinalIgnoreCase);
@@ -108,7 +108,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
 
     private static List<ElementInfo> CollectItems(Document doc, JsonObject setNode)
     {
-        var source = setNode["source"]?.GetValue<string>() ?? "host";
+        var source = P.StrOrNull(setNode, "source") ?? "host";
         var limit = Math.Clamp(P.IntOr(setNode, "limit", 500), 1, 2000);
         var catArray = setNode["categories"] as JsonArray;
 
@@ -116,7 +116,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
         BoundingBoxXYZ? scopeBbox = null;
         if (setNode["scopeId"] is JsonNode scopeIdNode)
         {
-            var scopeEl = doc.GetElement(new ElementId(scopeIdNode.GetValue<long>()));
+            var scopeEl = doc.GetElement(new ElementId(P.LongFrom(scopeIdNode, "scopeId")));
             scopeBbox = scopeEl?.get_BoundingBox(null);
         }
 
@@ -129,7 +129,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
             var linkIdNode = setNode["linkId"]
                 ?? throw new RevitCommandException("bad_request",
                     "Element set with source='link' requires 'linkId'.");
-            var linkId = new ElementId(linkIdNode.GetValue<long>());
+            var linkId = new ElementId(P.LongFrom(linkIdNode, "linkId"));
             linkIdVal = linkId.Value;
 
             var linkInst = doc.GetElement(linkId) as RevitLinkInstance
@@ -152,7 +152,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
             foreach (var node in catArray)
             {
                 if (node == null) continue;
-                var catStr = node.GetValue<string>();
+                var catStr = P.StrFrom(node, "categories[]");
                 if (!Enum.TryParse<BuiltInCategory>(catStr, ignoreCase: true, out var bic))
                     throw new RevitCommandException("invalid_parameter",
                         $"Unknown BuiltInCategory '{catStr}'.");
@@ -260,7 +260,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
         // Resolve View3D — required by ReferenceIntersector.
         View3D? view3d = null;
         if (viewIdNode != null)
-            view3d = doc.GetElement(new ElementId(viewIdNode.GetValue<long>())) as View3D;
+            view3d = doc.GetElement(new ElementId(P.LongFrom(viewIdNode, "viewId"))) as View3D;
         if (view3d == null)
             view3d = doc.ActiveView as View3D;
         if (view3d == null)
@@ -387,7 +387,7 @@ public sealed class CheckClearanceCommand : IRevitCommand
         foreach (var node in catArray)
         {
             if (node == null) continue;
-            if (Enum.TryParse<BuiltInCategory>(node.GetValue<string>(), ignoreCase: true, out var bic))
+            if (Enum.TryParse<BuiltInCategory>(P.StrFrom(node, "categories[]"), ignoreCase: true, out var bic))
                 filters.Add(new ElementCategoryFilter(bic));
         }
         return filters.Count == 0

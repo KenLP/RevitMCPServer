@@ -102,7 +102,7 @@ public sealed class CreateAlignedDimensionCommand : IRevitCommand
             var element = doc.GetElement(eid)
                 ?? throw new RevitCommandException("not_found", $"Element {eid.Value} not found.");
 
-            var side = refObj["side"]?.GetValue<string>() ?? "auto";
+            var side = P.StrOrNull(refObj, "side") ?? "auto";
             refArray.Append(GetReference(doc, element, side, view, methods));
         }
 

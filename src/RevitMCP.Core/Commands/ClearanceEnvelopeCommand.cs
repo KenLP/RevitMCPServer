@@ -237,7 +237,7 @@ public sealed class ClearanceEnvelopeCommand : IRevitCommand
             foreach (var ptNode in raw)
             {
                 if (ptNode is not JsonArray xy || xy.Count < 2) continue;
-                var q = new XYZ(xy[0]!.GetValue<double>() * scale, xy[1]!.GetValue<double>() * scale, zBase);
+                var q = new XYZ(P.DblFrom(xy[0], "loops[][][0]") * scale, P.DblFrom(xy[1], "loops[][][1]") * scale, zBase);
                 if (pts.Count == 0 || pts[^1].DistanceTo(q) > 1e-4) pts.Add(q);
             }
             if (pts.Count >= 2 && pts[0].DistanceTo(pts[^1]) < 1e-4) pts.RemoveAt(pts.Count - 1);
@@ -287,7 +287,7 @@ public sealed class ClearanceEnvelopeCommand : IRevitCommand
         if (p["categories"] is not JsonArray arr || arr.Count == 0) return null;
         var list = new List<BuiltInCategory>();
         foreach (var n in arr)
-            if (n != null && Enum.TryParse<BuiltInCategory>(n.GetValue<string>(), ignoreCase: true, out var bic))
+            if (n != null && Enum.TryParse<BuiltInCategory>(P.StrFrom(n, "categories[]"), ignoreCase: true, out var bic))
                 list.Add(bic);
         return list.Count > 0 ? list.ToArray() : null;
     }

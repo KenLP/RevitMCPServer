@@ -55,19 +55,19 @@ public sealed class SetParameterCommand : IRevitCommand
         switch (param.StorageType)
         {
             case StorageType.String:
-                wrote = param.Set(valueNode.GetValue<string>());
+                wrote = param.Set(P.StrFrom(valueNode, "value"));
                 break;
 
             case StorageType.Integer:
                 wrote = valueNode.GetValueKind() is System.Text.Json.JsonValueKind.True
                                                   or System.Text.Json.JsonValueKind.False
-                    ? param.Set(valueNode.GetValue<bool>() ? 1 : 0)
-                    : param.Set(valueNode.GetValue<int>());
+                    ? param.Set(P.BoolFrom(valueNode, "value") ? 1 : 0)
+                    : param.Set(P.IntFrom(valueNode, "value"));
                 break;
 
             case StorageType.Double:
             {
-                var raw = valueNode.GetValue<double>();
+                var raw = P.DblFrom(valueNode, "value");
                 var converted = ConvertToInternal(param, raw, units, out unitConversionApplied);
                 wrote = param.Set(converted);
                 break;
@@ -77,9 +77,9 @@ public sealed class SetParameterCommand : IRevitCommand
             {
                 long target;
                 if (valueNode is JsonObject obj && obj["id"] is JsonNode idn)
-                    target = idn.GetValue<long>();
+                    target = P.LongFrom(idn, "value.id");
                 else
-                    target = valueNode.GetValue<long>();
+                    target = P.LongFrom(valueNode, "value");
                 wrote = param.Set(new ElementId(target));
                 break;
             }

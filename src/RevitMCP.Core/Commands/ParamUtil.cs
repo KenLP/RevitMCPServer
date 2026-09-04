@@ -154,6 +154,25 @@ public static class P
             ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
             : AsDouble(node, label);
 
+    /// <summary>Same as <see cref="LongFrom"/> for a string. A JSON number or bool is
+    /// accepted and taken as its text, matching <see cref="Str"/>.</summary>
+    public static string StrFrom(JsonNode? node, string label) =>
+        node is null
+            ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
+            : AsString(node, label);
+
+    /// <summary>Same as <see cref="LongFrom"/> for a 32-bit integer.</summary>
+    public static int IntFrom(JsonNode? node, string label) =>
+        node is null
+            ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
+            : AsInt(node, label);
+
+    /// <summary>Same as <see cref="LongFrom"/> for a boolean.</summary>
+    public static bool BoolFrom(JsonNode? node, string label) =>
+        node is null
+            ? throw new RevitCommandException("invalid_parameter", $"'{label}' is null.")
+            : AsBool(node, label);
+
     public static bool BoolOr(JsonObject obj, string key, bool @default) =>
         obj[key] is { } n ? AsBool(n, key) : @default;
 

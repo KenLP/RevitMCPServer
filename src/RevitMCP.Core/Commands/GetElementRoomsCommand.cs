@@ -38,7 +38,7 @@ public sealed class GetElementRoomsCommand : IRevitCommand
 
         foreach (var idNode in ids)
         {
-            var idValue = idNode!.GetValue<long>();
+            var idValue = P.LongFrom(idNode, "ids[]");
             var element = doc.GetElement(new ElementId(idValue));
 
             if (element is not FamilyInstance fi)

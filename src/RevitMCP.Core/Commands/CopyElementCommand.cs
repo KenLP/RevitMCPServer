@@ -26,11 +26,8 @@ public sealed class CopyElementCommand : IRevitCommand
 
         var idsArr = P.Arr(p, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr)
-        {
-            if (n is null) continue;
-            ids.Add(new ElementId(n.GetValue<long>()));
-        }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
         var translation = P.Xyz(p, "translation", units);
         var newIds = ElementTransformUtils.CopyElements(doc, ids, translation);

@@ -27,7 +27,7 @@ public sealed class OverrideElementGraphicsCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var p = ctx.Parameters;
 
-        var viewIdVal = p["viewId"]?.GetValue<long>()
+        var viewIdVal = P.LongOrNull(p, "viewId")
             ?? throw new RevitCommandException("bad_request", "Missing required parameter 'viewId'.");
         var idsNode = p["elementIds"] as JsonArray
             ?? throw new RevitCommandException("bad_request", "Missing required parameter 'elementIds'.");
@@ -35,17 +35,17 @@ public sealed class OverrideElementGraphicsCommand : IRevitCommand
         var view = doc.GetElement(new ElementId(viewIdVal)) as View
             ?? throw new RevitCommandException("not_found", $"No View with id {viewIdVal}.");
 
-        var reset = p["reset"]?.GetValue<bool>() ?? false;
+        var reset = P.BoolOr(p, "reset", false);
 
         // Parse color (default red)
         int r = 255, g = 0, b = 0;
         if (p["color"] is JsonObject colorNode)
         {
-            r = colorNode["r"]?.GetValue<int>() ?? 255;
-            g = colorNode["g"]?.GetValue<int>() ?? 0;
-            b = colorNode["b"]?.GetValue<int>() ?? 0;
+            r = P.IntOr(colorNode, "r", 255);
+            g = P.IntOr(colorNode, "g", 0);
+            b = P.IntOr(colorNode, "b", 0);
         }
-        var transparency = Math.Clamp(p["transparency"]?.GetValue<int>() ?? 0, 0, 100);
+        var transparency = Math.Clamp(P.IntOr(p, "transparency", 0), 0, 100);
 
         // Find solid fill pattern
         ElementId? solidFillId = null;
@@ -63,7 +63,7 @@ public sealed class OverrideElementGraphicsCommand : IRevitCommand
         foreach (var node in idsNode)
         {
             if (node == null) continue;
-            var elId = new ElementId(node.GetValue<long>());
+            var elId = new ElementId(P.LongFrom(node, "elementIds[]"));
             var el = doc.GetElement(elId);
             if (el == null) { skipped.Add(elId.Value); continue; }
 

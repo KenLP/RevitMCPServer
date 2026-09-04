@@ -44,7 +44,7 @@ public sealed class SetParameterBatchCommand : IRevitCommand
         foreach (var idNode in ids)
         {
             if (idNode is null) continue;
-            var idValue = idNode.GetValue<long>();
+            var idValue = P.LongFrom(idNode, "ids[]");
             try
             {
                 var element = doc.GetElement(new ElementId(idValue))
@@ -108,18 +108,18 @@ public sealed class SetParameterBatchCommand : IRevitCommand
         switch (param.StorageType)
         {
             case StorageType.String:
-                param.Set(valueNode.GetValue<string>());
+                param.Set(P.StrFrom(valueNode, "value"));
                 break;
             case StorageType.Integer:
                 if (valueNode.GetValueKind() is System.Text.Json.JsonValueKind.True
                     or System.Text.Json.JsonValueKind.False)
-                    param.Set(valueNode.GetValue<bool>() ? 1 : 0);
+                    param.Set(P.BoolFrom(valueNode, "value") ? 1 : 0);
                 else
-                    param.Set(valueNode.GetValue<int>());
+                    param.Set(P.IntFrom(valueNode, "value"));
                 break;
             case StorageType.Double:
             {
-                var raw = valueNode.GetValue<double>();
+                var raw = P.DblFrom(valueNode, "value");
                 var converted = SetParameterCommand.ConvertToInternal(
                     param, raw, units, out _);
                 param.Set(converted);
@@ -127,8 +127,8 @@ public sealed class SetParameterBatchCommand : IRevitCommand
             }
             case StorageType.ElementId:
                 var idVal = valueNode is JsonObject obj && obj["id"] is JsonNode idn
-                    ? idn.GetValue<long>()
-                    : valueNode.GetValue<long>();
+                    ? P.LongFrom(idn, "value.id")
+                    : P.LongFrom(valueNode, "value");
                 param.Set(new ElementId(idVal));
                 break;
             default:

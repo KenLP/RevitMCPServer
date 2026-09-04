@@ -31,9 +31,9 @@ public sealed class ExportViewPdfCommand : IRevitCommand
         var viewIdNode = p["viewId"];
         if (viewIdNode != null)
         {
-            view = doc.GetElement(new ElementId(viewIdNode.GetValue<long>())) as View
+            view = doc.GetElement(new ElementId(P.LongFrom(viewIdNode, "viewId"))) as View
                 ?? throw new RevitCommandException("not_found",
-                    $"No view with id {viewIdNode.GetValue<long>()}.");
+                    $"No view with id {P.LongFrom(viewIdNode, "viewId")}.");
         }
         else
         {

@@ -128,4 +128,62 @@ public class ParamUtilCoercionTests
     [Fact]
     public void Long_still_reports_bad_request_when_key_missing()
         => Assert.Equal("bad_request", Throws(() => P.Long(Parse("""{}"""), "id")).Code);
+
+    // ── the *From helpers: same rules, for a bare node such as an array element ──
+    //
+    // These back the 0.8.33 sweep that replaced every direct GetValue<T>() call in the
+    // command files. The label they are given is what the caller sees, so it is part of
+    // the contract, not decoration.
+
+    private static JsonNode Node(string json) => JsonNode.Parse(json)!;
+
+    [Fact]
+    public void LongFrom_accepts_number_and_numeric_string()
+    {
+        Assert.Equal(7L, P.LongFrom(Node("7"), "ids[0]"));
+        Assert.Equal(7L, P.LongFrom(Node("\"7\""), "ids[0]"));
+    }
+
+    [Fact]
+    public void LongFrom_names_the_element_in_the_error()
+    {
+        var ex = Throws(() => P.LongFrom(Node("\"abc\""), "ids[2]"));
+        Assert.Equal("invalid_parameter", ex.Code);
+        Assert.Contains("ids[2]", ex.Message);
+    }
+
+    [Fact]
+    public void LongFrom_rejects_null_rather_than_defaulting()
+        => Assert.Equal("invalid_parameter", Throws(() => P.LongFrom(null, "ids[0]")).Code);
+
+    [Fact]
+    public void StrFrom_takes_a_number_as_its_text()
+        => Assert.Equal("101", P.StrFrom(Node("101"), "fields[0]"));
+
+    [Fact]
+    public void StrFrom_returns_a_string_unchanged()
+        => Assert.Equal("Mark", P.StrFrom(Node("\"Mark\""), "fields[0]"));
+
+    [Fact]
+    public void IntFrom_accepts_numeric_string()
+        => Assert.Equal(42, P.IntFrom(Node("\"42\""), "value"));
+
+    [Fact]
+    public void IntFrom_rejects_out_of_range()
+        => Assert.Equal("invalid_parameter", Throws(() => P.IntFrom(Node("9999999999"), "value")).Code);
+
+    [Fact]
+    public void BoolFrom_accepts_boolean_and_its_text()
+    {
+        Assert.True(P.BoolFrom(Node("true"), "value"));
+        Assert.True(P.BoolFrom(Node("\"true\""), "value"));
+    }
+
+    [Fact]
+    public void BoolFrom_rejects_a_number()
+        => Assert.Equal("invalid_parameter", Throws(() => P.BoolFrom(Node("1"), "value")).Code);
+
+    [Fact]
+    public void DblFrom_accepts_numeric_string()
+        => Assert.Equal(2.5, P.DblFrom(Node("\"2.5\""), "value"));
 }

@@ -31,7 +31,7 @@ public sealed class QueryWhereCommand : IRevitCommand
         var bic = WhereSupport.ResolveCategory(P.Str(p, "category"));
         var conds = WhereSupport.ParseWhere(p["where"] as JsonArray);
         var select = (p["select"] as JsonArray)?
-            .Select(n => n?.GetValue<string>()).Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(n => n is null ? null : P.StrFrom(n, "select[]")).Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s!).ToList() ?? new System.Collections.Generic.List<string>();
         var limit = System.Math.Clamp(P.IntOr(p, "limit", 100), 1, 1000);
         var viewId = P.LongOrNull(p, "view_id");

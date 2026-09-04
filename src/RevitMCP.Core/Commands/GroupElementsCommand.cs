@@ -14,7 +14,8 @@ public sealed class GroupElementsCommand : IRevitCommand
         var doc = ctx.RequireDoc();
         var idsArr = P.Arr(ctx.Parameters, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr) { if (n is not null) ids.Add(new ElementId(n.GetValue<long>())); }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
         var group = doc.Create.NewGroup(ids);
         var groupName = P.StrOrNull(ctx.Parameters, "name");

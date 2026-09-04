@@ -18,7 +18,8 @@ public sealed class UnhideElementsInViewCommand : IRevitCommand
 
         var idsArr = P.Arr(p, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr) { if (n is not null) ids.Add(new ElementId(n.GetValue<long>())); }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
         view.UnhideElements(ids);
 

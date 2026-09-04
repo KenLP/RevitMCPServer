@@ -37,7 +37,7 @@ public sealed class CopyParametersCommand : IRevitCommand
         {
             filterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var n in namesArr)
-                if (n?.GetValue<string>() is string s) filterNames.Add(s);
+                if (n is not null) filterNames.Add(P.StrFrom(n, "parameterNames[]"));
         }
 
         // Collect writable source parameters keyed by name.
@@ -61,7 +61,7 @@ public sealed class CopyParametersCommand : IRevitCommand
 
         foreach (var targetNode in targetIdsArr)
         {
-            var targetIdValue = targetNode!.GetValue<long>();
+            var targetIdValue = P.LongFrom(targetNode, "targetIds[]");
             var targetElem = doc.GetElement(new ElementId(targetIdValue));
 
             if (targetElem == null)

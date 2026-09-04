@@ -123,7 +123,7 @@ public sealed class FindElementsCommand : IRevitCommand
                 var fieldValues = new JsonObject();
                 foreach (var fn in fieldsArr)
                 {
-                    var fname = fn?.GetValue<string>();
+                    var fname = fn is null ? null : P.StrFrom(fn, "fields[]");
                     if (fname is null) continue;
                     var param = LookupInstanceOrType(el, fname);
                     if (param is not null && param.HasValue)

@@ -162,21 +162,21 @@ public sealed class UpdateWhereCommand : IRevitCommand
         switch (param.StorageType)
         {
             case StorageType.String:
-                param.Set(value.GetValue<string>());
+                param.Set(P.StrFrom(value, "set.value"));
                 break;
             case StorageType.Integer:
                 if (value.GetValueKind() is System.Text.Json.JsonValueKind.True
                                          or System.Text.Json.JsonValueKind.False)
-                    param.Set(value.GetValue<bool>() ? 1 : 0);
+                    param.Set(P.BoolFrom(value, "set.value") ? 1 : 0);
                 else
-                    param.Set(value.GetValue<int>());
+                    param.Set(P.IntFrom(value, "set.value"));
                 break;
             case StorageType.Double:
-                param.Set(SetParameterCommand.ConvertToInternal(param, value.GetValue<double>(), units, out _));
+                param.Set(SetParameterCommand.ConvertToInternal(param, P.DblFrom(value, "set.value"), units, out _));
                 break;
             case StorageType.ElementId:
                 var target = value is JsonObject o && o["id"] is JsonNode idn
-                    ? idn.GetValue<long>() : value.GetValue<long>();
+                    ? P.LongFrom(idn, "set.value.id") : P.LongFrom(value, "set.value");
                 param.Set(new ElementId(target));
                 break;
             default:
@@ -190,19 +190,19 @@ public sealed class UpdateWhereCommand : IRevitCommand
         switch (param.StorageType)
         {
             case StorageType.String:
-                return string.Equals(param.AsString() ?? "", value.GetValue<string>(),
+                return string.Equals(param.AsString() ?? "", P.StrFrom(value, "set.value"),
                     StringComparison.Ordinal);
             case StorageType.Integer:
                 var want = value.GetValueKind() is System.Text.Json.JsonValueKind.True
                                                 or System.Text.Json.JsonValueKind.False
-                    ? (value.GetValue<bool>() ? 1 : 0) : value.GetValue<int>();
+                    ? (P.BoolFrom(value, "set.value") ? 1 : 0) : P.IntFrom(value, "set.value");
                 return param.AsInteger() == want;
             case StorageType.Double:
-                var converted = SetParameterCommand.ConvertToInternal(param, value.GetValue<double>(), units, out _);
+                var converted = SetParameterCommand.ConvertToInternal(param, P.DblFrom(value, "set.value"), units, out _);
                 return Math.Abs(param.AsDouble() - converted) < 1e-6;
             case StorageType.ElementId:
                 var target = value is JsonObject o && o["id"] is JsonNode idn
-                    ? idn.GetValue<long>() : value.GetValue<long>();
+                    ? P.LongFrom(idn, "set.value.id") : P.LongFrom(value, "set.value");
                 return param.AsElementId().Value == target;
             default:
                 return false;

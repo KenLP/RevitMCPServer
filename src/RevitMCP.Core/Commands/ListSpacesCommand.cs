@@ -24,7 +24,7 @@ public sealed class ListSpacesCommand : IRevitCommand
 
         long? filterLevelId = null;
         if (p["levelId"] is JsonNode lvNode)
-            filterLevelId = lvNode.GetValue<long>();
+            filterLevelId = P.LongFrom(lvNode, "levelId");
 
         var limit = Math.Clamp(P.IntOr(p, "limit", 500), 1, 2000);
 

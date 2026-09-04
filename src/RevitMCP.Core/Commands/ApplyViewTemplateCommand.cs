@@ -41,7 +41,7 @@ public sealed class ApplyViewTemplateCommand : IRevitCommand
 
         if (templateIdNode != null)
         {
-            var raw = templateIdNode.GetValue<long>();
+            var raw = P.LongFrom(templateIdNode, "viewTemplateId");
             if (raw < 0)
             {
                 newTemplateId = ElementId.InvalidElementId;

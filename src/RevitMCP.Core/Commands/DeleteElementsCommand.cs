@@ -28,11 +28,8 @@ public sealed class DeleteElementsCommand : IRevitCommand
         var arr = P.Arr(ctx.Parameters, "ids");
 
         var ids = new List<ElementId>(arr.Count);
-        foreach (var n in arr)
-        {
-            if (n is null) continue;
-            ids.Add(new ElementId(n.GetValue<long>()));
-        }
+        for (var i = 0; i < arr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(arr[i], $"ids[{i}]")));
         if (ids.Count == 0)
             throw new RevitCommandException("invalid_parameter", "'ids' must contain at least one ElementId.");
 

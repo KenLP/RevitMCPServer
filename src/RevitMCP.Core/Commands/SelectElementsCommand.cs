@@ -21,7 +21,8 @@ public sealed class SelectElementsCommand : IRevitCommand
         var uiDoc = ctx.RequireUIDoc();
         var idsArr = P.Arr(ctx.Parameters, "ids");
         var ids = new List<ElementId>();
-        foreach (var n in idsArr) { if (n is not null) ids.Add(new ElementId(n.GetValue<long>())); }
+        for (var i = 0; i < idsArr.Count; i++)
+            ids.Add(new ElementId(P.LongFrom(idsArr[i], $"ids[{i}]")));
 
         uiDoc.Selection.SetElementIds(ids);
 
