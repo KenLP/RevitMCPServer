@@ -7,6 +7,10 @@ Nguồn quy ước: [`CROSS_REPO_ACTIONS_2026-07-17.md`](../CROSS_REPO_ACTIONS_2
 
 ## Handoff đang mở
 
+- [AutomatedSpatialQC — `create_aligned_dimension` từ chối view 3D, đóng trên `main` 0.8.32](handoffs/HANDOFF_spatialqc_dimension_3d_rejected.md)
+  — đề xuất của họ chặn thiếu: điều kiện `!IsLocked` sai, **lock rồi vẫn không hiện**, nên guard phủ mọi
+  `View3D`. Chọn (a) từ chối thay vì (b) cảnh báo, không thêm `lock_3d_view`. Kèm `valueMetres` (tỉ số đo được 3.28084
+  xác nhận `value` là feet). **Chưa tag** — tag mới nhất vẫn `v0.8.31`, lấy `main` hoặc kiểm bằng `/health`.
 - [bim-orchestrator — panel kẹt "paused" đã đóng ở v0.8.30 (cả hai pane)](handoffs/HANDOFF_bimorch_panel_suspend_fixed.md)
   — làm đúng cả hai đề xuất của họ (ForceRebuild + ViewActivated). Thêm 2 thứ report chưa nêu: pane
   **Spatial QC** dính đúng lỗi đó, và nó tự gọi mình là "AutoAudit" trong 3 chuỗi hiển thị (sai cả tên
