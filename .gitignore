@@ -49,3 +49,6 @@ docs/DOWNSTREAM_CONTRACTS.md
 /handoffs/
 docs/handoffs/
 docs/HANDOFF.md
+
+# Stray tool/simulation logs - never part of the repo.
+*.log
