@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.35] — 2026-09-14: second ribbon panel is now opt-in
+
+### Changed
+
+- **A default install adds exactly one ribbon tab (AutoAudit).** Earlier builds also registered
+  a second dockable panel unconditionally, pointing at a fixed local URL that a fresh install has
+  nothing listening on — so every new user got a tab that could only show a connection error.
+
+  That panel is now generic and config-driven. `revit-mcp-extra-panel.json` (per Revit version,
+  next to `revit-mcp-panel.json`) names its `url`, `label` and ribbon `tab`; without the file — or
+  with `"enabled": false` — registration returns before touching the ribbon, so no tab, no pane and
+  no WebView2 profile are created. The pane's dockable id is unchanged, so window layouts saved by
+  earlier builds still resolve; its WebView2 user-data folder is now `WebView2\Extra\<ver>`.
+  The previous per-panel config file name is no longer read: anyone who wants the second panel
+  back writes the new file with an explicit `url`.
+
+- The config may name an existing ribbon tab (`"tab": "AutoAudit"`) to share it; the duplicate-tab
+  `ArgumentException` from `CreateRibbonTab` is the one exception registration swallows.
+
+- README: the "Ribbon panel" section documents one tab plus the opt-in second one. Tool counts are
+  unchanged (94 MCP tools, 101 C# commands): this touches only the ribbon, never the command surface.
+
 ## [0.8.34] — 2026-09-04: `check_clearance` validates `axis` and `direction`
 
 Found while verifying the 0.8.33 sweep: a test asserted the wrong thing, and chasing why exposed a

@@ -46,15 +46,15 @@ public sealed class AutoAuditPanelView : UserControl
     }
 
     /// <summary>
-    /// URL + user-data-folder overload so a SECOND dockable pane (Spatial QC) reuses this WebView2
+    /// URL + user-data-folder overload so a SECOND dockable pane (the config-driven extra pane) reuses this WebView2
     /// host — and every gotcha fix in it — instead of duplicating ~250 lines. Each pane MUST pass a
     /// DISTINCT userDataFolder: two WebView2 profiles sharing one folder can lock each other out.
     /// </summary>
     /// <param name="label">
     /// Pane name used in every message the user reads. Required because BOTH
     /// dockable panes are instances of this class: with "AutoAudit" hardcoded,
-    /// the Spatial QC pane told users "AutoAudit panel is paused" and pointed
-    /// them at AutoAudit while showing :8602.
+    /// the second pane told users "AutoAudit panel is paused" and pointed
+    /// them at AutoAudit while showing a different service entirely.
     /// </param>
     public AutoAuditPanelView(string url, string userDataFolder, string label)
     {

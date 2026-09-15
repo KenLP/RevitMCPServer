@@ -34,7 +34,7 @@ public sealed class App : IExternalApplication
     private ExternalEvent? _externalEvent;
     private McpHttpServer? _httpServer;
     private AutoAuditPanelView? _panelView;
-    private AutoAuditPanelView? _spatialQcPanelView;
+    private AutoAuditPanelView? _extraPanelView;
 
     public Result OnStartup(UIControlledApplication application)
     {
@@ -77,16 +77,17 @@ public sealed class App : IExternalApplication
                 LogToConsole($"[RevitMCP] AutoAudit panel unavailable: {ex.Message}");
             }
 
-            // Spatial-QC pane — same browser-only pattern, independent of AutoAudit (its own
-            // try/catch: a failure of either pane must never take the MCP server, or the other
-            // pane, down).
+            // Optional second pane — same browser-only pattern, independent of AutoAudit (its
+            // own try/catch: a failure of either pane must never take the MCP server, or the
+            // other pane, down). Opt-in: registers only when revit-mcp-extra-panel.json names
+            // a URL, so a default install shows exactly one extra tab (AutoAudit).
             try
             {
-                RegisterSpatialQcPanel(application, revitVersion);
+                RegisterExtraPanel(application, revitVersion);
             }
             catch (Exception ex)
             {
-                LogToConsole($"[RevitMCP] Spatial QC panel unavailable: {ex.Message}");
+                LogToConsole($"[RevitMCP] Extra panel unavailable: {ex.Message}");
             }
 
             return Result.Succeeded;
@@ -156,9 +157,17 @@ public sealed class App : IExternalApplication
         ribbonPanel.AddItem(button);
     }
 
-    private void RegisterSpatialQcPanel(
+    private void RegisterExtraPanel(
         UIControlledApplication application, string revitVersion)
     {
+        var settings = ExtraPanelConfig.Resolve(revitVersion);
+        if (settings is null)
+        {
+            LogToConsole("[RevitMCP] Extra panel: not configured " +
+                         "(no usable revit-mcp-extra-panel.json) — skipped.");
+            return;
+        }
+
         // Same WebView2 assembly-resolution shim as AutoAudit — added independently so this pane
         // works even if AutoAudit registration bailed before installing its own (idempotent: the
         // first resolver to return non-null wins).
@@ -174,21 +183,20 @@ public sealed class App : IExternalApplication
             };
         }
 
-        // Distinct URL (revit-mcp-spatialqc-panel.json, default :8602) and a DISTINCT WebView2
+        // Distinct URL (revit-mcp-extra-panel.json, no default) and a DISTINCT WebView2
         // user-data folder so the two panes' browser profiles don't lock each other.
-        var url = SpatialQcPanelConfig.ResolveUrl(revitVersion);
         var userDataFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "RevitMCPAddin", "WebView2", "SpatialQc", revitVersion);
-        _spatialQcPanelView = new AutoAuditPanelView(url, userDataFolder, "Spatial QC");
+            "RevitMCPAddin", "WebView2", "Extra", revitVersion);
+        _extraPanelView = new AutoAuditPanelView(settings.Url, userDataFolder, settings.Label);
         application.RegisterDockablePane(
-            SpatialQcPaneProvider.PaneId, "Spatial QC",
-            new SpatialQcPaneProvider(_spatialQcPanelView));
+            ExtraPaneProvider.PaneId, settings.Label,
+            new ExtraPaneProvider(_extraPanelView));
 
         application.ControlledApplication.DocumentClosing +=
-            (_, _) => _spatialQcPanelView?.Suspend();
+            (_, _) => _extraPanelView?.Suspend();
         application.ControlledApplication.DocumentOpened +=
-            (_, _) => _spatialQcPanelView?.Resume();
+            (_, _) => _extraPanelView?.Resume();
 
         // DocumentClosing fires for ANY document, including a background one
         // closed while another stays open — and then no DocumentOpened follows,
@@ -198,21 +206,28 @@ public sealed class App : IExternalApplication
         // missing way back. Cheap to fire repeatedly: Resume() collapses bursts
         // through the dispatcher and EnsureWebViewCore returns early once the
         // browser already exists.
-        application.ViewActivated += (_, _) => _spatialQcPanelView?.Resume();
+        application.ViewActivated += (_, _) => _extraPanelView?.Resume();
 
-        // Own ribbon tab — decoupled from AutoAudit's tab (either registration may fail
-        // independently, so neither may assume the other created a tab).
-        var tab = "Spatial QC";
-        application.CreateRibbonTab(tab);
-        var ribbonPanel = application.CreateRibbonPanel(tab, "Spatial QC");
-        var button = new PushButtonData(
-            "SpatialQcShowPanel", "Spatial QC\nPanel",
-            Assembly.GetExecutingAssembly().Location,
-            typeof(ShowSpatialQcPanelCommand).FullName)
+        // Own ribbon tab by default — decoupled from AutoAudit's tab (either registration may
+        // fail independently, so neither may assume the other created a tab). The config may
+        // name an existing tab (e.g. "AutoAudit") to share it; CreateRibbonTab throws for a
+        // duplicate name and that is the one failure that is fine to swallow here.
+        try
         {
-            ToolTip = "Show the Spatial QC panel (WebView2). Run corridor/headroom/egress checks "
-                + "on the live model and click a finding to navigate to it. If the embedded view "
-                + "is unavailable it opens in your browser.",
+            application.CreateRibbonTab(settings.Tab);
+        }
+        catch (Autodesk.Revit.Exceptions.ArgumentException)
+        {
+            // Tab already exists — share it.
+        }
+        var ribbonPanel = application.CreateRibbonPanel(settings.Tab, settings.Label);
+        var button = new PushButtonData(
+            "ExtraPanelShow", settings.Label + "\nPanel",
+            Assembly.GetExecutingAssembly().Location,
+            typeof(ShowExtraPanelCommand).FullName)
+        {
+            ToolTip = $"Show the {settings.Label} panel (WebView2) at {settings.Url}. "
+                + "If the embedded view is unavailable it opens in your browser.",
         };
         ribbonPanel.AddItem(button);
     }

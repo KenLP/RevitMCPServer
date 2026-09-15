@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.34** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.35** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -101,19 +101,18 @@ Recipes orchestrate verified kernel commands in the Node layer; they are the P4 
 
 Full schemas and examples: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
-## Ribbon panels (optional, and inert on their own)
+## Ribbon panel (optional, and inert on its own)
 
-Installing the add-in also adds **two ribbon tabs**, each with a dockable panel.
-Neither is a feature of this add-in by itself: both are WebView2 browsers pointed
-at a local service, so with nothing listening on the port the panel shows a
-connection error. That is the service being absent, not the add-in being broken.
+Installing the add-in also adds **one ribbon tab, AutoAudit**, with a dockable panel.
+It is not a feature of this add-in by itself: the panel is a WebView2 browser pointed
+at a local service, so with nothing listening on the port it shows a connection
+error. That is the service being absent, not the add-in being broken.
 
 | Ribbon tab | Loads by default | Service | Config file (per Revit version) |
 | ---------- | ---------------- | ------- | ------------------------------- |
 | **AutoAudit** | `http://127.0.0.1:8601/ui/` | [KenLP/autoaudit-bim](https://github.com/KenLP/autoaudit-bim) | `revit-mcp-panel.json` |
-| **Spatial QC** | `http://127.0.0.1:8602/ui/` | AutomatedSpatialQC (separate tool, not public) | `revit-mcp-spatialqc-panel.json` |
 
-Override either URL by dropping its config file into
+Override the URL by dropping the config file into
 `%APPDATA%\Autodesk\Revit\Addins\<version>\`:
 
 ```jsonc
@@ -127,7 +126,25 @@ upgrade. A missing or malformed file falls back to the default above.
 running**, or its web UI was never built — check the service's own README for the
 build step before filing anything here.
 
-Ignore both tabs entirely if you only want the MCP tool surface. They are additive:
+### A second panel of your own (opt-in)
+
+The add-in can host **one more** dockable panel for any local web UI you run, but
+only if you ask for it: nothing appears unless `revit-mcp-extra-panel.json` exists in
+the same folder and names a URL.
+
+```jsonc
+{
+  "url":   "http://127.0.0.1:9000/ui/",   // required — http(s) only
+  "label": "My Tool",                     // pane + button name (default "Extra Panel")
+  "tab":   "My Tool",                     // ribbon tab (default = label; "AutoAudit" shares that tab)
+  "enabled": true                         // set false to hide it without deleting the file
+}
+```
+
+No file, no `url`, or `"enabled": false` → no tab, no pane, nothing registered. The
+add-in ships nothing for this panel to show; it is only a browser onto the URL you give it.
+
+Ignore the tab entirely if you only want the MCP tool surface. Panels are additive:
 nothing in the tool surface depends on them, and a panel that fails to load cannot
 take the MCP server down with it.
 
@@ -256,7 +273,7 @@ Options:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.8.34, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.35, authEnabled=True
 ```
 
 Then restart Claude Desktop. The server shows up under **Connectors**
@@ -376,7 +393,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.34
+   version   : 0.8.35
    authEnabled : True
    ```
 
@@ -535,7 +552,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.34, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.35, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"
