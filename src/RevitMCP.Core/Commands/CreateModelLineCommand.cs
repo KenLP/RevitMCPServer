@@ -7,7 +7,7 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by AutomatedSpatialQC over /mcp, not by LLM tool routing).
+/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
 ///
 /// Draws a straight <c>ModelCurve</c> between two world points. Unlike
 /// <c>create_detail_line</c>, which makes a view-specific <c>DetailCurve</c> and refuses to run in a

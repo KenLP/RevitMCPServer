@@ -7,7 +7,7 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by AutomatedSpatialQC over /mcp, not by LLM tool routing).
+/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
 ///
 /// Room boundary loops (outer ring + inner holes) as world-coordinate polylines in METRES,
 /// taken at the FINISH face — the net clear room area, matching IFC IfcSpace. This is the

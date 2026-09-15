@@ -44,3 +44,8 @@ docs/internal/
 # Submission prep + internal coordination docs (regenerable / private ecosystem)
 mcp-manifest.json
 docs/DOWNSTREAM_CONTRACTS.md
+
+# Cross-repo handoffs are internal coordination — root-level, never public.
+/handoffs/
+docs/handoffs/
+docs/HANDOFF.md

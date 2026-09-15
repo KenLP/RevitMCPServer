@@ -8,7 +8,7 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by AutomatedSpatialQC over /mcp, not by LLM tool routing).
+/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
 ///
 /// PathOfTravel elements the user (or Revit's own Analyze &gt; Path of Travel UI) already placed,
 /// with Revit's OWN computed route length/time — the READ side of `bim-nav benchmark-pot`

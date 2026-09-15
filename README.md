@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.35** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command spatial-QC HTTP pack (`spatial_*`), registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.35** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command `spatial_*` HTTP pack, registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &

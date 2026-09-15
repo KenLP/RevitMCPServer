@@ -8,7 +8,7 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by AutomatedSpatialQC over /mcp, not by LLM tool routing).
+/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
 ///
 /// Wall plan footprints (centerline offset by half the wall width) + Z range + the DECLARED
 /// Interior/Exterior Function value, in world metres. Feeds spatial-QC's storey envelope: a

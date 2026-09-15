@@ -7,7 +7,7 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by AutomatedSpatialQC over /mcp, not by LLM tool routing).
+/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
 ///
 /// Placed stairs with Revit's own AS-BUILT riser height / tread depth / riser count, plus a plan
 /// centroid and level — the live-model equivalent of what the IFC path re-measures from the stair

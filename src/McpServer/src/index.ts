@@ -503,7 +503,7 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // command stays registered (HTTP-callable) for future work but is off the MCP surface.
 
 // Spatial-QC pack — registered in C# (HTTP-callable via /mcp) but deliberately NOT exposed as MCP
-// tools. They are consumed programmatically by AutomatedSpatialQC's Python (inputs like loops/points
+// tools. They are consumed programmatically by an external client (inputs like loops/points
 // come from other calls), so surfacing them to LLM tool routing would only dilute the tool list.
 // revit_spatial_get_room_boundary — hidden (HTTP-only spatial-QC pack; C# spatial_get_room_boundary)
 // revit_spatial_clearance_envelope — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope)
