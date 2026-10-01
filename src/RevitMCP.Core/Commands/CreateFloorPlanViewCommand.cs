@@ -9,7 +9,8 @@ namespace RevitMCPAddin.Commands;
 ///
 /// Params:
 ///   - levelName: string, required
-///   - viewName:  string, optional (renames after creation)
+///   - viewName:  string, optional (renames after creation). Applied exactly, or the command
+///                fails (invalid_chars 400 / name_collision 409) and nothing is created.
 /// </summary>
 public sealed class CreateFloorPlanViewCommand : IRevitCommand
 {
@@ -27,10 +28,10 @@ public sealed class CreateFloorPlanViewCommand : IRevitCommand
         var view = ViewPlan.Create(doc, vft.Id, level.Id);
 
         var viewName = P.StrOrNull(p, "viewName");
+        // Applied exactly or the command fails and rolls back (see NameRules) — never the old
+        // swallowed setter that kept Revit's placeholder name and still reported success.
         if (!string.IsNullOrWhiteSpace(viewName))
-        {
-            try { view.Name = viewName; } catch { }
-        }
+            NameRules.ApplyViewName(view, viewName!, "viewName");
 
         return new JsonObject
         {

@@ -14,7 +14,8 @@ namespace RevitMCPAddin.Commands;
 ///   - depth:      number, cut depth (default 10 m)
 ///   - width:      number, half-width of the section crop (default 10 m)
 ///   - height:     number, half-height of the section crop (default 5 m)
-///   - viewName:   string, optional
+///   - viewName:   string, optional. Applied exactly, or the command fails
+///                 (invalid_chars 400 / name_collision 409) and nothing is created.
 ///   - units:      "meters"|"feet"
 /// </summary>
 public sealed class CreateSectionViewCommand : IRevitCommand
@@ -68,10 +69,10 @@ public sealed class CreateSectionViewCommand : IRevitCommand
         var view = ViewSection.CreateSection(doc, vft.Id, sectionBox);
 
         var viewName = P.StrOrNull(p, "viewName");
+        // Applied exactly or the command fails and rolls back (see NameRules) — never the old
+        // swallowed setter that kept Revit's placeholder name and still reported success.
         if (!string.IsNullOrWhiteSpace(viewName))
-        {
-            try { view.Name = viewName; } catch { }
-        }
+            NameRules.ApplyViewName(view, viewName!, "viewName");
 
         return new JsonObject
         {

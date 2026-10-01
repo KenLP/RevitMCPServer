@@ -12,7 +12,8 @@ namespace RevitMCPAddin.Commands;
 /// isometric view if the active view is not a 3D view or cannot be duplicated.
 ///
 /// Params:
-///   - viewName: string, optional — name for the new view.
+///   - viewName: string, optional — name for the new view. Applied exactly, or the command
+///               fails (invalid_chars 400 / name_collision 409) and nothing is created.
 /// </summary>
 public sealed class Create3DViewCommand : IRevitCommand
 {
@@ -43,10 +44,10 @@ public sealed class Create3DViewCommand : IRevitCommand
             view = View3D.CreateIsometric(doc, vft.Id);
         }
 
+        // Applied exactly or the command fails and rolls back (see NameRules) — never the old
+        // swallowed setter that kept Revit's placeholder name and still reported success.
         if (!string.IsNullOrWhiteSpace(viewName))
-        {
-            try { view.Name = viewName; } catch { }
-        }
+            NameRules.ApplyViewName(view, viewName!, "viewName");
 
         return new JsonObject
         {

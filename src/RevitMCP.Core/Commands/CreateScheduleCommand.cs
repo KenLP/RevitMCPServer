@@ -12,7 +12,7 @@ namespace RevitMCPAddin.Commands;
 ///   - category:   BuiltInCategory name, required (e.g. "OST_Walls")
 ///   - name:       string, optional. Applied exactly or the command fails: a name Revit refuses
 ///                 (forbidden character -> invalid_chars 400, existing schedule -> name_collision 409)
-///                 rolls the whole command back, so no schedule is left under a placeholder name.
+///                 rolls the whole command back, so no schedule is left under a placeholder name (see NameRules).
 ///   - fields:     string[] of parameter names to add as columns, optional
 ///                 (if omitted, no fields are added — use Revit UI to configure). Names that match
 ///                 no schedulable field are reported in <c>skippedFields</c>, not silently dropped.
@@ -38,7 +38,7 @@ public sealed class CreateScheduleCommand : IRevitCommand
         // never landed and it could not find its own schedule again by name.
         var name = P.StrOrNull(p, "name");
         if (!string.IsNullOrWhiteSpace(name))
-            ViewNameRules.Apply(schedule, name!);
+            NameRules.ApplyViewName(schedule, name!);
 
         var fieldsArr = p["fields"] as JsonArray;
         var addedFields = new JsonArray();

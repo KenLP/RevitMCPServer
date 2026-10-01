@@ -140,7 +140,7 @@ public sealed class RenameElementCommand : IRevitCommand
     private static JsonNode RenameView(View view, string newName)
     {
         var oldName = view.Name;
-        ViewNameRules.Apply(view, newName);
+        NameRules.ApplyViewName(view, newName);
         return new JsonObject
         {
             ["id"] = view.Id.Value,

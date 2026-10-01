@@ -73,12 +73,12 @@ The HTTP command name is the name without the prefix (used in
 | `revit_create_column`             | `create_column`         | ❌        | Structural or architectural column                        |
 | `revit_create_beam`               | `create_beam`           | ❌        | Structural beam between two points                        |
 | `revit_create_room`               | `create_room`           | ❌        | Room by point on level                                    |
-| `revit_create_sheet`              | `create_sheet`          | ❌        | New sheet with title block                                |
+| `revit_create_sheet`              | `create_sheet`          | ❌        | New sheet with title block. `sheetNumber` / `sheetName` applied exactly or the call fails (`name_collision` 409 / `invalid_chars` 400) and no sheet is created |
 | `revit_create_schedule`           | `create_schedule`       | ❌        | ViewSchedule for a category. `name` is applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) and nothing is created; unmatched `fields` come back in `skippedFields` |
-| `revit_create_3d_view`            | `create_3d_view`        | ❌        | Named 3D view                                             |
+| `revit_create_3d_view`            | `create_3d_view`        | ❌        | Named 3D view. `viewName` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) |
 | `revit_create_perspective_view`   | `create_perspective_view` | ❌    | Perspective 3D view(s) with the camera at explicit `eye`/`target`. `azimuthsDeg` → N views from the SAME eye rotated about vertical |
-| `revit_create_floor_plan_view`    | `create_floor_plan_view`| ❌        | Floor plan for a level                                    |
-| `revit_create_section_view`       | `create_section_view`   | ❌        | Section view                                              |
+| `revit_create_floor_plan_view`    | `create_floor_plan_view`| ❌        | Floor plan for a level. `viewName` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) |
+| `revit_create_section_view`       | `create_section_view`   | ❌        | Section view. `viewName` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) |
 | `revit_create_text_note`          | `create_text_note`      | ❌        | Text note in a view                                       |
 | `revit_create_opening_in_wall`    | `create_opening_in_wall`| ❌        | Rectangular opening in a wall                             |
 | `revit_place_family_instance`     | `place_family_instance` | ❌        | Place a loaded family instance                            |
@@ -100,7 +100,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_rotate_element`            | `rotate_element`        | ❌        | Rotate around axis                                        |
 | `revit_mirror_element`            | `mirror_element`        | ❌        | Mirror across axis                                        |
 | `revit_array_linear`              | `array_linear`          | ❌        | Linear array                                              |
-| `revit_group_elements`            | `group_elements`        | ❌        | Group selection                                           |
+| `revit_group_elements`            | `group_elements`        | ❌        | Group selection. `name` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) and nothing is grouped |
 | `revit_ungroup_elements`          | `ungroup_elements`      | ❌        | Ungroup                                                   |
 | `revit_tag_element`               | `tag_element`           | ❌        | Tag an element in a view                                  |
 | `revit_tag_all_in_view`           | `tag_all_in_view`       | ❌        | Tag all untagged elements of a category in a view         |

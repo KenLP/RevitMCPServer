@@ -392,8 +392,8 @@ server.tool("revit_place_family_instance", "Place a FamilyInstance at a point. P
 // ═══════════════════════════════════════════════════════════════════════════
 
 server.tool("revit_create_sheet", "Create a ViewSheet.", {
-  sheetNumber: z.string().optional(),
-  sheetName: z.string().optional(),
+  sheetNumber: z.string().optional().describe("Applied exactly or the call fails and no sheet is created: a number already in use -> name_collision (409), forbidden character -> invalid_chars (400). Omit to let Revit assign one."),
+  sheetName: z.string().optional().describe("Forbidden character -> invalid_chars (400)."),
   titleBlockName: z.string().optional(),
   dryRun: dryRunField,
 }, fwdWrite("create_sheet"));
@@ -407,7 +407,7 @@ server.tool("revit_place_view_on_sheet", "Place a view on a sheet (Viewport).", 
 
 server.tool("revit_create_floor_plan_view", "Create a floor plan view for a level.", {
   levelName: z.string(),
-  viewName: z.string().optional(),
+  viewName: z.string().optional().describe("Applied exactly or the call fails and nothing is created: forbidden character -> invalid_chars (400), same name as a view of this type -> name_collision (409)."),
   dryRun: dryRunField,
 }, fwdWrite("create_floor_plan_view"));
 
@@ -416,13 +416,13 @@ server.tool("revit_create_section_view", "Create a section view.", {
   depth: z.number().optional().describe("Cut depth, default 10 m."),
   width: z.number().optional().describe("Half-width, default 10 m."),
   height: z.number().optional().describe("Half-height, default 5 m."),
-  viewName: z.string().optional(),
+  viewName: z.string().optional().describe("Applied exactly or the call fails and nothing is created: forbidden character -> invalid_chars (400), same name as a view of this type -> name_collision (409)."),
   units: unitsField,
   dryRun: dryRunField,
 }, fwdWrite("create_section_view"));
 
 server.tool("revit_create_3d_view", "Create an isometric 3D view.", {
-  viewName: z.string().optional(),
+  viewName: z.string().optional().describe("Applied exactly or the call fails and nothing is created: forbidden character -> invalid_chars (400), same name as a view of this type -> name_collision (409)."),
   dryRun: dryRunField,
 }, fwdWrite("create_3d_view"));
 
@@ -689,7 +689,7 @@ server.tool("revit_delete_elements", "Delete elements by id. Returns changeSumma
 
 server.tool("revit_group_elements", "Group elements together.", {
   ids: idsField,
-  name: z.string().optional().describe("Group type name."),
+  name: z.string().optional().describe("Group type name. Applied exactly or the call fails and nothing is grouped: forbidden character -> invalid_chars (400), existing group type name -> name_collision (409)."),
   dryRun: dryRunField,
 }, fwdWrite("group_elements"));
 

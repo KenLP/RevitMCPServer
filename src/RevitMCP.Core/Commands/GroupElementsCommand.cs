@@ -19,10 +19,9 @@ public sealed class GroupElementsCommand : IRevitCommand
 
         var group = doc.Create.NewGroup(ids);
         var groupName = P.StrOrNull(ctx.Parameters, "name");
+        // Applied exactly or the command fails and the group is rolled back (see NameRules).
         if (!string.IsNullOrWhiteSpace(groupName))
-        {
-            try { group.GroupType.Name = groupName; } catch { }
-        }
+            NameRules.ApplyGroupTypeName(group.GroupType, groupName!);
 
         return new JsonObject
         {

@@ -4,35 +4,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.36] — 2026-10-01: `create_schedule` applies the requested name or fails
+## [0.8.36] — 2026-10-01: a requested name is applied exactly, or the command fails
 
 ### Fixed
 
-- **`create_schedule` reported success under a name nobody asked for.** The setter was wrapped in
-  `try { schedule.Name = name; } catch { }`, so when Revit refused the name the schedule kept its
-  placeholder ("Door Schedule 3") and the call still returned `ok: true`. A caller that names its
-  schedules by convention — and later looks them up by that name — never found them, and nothing
-  told it why. Reported by a consumer whose convention `"[AutoAudit] <rule>"` never landed once.
+- **Six commands reported success under a name nobody asked for.** Each wrapped its setter in
+  `try { x.Name = name; } catch { }`, so when Revit refused the value the element kept Revit's
+  placeholder and the call still returned `ok: true`:
 
-  The name is now applied exactly or the command fails, and because the failure is thrown inside
-  the dispatcher's transaction the half-made schedule rolls back with it:
-
-  | Requested name | Before | Now |
+  | Command | Parameter | Kept instead |
   |---|---|---|
-  | contains a character Revit refuses | 200, placeholder name | **400 `invalid_chars`**, names the offending characters |
-  | same as an existing schedule | 200, placeholder name | **409 `name_collision`**, names the existing view and its id |
-  | anything else Revit refuses | 200, placeholder name | **400 `invalid_parameter`** with Revit's own message |
+  | `create_schedule` | `name` | Revit's default schedule name (reported live: "Door Schedule 3") |
+  | `create_floor_plan_view` | `viewName` | the auto-generated view name |
+  | `create_3d_view` | `viewName` | the auto-generated view name |
+  | `create_section_view` | `viewName` | the auto-generated view name |
+  | `create_sheet` | `sheetNumber` | the next free number Revit assigned — the sheet existed, under the wrong number |
+  | `group_elements` | `name` | the auto-generated group type name |
+
+  A caller that names elements by convention — and later looks them up by that name — never found
+  them, and nothing told it why. Reported by a consumer whose schedule convention
+  `"[AutoAudit] <rule>"` never landed once.
+
+  All six now share one helper (`NameRules`): the value is applied exactly or the command fails,
+  and because the failure is thrown inside the dispatcher's transaction the half-made view, sheet or
+  group rolls back with it:
+
+  | Requested value | Before | Now |
+  |---|---|---|
+  | contains a character Revit refuses | 200, placeholder | **400 `invalid_chars`**, names the offending characters |
+  | already used (same view type / any sheet / any group type) | 200, placeholder | **409 `name_collision`**, names the existing element and its id |
+  | anything else Revit refuses | 200, placeholder | **400 `invalid_parameter`** with Revit's own message |
   | valid and unique | 200 | 200 (unchanged) |
 
-  Revit stays the judge of what is acceptable: the name is always attempted, and the character list
-  only labels a refusal, it never decides one. The list was measured one character at a time on
-  Revit 2027 — `\ : { } [ ] | ; < > ? ~` and the backtick are refused; `*` is **accepted** in a view
-  name, unlike a family name.
+  Revit stays the judge of what is acceptable: the value is always attempted, and the character
+  list only labels a refusal, it never decides one. The list was measured one character at a time
+  on Revit 2027, for view names and sheet numbers alike — `\ : { } [ ] | ; < > ? ~` and the backtick
+  are refused; `*` is **accepted**, unlike in a family name.
 
-- **`rename_element` on a view gives the same answers.** Renaming any `View` (schedules included) to
-  a refused or duplicate name used to surface Revit's raw exception as `command_failed` 500; it now
-  returns the same `invalid_chars` / `name_collision` codes as `create_schedule`. Family and type
-  renames are unchanged.
+- **`create_sheet` `sheetName` and `rename_element` on any `View`** used to surface Revit's raw
+  exception as `command_failed` 500 for a refused name; both now return the same `invalid_chars` /
+  `name_collision` codes. Family and type renames are unchanged.
 
 ### Added
 
@@ -41,10 +52,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Verified
 
-- Live on Revit 2027: 17/17 checks, including the exact name from the report, a duplicate, all 14
-  characters probed individually, three `rename_element` paths, a no-name regression, and a
-  schedule count back to its baseline after cleanup (nothing left behind by a refused call).
-- 183 C# tests (13 new in `ViewNameRulesTests`), 24 TS tests.
+- Live on Revit 2027, 50 checks across two runs (17 + 33): every command with a valid name, a
+  forbidden character and a duplicate; all 14 candidate characters probed individually for view
+  names and for sheet numbers; `rename_element` on a schedule and a plan; no-name regressions; and
+  after every refusal a count of views / sheets / groups showing nothing was left behind. Cleanup
+  returned the model to its baseline counts.
+- 183 C# tests (13 new in `NameRulesTests`), 24 TS tests.
 
 ## [0.8.35] — 2026-09-14: second ribbon panel is now opt-in
 
