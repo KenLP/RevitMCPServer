@@ -46,6 +46,10 @@ public sealed class RenameElementCommand : IRevitCommand
         if (element is FamilySymbol symbol)
             return RenameFamilySymbol(symbol, newName, doc);
 
+        // ── View (incl. schedules) — same contract as the create_* commands ──
+        if (element is View view)
+            return RenameView(view, newName);
+
         // ── Default path — Element.Name virtual setter ──────────────────
         return RenameGeneric(element, newName);
     }
@@ -126,6 +130,30 @@ public sealed class RenameElementCommand : IRevitCommand
         symbol.Name = newName;
 
         return BuildResult(symbol.Id, "FamilySymbol", oldName, symbol.Name, instanceCount);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  View — a refused name is a typed error (invalid_chars / name_collision),
+    //  not the raw Revit exception the generic path surfaces as command_failed 500.
+    // ────────────────────────────────────────────────────────────────────
+
+    private static JsonNode RenameView(View view, string newName)
+    {
+        var oldName = view.Name;
+        ViewNameRules.Apply(view, newName);
+        return new JsonObject
+        {
+            ["id"] = view.Id.Value,
+            ["elementType"] = view.GetType().Name,
+            ["oldName"] = oldName,
+            ["newName"] = view.Name,
+            ["changes"] = new JsonObject
+            {
+                ["before"] = oldName,
+                ["after"] = view.Name,
+            },
+            ["changeSummary"] = $"Renamed {view.GetType().Name} {view.Id.Value}: '{oldName}' → '{view.Name}'",
+        };
     }
 
     // ────────────────────────────────────────────────────────────────────

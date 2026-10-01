@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.35 (stdio).
+ * Revit MCP Server v0.8.36 (stdio).
  *
  * 94 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.35" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.36" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -444,10 +444,10 @@ server.tool("revit_create_perspective_view",
   },
   fwdWrite("create_perspective_view"));
 
-server.tool("revit_create_schedule", "Create a ViewSchedule for a category, optionally adding field columns.", {
+server.tool("revit_create_schedule", "Create a ViewSchedule for a category, optionally adding field columns. A requested name is applied exactly or the call fails and nothing is created.", {
   category: z.string().describe("BuiltInCategory, e.g. 'OST_Walls'."),
-  name: z.string().optional(),
-  fields: z.array(z.string()).optional().describe("Parameter names to add as schedule columns."),
+  name: z.string().optional().describe("Schedule name. Revit forbids \ : { } [ ] | ; < > ? ~ ` -> invalid_chars (400); an existing schedule with this name -> name_collision (409)."),
+  fields: z.array(z.string()).optional().describe("Parameter names to add as schedule columns. Names matching no schedulable field come back in skippedFields."),
   dryRun: dryRunField,
 }, fwdWrite("create_schedule"));
 
@@ -1050,7 +1050,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.35 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.36 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

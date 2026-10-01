@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.35 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command `spatial_*` HTTP pack; 101 C# commands registered; workflow recipes are Node-only).
+> **v0.8.36 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command `spatial_*` HTTP pack; 101 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -74,7 +74,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_create_beam`               | `create_beam`           | ❌        | Structural beam between two points                        |
 | `revit_create_room`               | `create_room`           | ❌        | Room by point on level                                    |
 | `revit_create_sheet`              | `create_sheet`          | ❌        | New sheet with title block                                |
-| `revit_create_schedule`           | `create_schedule`       | ❌        | ViewSchedule for a category                               |
+| `revit_create_schedule`           | `create_schedule`       | ❌        | ViewSchedule for a category. `name` is applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) and nothing is created; unmatched `fields` come back in `skippedFields` |
 | `revit_create_3d_view`            | `create_3d_view`        | ❌        | Named 3D view                                             |
 | `revit_create_perspective_view`   | `create_perspective_view` | ❌    | Perspective 3D view(s) with the camera at explicit `eye`/`target`. `azimuthsDeg` → N views from the SAME eye rotated about vertical |
 | `revit_create_floor_plan_view`    | `create_floor_plan_view`| ❌        | Floor plan for a level                                    |
