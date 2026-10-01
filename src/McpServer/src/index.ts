@@ -742,7 +742,7 @@ server.tool("revit_duplicate_view",
   {
     viewId: z.number().int().describe("Source view to duplicate."),
     duplicateOption: z.enum(["Duplicate", "WithDetailing", "AsDependent"]).optional().describe("Duplicate mode. Default 'Duplicate'."),
-    newName: z.string().optional().describe("Rename the new view."),
+    newName: z.string().optional().describe("Name for the new view. Applied exactly or the call fails and no copy is created: forbidden character -> invalid_chars (400), same name as a view of this type -> name_collision (409)."),
     dryRun: dryRunField,
   },
   fwdWrite("duplicate_view"));

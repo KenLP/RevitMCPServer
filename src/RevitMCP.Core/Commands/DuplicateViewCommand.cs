@@ -13,7 +13,8 @@ namespace RevitMCPAddin.Commands;
 /// Params:
 ///   - viewId:          long, required — the source view to duplicate.
 ///   - duplicateOption: string, optional — "Duplicate" (default) | "WithDetailing" | "AsDependent".
-///   - newName:         string, optional — rename the new view.
+///   - newName:         string, optional — rename the new view. Applied exactly, or the command
+///                      fails (invalid_chars 400 / name_collision 409) and no copy is left behind.
 /// </summary>
 public sealed class DuplicateViewCommand : IRevitCommand
 {
@@ -43,10 +44,10 @@ public sealed class DuplicateViewCommand : IRevitCommand
         var newView = doc.GetElement(newId) as View;
 
         var newName = P.StrOrNull(p, "newName");
+        // Not `try { newView.Name = newName; } catch { }`: on a clash that kept the auto name
+        // ("Level 1 Copy 1") and still reported success, so the caller lost track of its copy.
         if (newView != null && !string.IsNullOrWhiteSpace(newName))
-        {
-            try { newView.Name = newName; } catch { /* name clash — keep auto name */ }
-        }
+            NameRules.ApplyViewName(newView, newName!, "newName");
 
         return new JsonObject
         {

@@ -8,7 +8,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- **Six commands reported success under a name nobody asked for.** Each wrapped its setter in
+- **Seven commands reported success under a name nobody asked for.** Each wrapped its setter in
   `try { x.Name = name; } catch { }`, so when Revit refused the value the element kept Revit's
   placeholder and the call still returned `ok: true`:
 
@@ -20,12 +20,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   | `create_section_view` | `viewName` | the auto-generated view name |
   | `create_sheet` | `sheetNumber` | the next free number Revit assigned — the sheet existed, under the wrong number |
   | `group_elements` | `name` | the auto-generated group type name |
+  | `duplicate_view` | `newName` | the auto-generated copy name |
 
   A caller that names elements by convention — and later looks them up by that name — never found
   them, and nothing told it why. Reported by a consumer whose schedule convention
   `"[AutoAudit] <rule>"` never landed once.
 
-  All six now share one helper (`NameRules`): the value is applied exactly or the command fails,
+  All seven now share one helper (`NameRules`): the value is applied exactly or the command fails,
   and because the failure is thrown inside the dispatcher's transaction the half-made view, sheet or
   group rolls back with it:
 
@@ -52,7 +53,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Verified
 
-- Live on Revit 2027, 50 checks across two runs (17 + 33): every command with a valid name, a
+- Live on Revit 2027, 57 checks across three runs (17 + 33 + 7): every command with a valid name, a
   forbidden character and a duplicate; all 14 candidate characters probed individually for view
   names and for sheet numbers; `rename_element` on a schedule and a plan; no-name regressions; and
   after every refusal a count of views / sheets / groups showing nothing was left behind. Cleanup

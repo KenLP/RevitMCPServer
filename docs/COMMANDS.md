@@ -110,7 +110,7 @@ The HTTP command name is the name without the prefix (used in
 | `revit_color_override_by_param`   | `color_override_by_param`| ❌       | Per-bucket color overrides by parameter value             |
 | `revit_hide_elements_in_view`     | `hide_elements_in_view` | ❌        | Hide by ids in view                                       |
 | `revit_unhide_elements_in_view`   | `unhide_elements_in_view`| ❌       | Unhide by ids in view                                     |
-| `revit_duplicate_view`            | `duplicate_view`        | ❌        | Duplicate a view (with or without detailing / as dependent) |
+| `revit_duplicate_view`            | `duplicate_view`        | ❌        | Duplicate a view (with or without detailing / as dependent). `newName` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) |
 | `revit_set_section_box`           | `set_section_box`       | ❌        | Set and activate the section box on a 3D view             |
 | `revit_open_view`                 | `open_view`             | UI        | Activate a view in the UI                                 |
 | `revit_select_elements`           | `select_elements`       | UI        | Set UIDocument selection                                  |
