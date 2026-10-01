@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.37 (stdio).
+ * Revit MCP Server v0.8.38 (stdio).
  *
  * 94 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.37" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.38" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -501,19 +501,6 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // for floors even at the bbox centre (doc.Regenerate() did not help); the prior
 // solid-face approach hit "Spot Dimension does not lie on its reference". The C#
 // command stays registered (HTTP-callable) for future work but is off the MCP surface.
-
-// spatial_* pack — registered in C# (HTTP-callable via /mcp) but deliberately NOT exposed as MCP
-// tools. Their inputs (loops/points) come from other calls, so they suit programmatic callers;
-// surfacing them to LLM tool routing would only dilute the tool list.
-// revit_spatial_get_room_boundary — hidden (HTTP-only spatial_* pack; C# spatial_get_room_boundary)
-// revit_spatial_clearance_envelope — hidden (HTTP-only spatial_* pack; C# spatial_clearance_envelope)
-// revit_spatial_clearance_envelope_batch — hidden (HTTP-only spatial_* pack; C# spatial_clearance_envelope_batch)
-// revit_spatial_raycast_headroom — hidden (HTTP-only spatial_* pack; C# spatial_raycast_headroom)
-// revit_spatial_get_walls — hidden (HTTP-only spatial_* pack; C# spatial_get_walls)
-// revit_spatial_get_stairs — hidden (HTTP-only spatial_* pack; C# spatial_get_stairs)
-// revit_spatial_create_model_line — hidden (HTTP-only spatial_* pack; C# spatial_create_model_line)
-// revit_spatial_get_paths_of_travel — hidden (HTTP-only spatial_* pack; C# spatial_get_paths_of_travel)
-// revit_spatial_create_path_of_travel — hidden (HTTP-only spatial_* pack; C# spatial_create_path_of_travel)
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),
@@ -1050,7 +1037,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.37 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.38 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

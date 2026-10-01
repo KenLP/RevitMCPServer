@@ -27,20 +27,15 @@ The original `revit-mcp` did the eval approach. We deliberately didn't —
 known schema**. That means: review-able, undoable, and safe to whitelist in
 Claude Desktop / Claude Code.
 
-## Current command surface (v0.8.37)
+## Current command surface (v0.8.38)
 
-**101 C# commands** registered (91 exposed as MCP tools + 10 hidden) across read, write, UI, and
+**92 C# commands** registered (91 exposed as MCP tools + 1 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
 (`recipe_model_health_triage`, `recipe_clash_review`), that is **94 MCP tools**.
 
-The 10 hidden commands are registered in C# (HTTP-callable via `/mcp`) but deliberately off the MCP
-tool surface: `create_spot_elevation` (pending a reliable face-reference approach) and the
-**9-command `spatial_*` pack** (`spatial_get_room_boundary`, `spatial_clearance_envelope`,
-`spatial_clearance_envelope_batch`, `spatial_raycast_headroom`, `spatial_get_walls`,
-`spatial_get_stairs`, `spatial_get_paths_of_travel`, `spatial_create_path_of_travel`,
-`spatial_create_model_line`) —
-low-level geometry primitives meant for programmatic HTTP callers rather than LLM tool routing
-(see the `spatial_*` pack section below).
+The hidden command, `create_spot_elevation`, is registered in C# (HTTP-callable via `/mcp`) but kept
+off the MCP tool surface pending a reliable face-reference approach. Further HTTP-only commands can
+be added at run time through opt-in command packs (see README, *Command packs*).
 
 ### Implemented — Read / Introspection
 
@@ -131,25 +126,6 @@ low-level geometry primitives meant for programmatic HTTP callers rather than LL
 | Command | Notes |
 |---|---|
 | `check_clearance` | Two algorithms: `axis="bbox"` (AABB inflation, conservative) and `axis="Z"` (`ReferenceIntersector` vertical raycast, XY-accurate). Z-mode supports multi-point centreline sampling (`sampleCount`, default 3) and handles sloped MEP elements and multi-block buildings correctly. |
-
-### `spatial_*` pack — HTTP-only
-
-Registered in C# (callable via HTTP `/mcp`) but **not exposed as MCP tools**: their inputs (e.g.
-`loops`/`points`) are normally produced by other calls, so they suit programmatic callers better than
-LLM tool routing, and listing them would only dilute the tool surface. Prefixed `spatial_` to keep
-them apart from the curated command set.
-
-| Command | Notes |
-|---|---|
-| `spatial_get_room_boundary` | Room boundary loops (outer ring + holes) at the **finish** face as world-XY polylines in metres. Params: `id` or `number` (optional) to target one room. |
-| `spatial_clearance_envelope` | Clear-height check for one room: extrudes the footprint to a required height and intersects overhead elements in the host **and linked RVTs**; reports each obstruction (category/id/link) with the clear height it leaves. |
-| `spatial_clearance_envelope_batch` | Same check for many rooms in one call; candidate geometry is collected once and reused per room. |
-| `spatial_raycast_headroom` | Fires a vertical ray up from each `(x,y)` and returns the lowest overhead soffit height (ceilings / floors above / roofs / framing; stairs excluded). |
-| `spatial_get_walls` | Wall plan footprints (centreline offset by half the width) + Z range + the declared Interior/Exterior `Function`, in world metres. `isExternal` is emitted verbatim from the model. Curtain walls (Width ≈ 0) get a nominal 0.15 m footprint. |
-| `spatial_get_stairs` | Placed stairs with Revit's riser height / tread depth / riser count, plan centroid and base level. The API has no per-riser breakdown, so no per-riser field is emitted. |
-| `spatial_get_paths_of_travel` | Existing `PathOfTravel` elements with Revit's route length/time. `from`/`to` are the route curve's endpoints (`GetCurves()`), not the clicked points. `polyline` carries every route vertex (via `Curve.Tessellate()`, so arcs keep their shape); segment sum ≈ `lengthMeters`. Length is `CURVE_ELEM_LENGTH`, time is `PATH_OF_TRAVEL_TIME` (seconds). Elements whose route failed to compute are skipped. |
-| `spatial_create_path_of_travel` | **Write.** Places a Revit-computed `PathOfTravel` between two points in a floor plan view (`PathOfTravel.Create` takes only two endpoints and routes by itself). Failures arrive both as a status and as thrown exceptions — both map to `no_route`. `ResultAffectedByCrop` is a success with a `warning`; its commit-time warning is suppressed (`SuppressWarningsOnCommit`) so headless callers are not blocked by a modal dialog. A failed element is deleted before the error is raised. The first call in a session can take 90+ s; use a ≥ 3-minute HTTP timeout. |
-| `spatial_create_model_line` | Straight `ModelCurve` between two world points. Unlike `create_detail_line` (view-specific, refuses a 3D view), a model curve shows in every view that cuts it. `units` accepts `meters`/`feet` only. Optional `color` needs a `viewId`; an unknown `lineStyle` is reported in `warnings`. Returns `{id, length}` (metres); the `id` has a usable `GetReference()` for `create_aligned_dimension`. |
 
 ### Implemented — UI Actions (no model transaction)
 

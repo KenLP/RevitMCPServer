@@ -1,9 +1,9 @@
 # Roadmap
 
-## Current status — v0.8.35
+## Current status — v0.8.38
 
-94 MCP tools (91 commands + 1 batch + 2 workflow recipes); 101 C# commands registered,
-10 of them HTTP-only. Live-verified on Revit 2025 / 2026 / 2027.
+94 MCP tools (91 commands + 1 batch + 2 workflow recipes); 92 C# commands registered, 1 of them
+HTTP-only. Opt-in command packs add HTTP-only commands at run time. Live-verified on Revit 2025 / 2026 / 2027.
 
 | Phase | Version | Status |
 |---|---|---|
@@ -37,7 +37,7 @@
 | P4 — recipe_clash_review (coordination matrix across host/linked RVT) | v0.8.10 | ✅ Done (live e2e: 20 hard clashes, link×link) |
 | Hosted family placement (doors/windows) + `find_elements` type-parameter projection | v0.8.11 | ✅ Done |
 | `get_doors` — door swing geometry (facing/hand orientation as world vectors) | v0.8.12 | ✅ Done |
-| `spatial_*` command pack — HTTP-only geometry primitives for external clients | v0.8.13 | ✅ Done |
+| HTTP-only geometry commands for external clients (moved to an external pack in v0.8.38) | v0.8.13 | ✅ Done |
 | Build-truth `/health` (version/commit/branch/state from the compiled assembly) | v0.8.14 | ✅ Done |
 | `find_elements` view scoping (`view_id`) | v0.8.15 | ✅ Done |
 | Release package runs as shipped (artifact completeness gate) | v0.8.16 | ✅ Done |
@@ -46,14 +46,17 @@
 | AutoAudit dockable panel (WebView2) + installer no longer wipes its config | v0.8.20 | ✅ Done |
 | Stable identity — `uniqueId` on `get_element_info`, `find_element_by_unique_id` (host + links) | v0.8.21/0.8.22 | ✅ Done |
 | `configure_schedule` numeric filters | v0.8.23 | ✅ Done |
-| Path of Travel — read (`spatial_get_paths_of_travel`), polyline, create | v0.8.24–0.8.26 | ✅ Done |
+| Path of Travel read / create (HTTP-only; external pack since v0.8.38) | v0.8.24–0.8.26 | ✅ Done |
 | `create_detail_line` color/weight; `query_where` / `update_where` / `import_parameters` | v0.8.25/0.8.27 | ✅ Done |
 | Parameter coercion — a mistyped parameter returns 400 with the offending key, never a bare 500 | v0.8.28/0.8.33 | ✅ Done |
-| `isolate_elements_in_view` transaction fix; `spatial_create_model_line` | v0.8.29 | ✅ Done |
+| `isolate_elements_in_view` transaction fix; HTTP-only model-line command | v0.8.29 | ✅ Done |
 | Dockable panes recover from "paused" after a background document closes | v0.8.30 | ✅ Done |
 | `get_view_image` `pixelSize`; `create_perspective_view` | v0.8.31 | ✅ Done |
 | Guards that refuse instead of faking success — dimensions in a 3D view, `check_clearance` `axis`/`direction` | v0.8.32/0.8.34 | ✅ Done |
 | Second ribbon panel is opt-in (config-driven); default install adds one tab | v0.8.35 | ✅ Done |
+| Requested names applied exactly or the command fails (schedule, views, sheet, group, duplicate) | v0.8.36 | ✅ Done |
+| Opt-in command packs (`revit-mcp-packs.json`) + `samples/HelloPack` | v0.8.37 | ✅ Done |
+| HTTP-only geometry commands move out of the kernel into an external command pack | v0.8.38 | ✅ Done |
 
 ## Near-term backlog
 

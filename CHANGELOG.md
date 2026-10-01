@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.38] — 2026-10-01: the `spatial_*` commands leave the kernel
+
+### Removed
+
+- **The nine HTTP-only `spatial_*` commands are no longer built in.** They now ship as an external
+  command pack (the mechanism added in 0.8.37), so the kernel keeps only general-purpose commands.
+  None of the nine was ever on the MCP tool surface, so the MCP tool list is unchanged at 94.
+  - Built-in C# commands: 101 → **92** (hidden: 10 → 1, `create_spot_elevation`).
+  - A machine **with** the pack installed sees the same nine names in `/commands`, now carrying a
+    `pack` field, and `/health` reports them under `packCommandCount`.
+  - A machine **without** it gets `unknown_command` (404) for those names — the same answer as for
+    any command that does not exist.
+
+### Verified
+
+- Live on Revit 2027 with the external pack installed (a pack built against 0.8.37, so an older
+  pack on the newer Core): `/health` → 92 built-in + 9 pack, the pack report shows 9 registered,
+  0 skipped, no error. The nine commands answered from the pack with the same results the
+  built-ins gave on the same model, a write ran inside the dispatcher's transaction, and error codes
+  were unchanged (11/11). Repo smoke suite 25/25; naming suites 17/17, 33/33, 7/7. An unregistered
+  name returns 404, which is what a machine without the pack now gets.
+- 200 C# tests, 24 TS tests; the gate counts 92 C# commands (1 hidden) and 94 MCP tools.
+
 ## [0.8.37] — 2026-10-01: opt-in command packs
 
 ### Added

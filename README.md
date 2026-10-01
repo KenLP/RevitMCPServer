@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.37** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command `spatial_*` HTTP pack, registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.38** — 92 C# commands (91 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation`, registered for HTTP `/mcp` use but off the MCP tool surface. More HTTP-only commands can be added through opt-in [command packs](#command-packs-optional-opt-in).
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -221,7 +221,7 @@ RevitMCPServer/
 ├── samples/
 │   └── HelloPack/                  ← minimal opt-in command pack
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 101 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 92 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
@@ -300,7 +300,7 @@ Options:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.8.37, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.38, authEnabled=True
 ```
 
 Then restart Claude Desktop. The server shows up under **Connectors**
@@ -420,7 +420,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.37
+   version   : 0.8.38
    authEnabled : True
    ```
 
@@ -579,7 +579,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.37, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.38, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

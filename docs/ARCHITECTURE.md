@@ -110,7 +110,7 @@ src/RevitMCP.Core/                      # portable class library — the executi
     ├── BatchPolicy.cs                  # mixed ModelWrite/UiAction batch rejection
     ├── RevitCommandException.cs        # typed domain error codes
     ├── CommandPacks.cs                 # registers pack commands; never replaces an existing name
-    └── …Command.cs                     # 101 commands, one file each
+    └── …Command.cs                     # 92 commands, one file each
 
 src/RevitAddin/                         # the Revit add-in host
 ├── App.cs                              # IExternalApplication; mints the auth token

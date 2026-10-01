@@ -170,17 +170,7 @@ public sealed class CommandRegistry
         // === Coordination / clash ===
         Register(new CheckClearanceCommand());
 
-        // === spatial_* pack (HTTP-only, NOT exposed as MCP tools) ===
-        // Meant for programmatic callers over /mcp rather than LLM tool routing.
-        // Prefixed to namespace them apart from the curated MCP command surface.
-        Register(new GetRoomBoundaryCommand());
-        Register(new ClearanceEnvelopeCommand());
-        Register(new ClearanceEnvelopeBatchCommand());
-        Register(new RaycastHeadroomCommand());
-        Register(new GetWallsCommand());
-        Register(new GetStairsCommand());
-        Register(new GetPathsOfTravelCommand());
-        Register(new CreatePathOfTravelCommand());
-        Register(new CreateModelLineCommand());
+        // Specialised HTTP-only commands live in opt-in command packs, not here
+        // (see CommandPacks and samples/HelloPack).
     }
 }
