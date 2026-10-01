@@ -6,7 +6,37 @@ public sealed class CommandRegistry
 {
     private readonly Dictionary<string, IRevitCommand> _commands = new();
 
+    // Command name -> pack file, for commands registered from a pack (see CommandPacks).
+    private readonly Dictionary<string, string> _packOf = new();
+
     public void Register(IRevitCommand handler) => _commands[handler.Name] = handler;
+
+    /// <summary>
+    /// Registers a pack command unless the name is taken. Unlike <see cref="Register"/>, never
+    /// replaces: a pack cannot shadow a built-in or another pack. <paramref name="owner"/> names
+    /// whoever already holds the name ("built-in" or the pack file) when this returns false.
+    /// </summary>
+    public bool TryRegisterFromPack(IRevitCommand handler, string packFile, out string? owner)
+    {
+        if (_commands.ContainsKey(handler.Name))
+        {
+            owner = _packOf.TryGetValue(handler.Name, out var other) ? other : "built-in";
+            return false;
+        }
+        _commands[handler.Name] = handler;
+        _packOf[handler.Name] = packFile;
+        owner = null;
+        return true;
+    }
+
+    /// <summary>The pack file a command came from, or null for a built-in command.</summary>
+    public string? PackOf(string name) => _packOf.TryGetValue(name, out var f) ? f : null;
+
+    /// <summary>Commands registered from packs (subset of <see cref="Count"/>).</summary>
+    public int PackCommandCount => _packOf.Count;
+
+    /// <summary>Start-up report for every configured pack, loaded or not.</summary>
+    public List<PackReport> Packs { get; } = new();
 
     public bool TryGet(string name, out IRevitCommand? handler) =>
         _commands.TryGetValue(name, out handler);

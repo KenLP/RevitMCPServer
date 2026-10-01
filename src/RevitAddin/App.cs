@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Commands;
+using RevitMCPAddin.Packs;
 using RevitMCPAddin.Panel;
 using RevitMCPAddin.Server;
 
@@ -40,14 +41,26 @@ public sealed class App : IExternalApplication
     {
         try
         {
+            var revitVersion = application.ControlledApplication.VersionNumber;
+
             var registry = new CommandRegistry();
             registry.RegisterDefaults();
+
+            // Opt-in command packs (revit-mcp-packs.json). Registered before the listener starts so
+            // /commands and /health never show a half-loaded set; a bad pack is reported, never fatal.
+            try
+            {
+                PackLoader.LoadAll(revitVersion, registry, LogToConsole);
+            }
+            catch (Exception ex)
+            {
+                LogToConsole($"[RevitMCP] Packs unavailable: {ex.Message}");
+            }
 
             _handler = new RevitMCPExternalEventHandler(registry);
             _externalEvent = ExternalEvent.Create(_handler);
             _handler.AttachExternalEvent(_externalEvent);
 
-            var revitVersion = application.ControlledApplication.VersionNumber;
             var port = ResolvePort(revitVersion);
             var authToken = ResolveAuthToken(revitVersion);
 
@@ -60,7 +73,8 @@ public sealed class App : IExternalApplication
             LogToConsole(
                 $"[RevitMCP] Build {BuildInfo.Version} " +
                 $"({BuildInfo.GitBranch}@{BuildInfo.GitCommit}, {BuildInfo.GitState}, " +
-                $"{BuildInfo.BuildTimestampUtc}) — {registry.Count} commands, " +
+                $"{BuildInfo.BuildTimestampUtc}) — {registry.Count} commands" +
+                (registry.PackCommandCount > 0 ? $" ({registry.PackCommandCount} from packs)" : "") + ", " +
                 $"capability {BuildInfo.CapabilityHash(registry.Names)}");
 
             LogToConsole($"[RevitMCP] Listening on http://127.0.0.1:{port}/ (auth=ON)");

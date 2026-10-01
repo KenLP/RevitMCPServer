@@ -48,6 +48,10 @@ jobs:
         run: dotnet build src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-restore -p:RevitVersion=${{ matrix.revit }} -p:DeployToRevit=false
       - name: Test
         run: dotnet test src/RevitAddin.Tests/RevitMCPAddin.Tests.csproj --no-build -p:RevitVersion=${{ matrix.revit }} -p:DeployToRevit=false --logger "console;verbosity=normal"
+      # Compiles the sample pack against this Core: a change to the public pack surface
+      # (IRevitCommand, CommandContext, P, RevitCommandException) that breaks packs fails here.
+      - name: Build sample command pack
+        run: dotnet build samples/HelloPack/HelloPack.csproj -p:RevitVersion=${{ matrix.revit }} -p:DeployToRevit=false
 
   version-check:
     name: Version consistency

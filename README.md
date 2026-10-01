@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.36** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command `spatial_*` HTTP pack, registered for HTTP `/mcp` use but off the MCP tool surface.
+**v0.8.37** — 101 C# commands (91 exposed as MCP tools + 10 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation` + the 9-command `spatial_*` HTTP pack, registered for HTTP `/mcp` use but off the MCP tool surface.
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -148,6 +148,30 @@ Ignore the tab entirely if you only want the MCP tool surface. Panels are additi
 nothing in the tool surface depends on them, and a panel that fails to load cannot
 take the MCP server down with it.
 
+## Command packs (optional, opt-in)
+
+The add-in can register extra commands from your own .NET class libraries ("packs"), next to its
+built-in ones. Nothing is loaded unless `revit-mcp-packs.json` exists in
+`%APPDATA%\Autodesk\Revit\Addins\<version>\` and lists them:
+
+```jsonc
+{ "packs": [ "RevitMCP.Packs/MyPack.dll" ] }   // relative to that Addins folder; "enabled": false turns all off
+```
+
+- Pack commands are **HTTP-only** (`POST /mcp`, `POST /mcp/batch`) and go through the same
+  dispatcher: transactions, dry-run, batch, auth and error envelope all apply. They never appear in
+  the MCP tool list.
+- A pack **cannot replace** a built-in command or another pack's command; a clashing command is
+  skipped and reported, the rest of the pack still loads. A pack whose constructor throws is
+  rejected whole.
+- A missing file, malformed config or incompatible pack is reported and skipped — it never stops the
+  add-in. `GET /commands` shows each pack's `commands`, `skipped` and `error`; `GET /health` shows
+  `builtinCommandCount` and `packCommandCount`.
+- Build a pack against the same RevitMCP version as the add-in, and ship only the pack DLL (never a
+  copy of `RevitMCP.Core.dll`). The installer never writes or deletes the config or the packs.
+
+Start from [`samples/HelloPack`](samples/HelloPack/README.md).
+
 
 ### Tool profiles (token efficiency)
 
@@ -194,12 +218,15 @@ RevitMCPServer/
 ├── scripts/
 │   ├── check-version.mjs           ← CI gate: version + tool-count consistency
 │   └── smoke-test.ps1              ← live-Revit smoke test
+├── samples/
+│   └── HelloPack/                  ← minimal opt-in command pack
 └── src/
     ├── RevitMCP.Core/              ← portable kernel: dispatcher + 101 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
     │   ├── App.cs
+    │   ├── Packs/                  ← opt-in command pack loader (revit-mcp-packs.json)
     │   ├── Server/McpHttpServer.cs ← /mcp, /mcp/batch, /commands, /health, /stats
     │   ├── Server/RequestLog.cs    ← structured request log
     │   ├── Server/ServerMetrics.cs ← counters behind /stats
@@ -273,7 +300,7 @@ Options:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7891/health
-# → ok=True, service=revit-mcp-addin, version=0.8.36, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.37, authEnabled=True
 ```
 
 Then restart Claude Desktop. The server shows up under **Connectors**
@@ -393,7 +420,7 @@ This produces `dist/index.js` — the small Node program Claude will launch.
    ```
    ok        : True
    service   : revit-mcp-addin
-   version   : 0.8.36
+   version   : 0.8.37
    authEnabled : True
    ```
 
@@ -552,7 +579,7 @@ Sanity check:
 Invoke-RestMethod http://127.0.0.1:7890/health   # R2025
 Invoke-RestMethod http://127.0.0.1:7891/health   # R2026
 Invoke-RestMethod http://127.0.0.1:7892/health   # R2027
-# → ok=True, service=revit-mcp-addin, version=0.8.36, authEnabled=True
+# → ok=True, service=revit-mcp-addin, version=0.8.37, authEnabled=True
 
 # Authenticated request (read the token first):
 $token = Get-Content "$env:APPDATA\Autodesk\Revit\Addins\2026\revit-mcp-token.txt"

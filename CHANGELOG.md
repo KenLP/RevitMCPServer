@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.37] — 2026-10-01: opt-in command packs
+
+### Added
+
+- **Command packs.** The add-in can now register extra commands from separate .NET class libraries,
+  listed in `revit-mcp-packs.json` next to the add-in (`{ "packs": [ "RevitMCP.Packs/MyPack.dll" ] }`).
+  Opt-in: without that file nothing changes — no extra load, no extra commands.
+  - A pack is any assembly with public `IRevitCommand` classes that have a parameterless
+    constructor. It is loaded into the add-in's own load context, so it binds to the Core already
+    loaded and runs through the same dispatcher: transactions, dry-run, batch, auth and the error
+    envelope all apply. Pack commands are HTTP-only (`/mcp`, `/mcp/batch`); the MCP tool list does
+    not change.
+  - A pack can **never replace** a command that already exists — built-in or from an earlier
+    pack. The clashing command is skipped and reported; the rest of the pack still loads. A pack
+    whose constructor throws is rejected whole, so a pack never loads half-way. Names must match
+    `[a-z0-9_]`.
+  - Failures are reported, never fatal: a missing DLL, a malformed config (each bad entry named),
+    or a pack built against an incompatible Core is skipped and logged at start-up.
+- `GET /commands` marks pack commands with a `pack` field and, when a pack config exists, adds
+  `packs: [{ file, commands, skipped, error }]`. Built-in entries are unchanged.
+- `GET /health` adds `builtinCommandCount` and `packCommandCount` (`commandCount` is their sum).
+  Pack names are deliberately not listed on this auth-exempt endpoint.
+- `samples/HelloPack` — a minimal pack with build/install steps. CI now compiles it against every
+  supported Revit version, so a change to the public pack surface (`IRevitCommand`,
+  `CommandContext`, `P`, `RevitCommandException`) that would break packs fails the build.
+
+### Verified
+
+- Live on Revit 2027 (15/15): the sample pack registered and answered over `/mcp` and inside
+  `/mcp/batch`; a pack's `RevitCommandException` kept its code (400); a missing DLL and a non-DLL
+  config entry were reported without stopping the add-in; built-in count unchanged at 101.
+- 200 C# tests (17 new for pack registration and config parsing), 24 TS tests.
+
 ## [0.8.36] — 2026-10-01: a requested name is applied exactly, or the command fails
 
 ### Fixed

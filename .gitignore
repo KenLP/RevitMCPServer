@@ -5,6 +5,8 @@ src/RevitAddin.Tests/bin/
 src/RevitAddin.Tests/obj/
 src/RevitMCP.Core/bin/
 src/RevitMCP.Core/obj/
+samples/*/bin/
+samples/*/obj/
 *.user
 
 # Node / TypeScript

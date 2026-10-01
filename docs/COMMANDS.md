@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.36 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command `spatial_*` HTTP pack; 101 C# commands registered; workflow recipes are Node-only).
+> **v0.8.37 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (10 hidden: `create_spot_elevation` + the 9-command `spatial_*` HTTP pack; 101 C# commands registered; workflow recipes are Node-only).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -817,7 +817,10 @@ and reports `hadFailures: true`.
 ## HTTP introspection
 
 ### `GET /health`
-Returns `{ ok, service, version }`. No active document required.
+Auth-exempt; no active document required. Returns `ok`, `service`, `version`, the git stamp
+(`gitCommit`, `gitBranch`, `gitState`, `buildTimestampUtc`), `commandCount` (everything registered)
+split into `builtinCommandCount` and `packCommandCount`, `capabilityHash` and `authEnabled`. Pack
+names are deliberately not listed here — see `GET /commands`.
 
 ### `GET /commands`
 Lists every registered command with `isReadOnly` flag, `riskLevel`
@@ -825,6 +828,12 @@ Lists every registered command with `isReadOnly` flag, `riskLevel`
 (`ReadOnly` | `ModelWrite` | `UiAction`) — useful for AI clients that want
 to discover the available surface and build per-tool permission policies
 at runtime.
+
+Commands registered from an opt-in command pack carry a `pack` field (the DLL as named in
+`revit-mcp-packs.json`); built-ins have none. When a pack config exists, `data.packs` reports every
+configured pack: `{ file, commands[], skipped[], error }` — `skipped` explains each command that was
+not registered (invalid name, or the name was already taken), `error` explains a pack that was not
+loaded at all.
 
 ```jsonc
 {

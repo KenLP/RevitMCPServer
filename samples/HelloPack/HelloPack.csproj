@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Minimal command pack. Build:  dotnet build samples/HelloPack/HelloPack.csproj -p:RevitVersion=2027
+    Output: bin/<Configuration>/HelloPack.dll — copy it (alone; NOT RevitMCP.Core.dll) next to the
+    add-in and list it in revit-mcp-packs.json. See README.md in this folder.
+  -->
+  <PropertyGroup>
+    <AssemblyName>HelloPack</AssemblyName>
+    <RootNamespace>HelloPack</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2026</RevitVersion>
+    <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">C:\Program Files\Autodesk\Revit $(RevitVersion)</RevitInstallDir>
+    <TargetFramework Condition="$([MSBuild]::VersionGreaterThanOrEquals($(RevitVersion), 2027))">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="$([MSBuild]::VersionLessThan($(RevitVersion), 2027))">net8.0-windows</TargetFramework>
+  </PropertyGroup>
+
+  <!-- The pack compiles against Core but must NOT ship its own copy: at run time it binds to the
+       Core the add-in already loaded, so IRevitCommand is the same type on both sides. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RevitMCP.Core\RevitMCP.Core.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(RevitInstallDir)\RevitAPI.dll')">
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2025'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.2.0"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.2.0"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2026'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.4.10"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.4.10"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll') And '$(RevitVersion)' == '2027'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2027.0.20"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2027.0.20"><PrivateAssets>all</PrivateAssets><IncludeAssets>compile</IncludeAssets></PackageReference>
+  </ItemGroup>
+
+</Project>

@@ -125,6 +125,10 @@ public sealed class McpHttpServer
                     ["gitState"] = BuildInfo.GitState,
                     ["buildTimestampUtc"] = BuildInfo.BuildTimestampUtc,
                     ["commandCount"] = names.Count,
+                    // Built-in vs opt-in pack commands. Pack names and files are NOT listed here
+                    // (this endpoint is auth-exempt); GET /commands carries the detail.
+                    ["builtinCommandCount"] = names.Count - _handler.Registry.PackCommandCount,
+                    ["packCommandCount"] = _handler.Registry.PackCommandCount,
                     ["capabilityHash"] = BuildInfo.CapabilityHash(names),
                     ["authEnabled"] = _authToken is not null,
                 }).ConfigureAwait(false);
@@ -146,19 +150,39 @@ public sealed class McpHttpServer
                 var arr = new JsonArray();
                 foreach (var (name, isReadOnly, riskLevel, executionKind) in _handler.Registry.Describe())
                 {
-                    arr.Add(new JsonObject
+                    var item = new JsonObject
                     {
                         ["name"] = name,
                         ["isReadOnly"] = isReadOnly,
                         ["riskLevel"] = riskLevel,
                         ["executionKind"] = executionKind,
-                    });
+                    };
+                    // Present only for pack commands, so the shape for built-ins is unchanged.
+                    var pack = _handler.Registry.PackOf(name);
+                    if (pack is not null) item["pack"] = pack;
+                    arr.Add(item);
                 }
-                await WriteJsonAsync(response, 200, JsonResult.Success(new JsonObject
+                var data = new JsonObject
                 {
                     ["count"] = arr.Count,
                     ["commands"] = arr,
-                })).ConfigureAwait(false);
+                };
+                if (_handler.Registry.Packs.Count > 0)
+                {
+                    var packs = new JsonArray();
+                    foreach (var r in _handler.Registry.Packs)
+                    {
+                        packs.Add(new JsonObject
+                        {
+                            ["file"] = r.File,
+                            ["commands"] = new JsonArray(r.Commands.Select(c => (JsonNode?)c).ToArray()),
+                            ["skipped"] = new JsonArray(r.Skipped.Select(c => (JsonNode?)c).ToArray()),
+                            ["error"] = r.Error,
+                        });
+                    }
+                    data["packs"] = packs;
+                }
+                await WriteJsonAsync(response, 200, JsonResult.Success(data)).ConfigureAwait(false);
                 return;
             }
 
