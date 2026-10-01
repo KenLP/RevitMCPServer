@@ -140,8 +140,8 @@ public sealed class CommandRegistry
         // === Coordination / clash ===
         Register(new CheckClearanceCommand());
 
-        // === Spatial-QC pack (HTTP-only; spatial_* names, NOT exposed as MCP tools) ===
-        // Consumed programmatically by an external client over /mcp, not by LLM tool routing.
+        // === spatial_* pack (HTTP-only, NOT exposed as MCP tools) ===
+        // Meant for programmatic callers over /mcp rather than LLM tool routing.
         // Prefixed to namespace them apart from the curated MCP command surface.
         Register(new GetRoomBoundaryCommand());
         Register(new ClearanceEnvelopeCommand());

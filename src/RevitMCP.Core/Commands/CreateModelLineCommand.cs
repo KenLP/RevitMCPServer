@@ -6,14 +6,13 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
 /// Draws a straight <c>ModelCurve</c> between two world points. Unlike
 /// <c>create_detail_line</c>, which makes a view-specific <c>DetailCurve</c> and refuses to run in a
 /// 3D view at all, a model curve lives in the model and therefore shows up in every view that cuts
-/// through it — including a 3D view opened later. That is what spatial-QC needs to draw the measured
-/// min-width chord inside the 3D view its panel opens.
+/// through it — including a 3D view opened later.
 ///
 /// The returned <c>id</c> is a real element with a usable <c>GetReference()</c>, so it can later be
 /// fed to <c>create_aligned_dimension</c>, which takes element references rather than bare points.

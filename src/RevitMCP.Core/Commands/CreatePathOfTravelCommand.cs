@@ -8,26 +8,23 @@ using Autodesk.Revit.UI.Events;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
-/// Asks Revit to compute and place its OWN native PathOfTravel element between two points, so a
-/// reviewer who already trusts <c>Analyze &gt; Path of Travel</c> can see Revit's line sitting next
-/// to bim-nav's detail-line route in the same view. The WRITE mirror of
+/// Asks Revit to compute and place its OWN native PathOfTravel element between two points — the
+/// same result as <c>Analyze &gt; Path of Travel</c> in the UI. The WRITE mirror of
 /// <see cref="GetPathsOfTravelCommand"/>.
 ///
 /// Hard API limitation (do not design around it): <c>PathOfTravel.Create</c> takes exactly two
 /// endpoints and routes between them with Revit's own path-finding. There is no way to hand Revit
-/// an existing polyline, so this can never be how spatial-qc draws its OWN route — that stays
-/// detail lines. This is a same-view baseline only.
+/// an existing polyline: the route is always Revit's own.
 ///
 /// Params:
 ///   viewId  long, required — a floor plan view (PathOfTravel is confined to one).
 ///   from/to {x, y, z?}, required.
 ///   units   "meters"|"feet", default "meters".
 ///
-/// Returns: { id, viewId, lengthMeters, timeSeconds } — Revit's own numbers for ITS route, which
-/// will generally NOT equal bim-nav's for the same pair. That difference is the point.
+/// Returns: { id, viewId, lengthMeters, timeSeconds } — Revit's own numbers for its route.
 /// </summary>
 public sealed class CreatePathOfTravelCommand : IRevitCommand
 {
@@ -62,7 +59,7 @@ public sealed class CreatePathOfTravelCommand : IRevitCommand
         // PathOfTravel.Create can raise a MODAL dialog (measured: a crop-region warning on a view
         // whose crop clips the route). A modal dialog on the Revit UI thread deadlocks the whole
         // add-in — the HTTP request never returns and every later request queues behind it until a
-        // human clicks the box, which for an unattended consumer means hung forever. So dialogs are
+        // human clicks the box, which for an unattended caller means hung forever. So dialogs are
         // auto-dismissed for the duration of this call and reported as data instead.
         string? dialogId = null, dialogMessage = null;
         void OnDialog(object? sender, DialogBoxShowingEventArgs e)

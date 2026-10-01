@@ -7,18 +7,14 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
 /// Wall plan footprints (centerline offset by half the wall width) + Z range + the DECLARED
-/// Interior/Exterior Function value, in world metres. Feeds spatial-QC's storey envelope: a
-/// flood fill that decides which part of a storey is truly outdoors, which is an enclosed void
-/// (shaft/courtyard) and which is solid. That drives exterior-door detection for the egress rules
-/// (the old "door touches &lt;= 1 room" heuristic breaks on thick or curtain walls) and the
-/// wall-declaration audit rule.
+/// Interior/Exterior Function value, in world metres.
 ///
-/// <c>isExternal</c> is emitted VERBATIM: it is a user declaration, and the consumer's whole point
-/// is to audit it against the geometry — never to trust it.
+/// <c>isExternal</c> is emitted VERBATIM from the model: it is a user declaration, not something
+/// this command infers from geometry.
 ///
 /// Output:
 ///   { count, walls: [ { id, name, levelName, z0, z1, isExternal,
@@ -56,9 +52,8 @@ public sealed class GetWallsCommand : IRevitCommand
             var ring = OffsetRing(curve, halfWidthFt);
             if (ring is null) continue;
 
-            // A wall with no bounding box has no Z range, so the consumer could not band it to a
-            // storey anyway — skip it rather than emit null z0/z1 (the consumer reads those with
-            // float(), which would throw on null).
+            // A wall with no bounding box has no Z range — skip it rather than emit null z0/z1,
+            // which callers would have to special-case.
             var bbox = w.get_BoundingBox(null);
             if (bbox is null) continue;
 

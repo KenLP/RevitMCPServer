@@ -6,13 +6,11 @@ using Autodesk.Revit.DB.Architecture;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
 /// Room boundary loops (outer ring + inner holes) as world-coordinate polylines in METRES,
-/// taken at the FINISH face — the net clear room area, matching IFC IfcSpace. This is the
-/// missing primitive that lets vendor-neutral spatial-QC geometry (corridor clear width,
-/// wheelchair turning circle) run directly on the live Revit model, with no IFC export.
+/// taken at the FINISH face — the net clear room area.
 ///
 /// Output:
 ///   { count, rooms: [ { id, name, number, levelName, floorZ, topZ,

@@ -7,7 +7,7 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool).
 ///
 /// Volumetric headroom / clear-height check over a room footprint — the general MEP-aware
 /// clearance primitive. Extrudes the room footprint into a "required clear volume" (floor+ε up to

@@ -39,8 +39,8 @@ tool surface: `create_spot_elevation` (pending a reliable face-reference approac
 `spatial_clearance_envelope_batch`, `spatial_raycast_headroom`, `spatial_get_walls`,
 `spatial_get_stairs`, `spatial_get_paths_of_travel`, `spatial_create_path_of_travel`,
 `spatial_create_model_line`) —
-pure-geometry primitives consumed programmatically by an external client, not by LLM
-tool routing (see the `spatial_*` pack section below).
+low-level geometry primitives meant for programmatic HTTP callers rather than LLM tool routing
+(see the `spatial_*` pack section below).
 
 ### Implemented — Read / Introspection
 
@@ -134,23 +134,22 @@ tool routing (see the `spatial_*` pack section below).
 
 ### `spatial_*` pack — HTTP-only
 
-Registered in C# (callable via HTTP `/mcp`) but **not exposed as MCP tools** — they are consumed
-programmatically by an external client (its inputs, e.g. `loops`/`points`, are produced by
-other calls in its own pipeline), so surfacing them to LLM
-tool routing would only dilute the tool list. Prefixed `spatial_` to namespace them apart from the
-curated command surface and avoid any future collision. Pure geometry, no dependency on newer infra.
+Registered in C# (callable via HTTP `/mcp`) but **not exposed as MCP tools**: their inputs (e.g.
+`loops`/`points`) are normally produced by other calls, so they suit programmatic callers better than
+LLM tool routing, and listing them would only dilute the tool surface. Prefixed `spatial_` to keep
+them apart from the curated command set.
 
 | Command | Notes |
 |---|---|
-| `spatial_get_room_boundary` | Room boundary loops (outer ring + holes) at the **finish** face as world-XY polylines in metres (net clear area, matches `IfcSpace`). Params: `id` or `number` (optional) to target one room. |
-| `spatial_clearance_envelope` | Volumetric MEP-aware clear-height check: extrudes a room footprint to a required clear volume and boolean-intersects every overhead element in host **and every linked RVT**; names each obstruction (category/id/link) with the clear height it leaves. |
-| `spatial_clearance_envelope_batch` | Same check for many rooms in one call; collects + extracts candidate geometry **once** over the union of all footprints and reuses it per room (removes repeated extraction, the dominant cost). |
-| `spatial_raycast_headroom` | Vertical headroom raycast: fires a ray up from each `(x,y)` on the floor, returns the lowest overhead soffit height (ceilings/floors-above/roofs/framing; stairs excluded). |
-| `spatial_get_walls` | Wall plan footprints (centreline offset by half the width) + Z range + the **declared** Interior/Exterior `Function`, in world metres. Feeds the storey-envelope flood fill that decides what is truly outdoors vs. an enclosed void — which in turn drives exterior-door detection (the old "door touches ≤ 1 room" heuristic breaks on thick and curtain walls). `isExternal` is emitted **verbatim**: it is a user declaration the consumer audits against geometry, never trusts. Curtain walls (Width ≈ 0) get a nominal 0.15 m footprint so the facade is not a gap. |
-| `spatial_get_stairs` | Placed stairs with Revit's own as-built riser height / tread depth / riser count, plus plan centroid and base level — the live-model equivalent of what the IFC path re-measures from the stair mesh, so max-riser / min-tread rules run without an IFC export. No per-riser breakdown exists in the API, so there is deliberately no `riserVariation`: the consumer reads a missing field as "unmeasured" (INFO) rather than a false PASS. |
-| `spatial_get_paths_of_travel` | The `PathOfTravel` elements a reviewer already placed via `Analyze > Path of Travel`, with Revit's own route length/time — the read side of the consumer's benchmark, which reruns the same `(from, to)` through its grid router and prints both distances. `from`/`to` are the route curve's endpoints (`GetCurves()`), **not** the clicked points. Also emits `polyline`: every route vertex in the same metres/world-XYZ frame, via `Curve.Tessellate()` so an Arc (Revit rounding a corner around an obstacle) keeps its detour instead of collapsing to a chord — that is what lets the consumer find *where* two routes diverge, not just that they differ. Summing polyline segments ≈ `lengthMeters`, slightly short when an Arc is present. Length is `CURVE_ELEM_LENGTH` and time is `PATH_OF_TRAVEL_TIME` (already seconds) — there is no `PATH_OF_TRAVEL_LENGTH`. Elements whose route failed to compute are skipped rather than emitted as a 0-length measurement. |
-| `spatial_create_path_of_travel` | **Write.** Asks Revit to compute and place its own `PathOfTravel` between two points in a floor plan view, so its line sits next to the consumer's detail-line route for comparison. `PathOfTravel.Create` accepts only two endpoints — it routes by itself and cannot be handed an existing polyline, so this can never draw the consumer's own path. Failure arrives both as an out-`PathOfTravelCalculationStatus` AND as thrown `Autodesk.Revit.Exceptions` (measured: coincident/out-of-crop points throw rather than status) — both map to `no_route`. `ResultAffectedByCrop` is accepted as success with a `warning` field; its warning dialog fires at transaction **commit**, so the command opts into `SuppressWarningsOnCommit` (dispatcher-level `IFailuresPreprocessor` that deletes commit warnings) — without it the modal box deadlocks the add-in for headless callers. A genuinely failed element is deleted before the error is raised. First call in a session can take 90+ s (route-analysis warm-up); budget a ≥3-minute HTTP timeout. |
-| `spatial_create_model_line` | Straight `ModelCurve` between two world points. Unlike `create_detail_line` (a view-specific `DetailCurve` that **refuses to run in a 3D view**), a model curve lives in the model and shows in every view that cuts it — which is what lets an external client draw a measured chord inside a 3D view it opens. `units` accepts `meters`/`feet` only and rejects anything else rather than silently scaling. Optional `color` needs a `viewId` (an override is per view); optional `lineStyle` is reported in `warnings` when not found instead of being silently dropped. Returns `{id, length}` with length always in metres; the `id` has a usable `GetReference()` so it can feed `create_aligned_dimension`. |
+| `spatial_get_room_boundary` | Room boundary loops (outer ring + holes) at the **finish** face as world-XY polylines in metres. Params: `id` or `number` (optional) to target one room. |
+| `spatial_clearance_envelope` | Clear-height check for one room: extrudes the footprint to a required height and intersects overhead elements in the host **and linked RVTs**; reports each obstruction (category/id/link) with the clear height it leaves. |
+| `spatial_clearance_envelope_batch` | Same check for many rooms in one call; candidate geometry is collected once and reused per room. |
+| `spatial_raycast_headroom` | Fires a vertical ray up from each `(x,y)` and returns the lowest overhead soffit height (ceilings / floors above / roofs / framing; stairs excluded). |
+| `spatial_get_walls` | Wall plan footprints (centreline offset by half the width) + Z range + the declared Interior/Exterior `Function`, in world metres. `isExternal` is emitted verbatim from the model. Curtain walls (Width ≈ 0) get a nominal 0.15 m footprint. |
+| `spatial_get_stairs` | Placed stairs with Revit's riser height / tread depth / riser count, plan centroid and base level. The API has no per-riser breakdown, so no per-riser field is emitted. |
+| `spatial_get_paths_of_travel` | Existing `PathOfTravel` elements with Revit's route length/time. `from`/`to` are the route curve's endpoints (`GetCurves()`), not the clicked points. `polyline` carries every route vertex (via `Curve.Tessellate()`, so arcs keep their shape); segment sum ≈ `lengthMeters`. Length is `CURVE_ELEM_LENGTH`, time is `PATH_OF_TRAVEL_TIME` (seconds). Elements whose route failed to compute are skipped. |
+| `spatial_create_path_of_travel` | **Write.** Places a Revit-computed `PathOfTravel` between two points in a floor plan view (`PathOfTravel.Create` takes only two endpoints and routes by itself). Failures arrive both as a status and as thrown exceptions — both map to `no_route`. `ResultAffectedByCrop` is a success with a `warning`; its commit-time warning is suppressed (`SuppressWarningsOnCommit`) so headless callers are not blocked by a modal dialog. A failed element is deleted before the error is raised. The first call in a session can take 90+ s; use a ≥ 3-minute HTTP timeout. |
+| `spatial_create_model_line` | Straight `ModelCurve` between two world points. Unlike `create_detail_line` (view-specific, refuses a 3D view), a model curve shows in every view that cuts it. `units` accepts `meters`/`feet` only. Optional `color` needs a `viewId`; an unknown `lineStyle` is reported in `warnings`. Returns `{id, length}` (metres); the `id` has a usable `GetReference()` for `create_aligned_dimension`. |
 
 ### Implemented — UI Actions (no model transaction)
 

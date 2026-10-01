@@ -36,7 +36,7 @@ public sealed class FindElementsCommand : IRevitCommand
         if (!Enum.TryParse<BuiltInCategory>(categoryName, true, out var bic))
             throw new RevitCommandException("invalid_parameter", $"Unknown BuiltInCategory '{categoryName}'.");
 
-        // Optional view scoping (parity with the spatial-QC fork). Validate up front
+        // Optional view scoping. Validate up front
         // so a bad id surfaces as a clear domain error, not a raw ArgumentException
         // from the FilteredElementCollector constructor.
         var viewId = P.LongOrNull(p, "view_id");

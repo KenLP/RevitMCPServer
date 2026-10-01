@@ -502,18 +502,18 @@ server.tool("revit_create_aligned_dimension", "Create an aligned dimension chain
 // solid-face approach hit "Spot Dimension does not lie on its reference". The C#
 // command stays registered (HTTP-callable) for future work but is off the MCP surface.
 
-// Spatial-QC pack — registered in C# (HTTP-callable via /mcp) but deliberately NOT exposed as MCP
-// tools. They are consumed programmatically by an external client (inputs like loops/points
-// come from other calls), so surfacing them to LLM tool routing would only dilute the tool list.
-// revit_spatial_get_room_boundary — hidden (HTTP-only spatial-QC pack; C# spatial_get_room_boundary)
-// revit_spatial_clearance_envelope — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope)
-// revit_spatial_clearance_envelope_batch — hidden (HTTP-only spatial-QC pack; C# spatial_clearance_envelope_batch)
-// revit_spatial_raycast_headroom — hidden (HTTP-only spatial-QC pack; C# spatial_raycast_headroom)
-// revit_spatial_get_walls — hidden (HTTP-only spatial-QC pack; C# spatial_get_walls)
-// revit_spatial_get_stairs — hidden (HTTP-only spatial-QC pack; C# spatial_get_stairs)
-// revit_spatial_create_model_line — hidden (HTTP-only spatial-QC pack; C# spatial_create_model_line)
-// revit_spatial_get_paths_of_travel — hidden (HTTP-only spatial-QC pack; C# spatial_get_paths_of_travel)
-// revit_spatial_create_path_of_travel — hidden (HTTP-only spatial-QC pack; C# spatial_create_path_of_travel)
+// spatial_* pack — registered in C# (HTTP-callable via /mcp) but deliberately NOT exposed as MCP
+// tools. Their inputs (loops/points) come from other calls, so they suit programmatic callers;
+// surfacing them to LLM tool routing would only dilute the tool list.
+// revit_spatial_get_room_boundary — hidden (HTTP-only spatial_* pack; C# spatial_get_room_boundary)
+// revit_spatial_clearance_envelope — hidden (HTTP-only spatial_* pack; C# spatial_clearance_envelope)
+// revit_spatial_clearance_envelope_batch — hidden (HTTP-only spatial_* pack; C# spatial_clearance_envelope_batch)
+// revit_spatial_raycast_headroom — hidden (HTTP-only spatial_* pack; C# spatial_raycast_headroom)
+// revit_spatial_get_walls — hidden (HTTP-only spatial_* pack; C# spatial_get_walls)
+// revit_spatial_get_stairs — hidden (HTTP-only spatial_* pack; C# spatial_get_stairs)
+// revit_spatial_create_model_line — hidden (HTTP-only spatial_* pack; C# spatial_create_model_line)
+// revit_spatial_get_paths_of_travel — hidden (HTTP-only spatial_* pack; C# spatial_get_paths_of_travel)
+// revit_spatial_create_path_of_travel — hidden (HTTP-only spatial_* pack; C# spatial_create_path_of_travel)
 
 server.tool("revit_get_tags_in_view", "List all IndependentTag elements in a view. Optionally filter by tagged element category.", {
   viewId: z.number().int().optional().describe("Target view. Defaults to active view."),

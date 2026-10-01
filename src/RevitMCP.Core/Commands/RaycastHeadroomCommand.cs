@@ -7,9 +7,9 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool).
 ///
-/// Vertical headroom raycast (the Revit-native equivalent of spatial-QC's trimesh raycast).
+/// Vertical headroom raycast.
 /// For each (x,y) point, fires a ray UP from the floor and returns the height of the lowest
 /// overhead soffit above `minObstacleHeight` — ceilings, floors-above, roofs, structural
 /// framing. Stairs are EXCLUDED (not in the category filter), so stair landings don't create

@@ -6,12 +6,10 @@ namespace RevitMCPAddin.Commands;
 
 /// <summary>
 /// All placed doors with nominal width (metres), location (world XY, metres), level, and the swing
-/// geometry (FacingOrientation / HandOrientation as resolved world unit vectors) — the data spatial-QC
-/// needs to check door clear width, associate doors to egress routes, and test maneuvering clearance,
-/// directly from the live Revit model (mirrors IfcDoor.OverallWidth + placement axes on the IFC path).
+/// geometry (FacingOrientation / HandOrientation as resolved world unit vectors).
 ///
 /// Note: FacingOrientation / HandOrientation are geometry, not parameters, so find_elements cannot
-/// return them — this command exists to expose door swing orientation for ADA/egress checks.
+/// return them — this command exists to expose door swing orientation.
 /// </summary>
 public sealed class GetDoorsCommand : IRevitCommand
 {

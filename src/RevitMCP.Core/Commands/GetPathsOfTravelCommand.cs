@@ -7,14 +7,12 @@ using Autodesk.Revit.DB.Analysis;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
 /// PathOfTravel elements the user (or Revit's own Analyze &gt; Path of Travel UI) already placed,
-/// with Revit's OWN computed route length/time — the READ side of `bim-nav benchmark-pot`
-/// (SPEC_pot-parity.md Block C): the consumer reruns the same (from, to) pair through its
-/// occupancy-grid router and prints both numbers side by side. Nothing here is modified or
-/// recomputed; the point is Revit's numbers verbatim.
+/// with Revit's OWN computed route length/time. Nothing here is modified or recomputed; the
+/// point is Revit's numbers verbatim.
 ///
 /// `from`/`to` are the first/last vertex of the element's computed route curves — NOT necessarily
 /// the exact points the user clicked (Revit may snap them). Elements whose route failed to compute
@@ -69,8 +67,8 @@ public sealed class GetPathsOfTravelCommand : IRevitCommand
             double lengthFt = lengthParam is not null && lengthParam.HasValue
                 ? lengthParam.AsDouble()
                 : curves.Sum(c => c.Length);
-            // Internal time unit is seconds. Emitted as null when absent — the consumer treats
-            // a missing measurement as "unmeasured", never as 0 s.
+            // Internal time unit is seconds. Emitted as null when absent, never as 0 s, so a
+            // missing measurement cannot be mistaken for a real one.
             var timeParam = pot.get_Parameter(BuiltInParameter.PATH_OF_TRAVEL_TIME);
 
             arr.Add(new JsonObject
@@ -96,7 +94,7 @@ public sealed class GetPathsOfTravelCommand : IRevitCommand
     ///
     /// Uses Tessellate() rather than the curves' endpoints: a PathOfTravel may contain an Arc
     /// (Revit rounds the corner around an obstacle), and taking only an arc's two ends would drop
-    /// the very detour the consumer is trying to measure. Consecutive curves share a vertex, so
+    /// the detour around the obstacle. Consecutive curves share a vertex, so
     /// the duplicate is dropped — otherwise the polyline carries zero-length segments.
     ///
     /// Consequence worth knowing before reading it as a rounding bug: summing the polyline's

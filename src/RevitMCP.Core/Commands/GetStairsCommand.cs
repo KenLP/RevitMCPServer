@@ -6,17 +6,15 @@ using Autodesk.Revit.DB.Architecture;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool —
-/// consumed programmatically by an external client over /mcp, not by LLM tool routing).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool — meant for programmatic callers
+/// over /mcp rather than LLM tool routing).
 ///
 /// Placed stairs with Revit's own AS-BUILT riser height / tread depth / riser count, plus a plan
-/// centroid and level — the live-model equivalent of what the IFC path re-measures from the stair
-/// mesh, so the stair-geometry rules (max riser, min tread) can run without an IFC export.
+/// centroid and level.
 ///
 /// The Revit API exposes no per-riser breakdown (only one flight-level ActualRiserHeight), so there
-/// is deliberately no riserVariation field: the consumer treats a missing field as "unmeasured" and
-/// reports INFO rather than a false PASS. Stairs whose Actual* values are 0 (sketch-based stair with
-/// no computed run) are still emitted — the consumer already reads 0/absent as "no measurement".
+/// is deliberately no per-riser field. Stairs whose Actual* values are 0 (sketch-based stair with
+/// no computed run) are still emitted; read 0 as "no measurement".
 ///
 /// Output:
 ///   { count, stairs: [ { id, name, levelName, x, y, riserHeight, treadDepth, nRisers } ] }
@@ -55,8 +53,7 @@ public sealed class GetStairsCommand : IRevitCommand
                 cy = JsonValue.Create((bbox.Min.Y + bbox.Max.Y) / 2.0 * P.FeetToMeters);
             }
 
-            // Actual* are computed from the PLACED stair (not the type's nominal target values) —
-            // exactly the equivalent of re-measuring the mesh on the IFC path.
+            // Actual* are computed from the PLACED stair, not the type's nominal target values.
             arr.Add(new JsonObject
             {
                 ["id"] = s.Id.Value,

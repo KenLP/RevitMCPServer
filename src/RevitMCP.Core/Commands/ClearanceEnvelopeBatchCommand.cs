@@ -6,7 +6,7 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Spatial-QC pack (HTTP-only; command name prefixed <c>spatial_</c>, not exposed as an MCP tool).
+/// <c>spatial_*</c> pack (HTTP-only; not exposed as an MCP tool).
 ///
 /// Batched clearance envelope — the same volumetric MEP-aware headroom check as
 /// <see cref="ClearanceEnvelopeCommand"/>, but for MANY rooms in one call. The expensive work
