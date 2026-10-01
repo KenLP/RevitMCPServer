@@ -111,8 +111,7 @@ real defect that predates the sweep.
 
 ## [0.8.33] — 2026-09-04: finish the coercion sweep — no command reads JSON unguarded
 
-Closes the debt left by 0.8.28 and 0.8.29, and promised to AutomatedSpatialQC in the v0.8.29 handoff
-("28 file command vẫn gọi GetValue<>() trần... sẽ quét nốt").
+Closes the debt left by 0.8.28 and 0.8.29.
 
 ### Fixed
 
@@ -153,7 +152,7 @@ Closes the debt left by 0.8.28 and 0.8.29, and promised to AutomatedSpatialQC in
 
 ## [0.8.32] — 2026-09-04: `create_aligned_dimension` refuses a 3D view instead of faking success
 
-From an AutomatedSpatialQC handoff (`HANDOFF_dimension_in_3d_view.md`, 2026-09-04), which framed it
+From a consumer report (2026-09-04), which framed it
 using the rule this repo set for itself at `spatial_create_model_line`: *a silent skip looks
 identical to success from the caller's side*.
 
@@ -169,12 +168,12 @@ identical to success from the caller's side*.
   otherwise identical plan view, while two model lines created the same way reported **2/2 in both**
   and were visually confirmed in the 3D view.
 
-  **The handoff proposed gating on `view is View3D && !view.IsLocked`. Measured on the live model,
+  **The request proposed gating on `view is View3D && !view.IsLocked`. Measured on the live model,
   locking makes no difference — the dimension stays invisible after `View > Lock 3D View`.** So the
   guard is on **any** `View3D`, and the error message says the lock will not help, which saves the
   next caller the same experiment.
 
-  Option (a) from the handoff (reject) over (b) (warn): with locking ruled out there is no path on
+  Option (a) from the request (reject) over (b) (warn): with locking ruled out there is no path on
   which the element becomes useful, so returning an id for it is only ever misleading. No
   `lock_3d_view` command was added — it would open a door that leads nowhere.
 
@@ -197,8 +196,7 @@ identical to success from the caller's side*.
 
 ## [0.8.31] — 2026-09-03: `get_view_image` can change resolution; `create_perspective_view`
 
-Both from a World Labs probe handoff (`_probes/worldlabs`, 2026-09-03) building a Revit -> world-model
-render loop. Every claim in it checked out against the source.
+Both from a consumer report (2026-09-03). Every claim in it checked out against the source.
 
 ### Fixed
 
@@ -210,13 +208,13 @@ render loop. Every claim in it checked out against the source.
 
   New **`pixelSize`** (default **512**, clamp 128–4096) sets the image width; height follows the view's
   aspect ratio. The default is deliberately the value Revit was already producing, so consumers parsing
-  the old small images — bim-orchestrator, RevitAssistant — get byte-identical behaviour until they ask
+  the old small images get byte-identical behaviour until they ask
   for more. `dpi` is kept and now documented as metadata-only.
 
   The response also carries **`width`** and **`height`**, read from the PNG IHDR chunk, so a caller
   never has to decode the image to learn its size or to check that `pixelSize` was honoured.
 
-  One correction to the handoff's sketch: the property is `ZoomType` of type **`ZoomFitType`**, not
+  One correction to the request's sketch: the property is `ZoomType` of type **`ZoomFitType`**, not
   `ZoomType.FitToPage` as written there.
 
 ### Added
@@ -247,8 +245,7 @@ render loop. Every claim in it checked out against the source.
 ### Fixed
 
 - **A paused panel stayed paused for the rest of the Revit session, and both of its own recovery
-  buttons were inert.** Reported by the BIM Orchestrator team on 2026-08-25 while preparing AU demos
-  (`revit_mcp_panel_suspend_gap.md`). Verified in the source rather than by reproduction — the fault
+  buttons were inert.** Reported by a consumer on 2026-08-25. Verified in the source rather than by reproduction — the fault
   is structural, not intermittent:
   - `_suspended` is set in exactly one place (`Suspend()`) and cleared in exactly one place
     (`Resume()`), and `Resume()` was reachable from exactly one event, `DocumentOpened`.
@@ -279,15 +276,14 @@ render loop. Every claim in it checked out against the source.
   QC pane registered at `App.cs` had the identical event pair and the identical dead-end. Fixed for
   both.
 
-- **The Spatial QC pane called itself "AutoAudit" in every message the user reads.** Both panes are
+- **The second pane called itself "AutoAudit" in every message the user reads.** Both panes are
   instances of `AutoAuditPanelView`, which hardcoded the name in three user-visible strings — so the
-  Spatial QC pane announced *"AutoAudit panel is paused"*, offered *"Open AutoAudit in browser"*, and
-  said *"AutoAudit keeps working at http://127.0.0.1:8602/ui/"*, pointing at the wrong tool and the
-  wrong port in one sentence. The pane name is now a constructor parameter.
+  second pane announced *"AutoAudit panel is paused"*, offered *"Open AutoAudit in browser"*, and
+  pointed at the wrong tool and the wrong port in one sentence. The pane name is now a constructor parameter.
 
 ## [0.8.29] — 2026-09-03: `isolate_elements_in_view` works again; `spatial_create_model_line`
 
-Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured against v0.8.28.
+Both items came from consumer reports dated 2026-09-03, measured against v0.8.28.
 
 ### Fixed
 
@@ -299,20 +295,20 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
   why reset kept working and masked the bug. Its sibling commands were unaffected:
   `override_element_graphics` declares `ModelWrite`, `hide_elements_in_view` takes the default.
 
-  **`reset` needed one too.** The handoff reported `reset` as working and concluded
+  **`reset` needed one too.** The request reported `reset` as working and concluded
   `DisableTemporaryViewMode()` does not require a transaction. It does — live testing after fixing the
   `ids` branch showed `reset` throwing the identical exception. The earlier "reset works" reading held
   only because reset had never been exercised against a view that isolate had actually modified. Both
   branches now run inside the transaction.
 
   Fixed by opening a transaction around both branches **while keeping `UiAction`**, rather than by
-  promoting the command to `ModelWrite` as the handoff suggested. Promoting it would have made
+  promoting the command to `ModelWrite` as the request suggested. Promoting it would have made
   `BatchPolicy` reject `[open_view, isolate_elements_in_view, zoom_to_elements]` — a batch may not mix
   ModelWrite and UiAction, and those other two are UiAction, so the natural view-navigation sequence
   (exactly what the reporting consumer's "3D in Revit" button does) would have started failing. Keeping
   UiAction also preserves the dispatcher's dry-run no-op for UI actions.
 
-  Consumer impact: the spatial-qc panel's "Cô lập" button was dead on v0.8.28 and works again.
+  Consumer impact: an isolate button in a consumer's panel was dead on v0.8.28 and works again.
 
 ### Added
 
@@ -320,7 +316,7 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
   `ModelCurve` between two world points. `create_detail_line` cannot serve this: it makes a
   view-specific `DetailCurve` and throws `unsupported_view` in a 3D view by design, so its line does not
   exist in 3D space. A model curve does, and shows in any view that cuts it.
-  - `units` accepts **`meters` or `feet` only**. The handoff's spec listed `mm`, but `P.Xyz` treats
+  - `units` accepts **`meters` or `feet` only**. The request's spec listed `mm`, but `P.Xyz` treats
     every non-`feet` unit as metres, so `"mm"` would have silently drawn a line 1000x too long. It is
     now rejected with `invalid_parameter` instead.
   - `color` requires `viewId` (a graphic override is per view, and a model curve belongs to no single
@@ -332,7 +328,7 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
 
 ### Changed
 
-- C# commands 99 → **100** (10 hidden — the spatial-QC pack is now 9). MCP tool surface unchanged at
+- C# commands 99 → **100** (10 hidden — the `spatial_*` pack is now 9). MCP tool surface unchanged at
   **93**: the new command is HTTP-only.
 - `P.LongFrom(JsonNode, label)` added, extending the 0.8.28 coercion fix to array elements. 29 command
   files still call `GetValue<>()` directly on array items and remain exposed to the bare-500 defect;
@@ -365,8 +361,8 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
   practice any command taking a numeric parameter.
 
   Two things made this worth fixing beyond tidiness. It breaks the envelope contract every consumer
-  reads (`DEPENDENCIES.yaml`: *"envelope {ok,data} / {ok,error}"*, *"not_found -> 404, SpatialQC
-  degrades on 404"*) — and `spatial_get_room_boundary`, which AutomatedSpatialQC calls directly, was
+  reads (`{ok,data}` / `{ok,error}`, with `not_found` → 404) — and `spatial_get_room_boundary`,
+  which a consumer calls directly, was
   one of the affected commands. And an LLM emitting `"5"` instead of `5` is a routine slip, not an
   exotic one; a bodiless 500 gives it nothing to correct from.
 
@@ -384,8 +380,8 @@ Both items came from AutomatedSpatialQC handoffs dated 2026-09-03, measured agai
 ## [0.8.27] — 2026-08-12: `query_where` / `update_where` / `import_parameters` land on main
 
 Recovered from `feat/clearance-envelope`, the last unmerged work on that branch. Everything else the
-two local feature branches carried — the AutoAudit and SpatialQC panes, `get_doors` with swing
-geometry, `create_detail_line`, and the whole spatial-QC pack — had already been ported to main by
+two local feature branches carried — the two dockable panes, `get_doors` with swing
+geometry, `create_detail_line`, and the whole `spatial_*` pack — had already been ported to main by
 hand; a content comparison showed only these three commands (plus their shared `WhereSupport` helper)
 were still branch-only. `git cherry` reported all 12 commits as unmerged, but that compares patch-ids
 and the earlier work was hand-ported, not cherry-picked — the registry comparison is what settled it.
@@ -419,18 +415,14 @@ carries the `REVIT_MCP_AUTH=false` escape hatch in `App.cs`, so a merge would ha
 
 ## [0.8.26] — 2026-08-10: `spatial_get_paths_of_travel` emits the full route `polyline`
 
-Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel_polyline.md`). Their
-benchmark now agrees with Revit within ±10% on 69/78 routes; of the 9 outliers, 4 were explained
-from existing data (grid quantisation, 8-direction error) and **5 are stuck** — Revit's bounding
-box is up to 5.6 m wider, so it demonstrably detours, but a bounding box cannot say *where*.
-Furniture was ruled out (88 obstacles vs 10 changed 0/78 routes). The route vertices are the one
-missing input, and the command already had them in hand.
+Requested by a consumer: a route's endpoints and length show that two routes differ, but not
+*where*. The route vertices were the one missing input, and the command already had them in hand.
 
 ### Added
 
 - **`polyline`** on every element in `spatial_get_paths_of_travel` — all route vertices, metres,
   world XYZ, same frame as `from`/`to` (shares the same `XyzToJson`). Always emitted; no opt-in
-  flag (78 routes × 2–8 curves is a few thousand numbers — a parameter would be YAGNI).
+  flag (a few dozen routes × 2–8 curves is a few thousand numbers — a parameter would be YAGNI).
 
   Built from `Curve.Tessellate()`, not the curves' endpoints: a PathOfTravel can contain an **Arc**
   where Revit rounds a corner around an obstacle, and taking only an arc's two ends would drop the
@@ -442,19 +434,19 @@ missing input, and the command already had them in hand.
   Arc is present — a tessellated chord is shorter than its arc.
 
 Purely additive: no existing field changed, no other command touched, and the consumer ignores
-unknown keys, so an old spatial-qc against this build is unaffected. The **command** contract needed
+unknown keys, so an older client against this build is unaffected. The **command** contract needed
 no version bump; the **add-in** gets one because 0.8.25 is already tagged and pushed, and editing a
-released version's changelog would falsify it. RevitAssistant pins by tag, so a new tag is also how
-this reaches them.
+released version's changelog would falsify it. Consumers that pin by tag pick it up from
+the new tag.
 
 ## [0.8.25] — 2026-08-09: `create_detail_line` honours `color`/`weight`; `spatial_create_path_of_travel`
 
-Two AutomatedSpatialQC handoffs closed in one build.
+Two consumer requests closed in one build.
 
 ### Fixed
 
 - **`create_detail_line` no longer silently drops `color` and `weight`.** The command had accepted
-  both from callers since `revit_adapter.py::mark_min_in_revit` shipped and had never read either —
+  both from callers for a long time and had never read either —
   every line it has ever drawn came out in the view's default style. The consumer only tolerated it
   because the call sits inside a bare `try/except: pass`, so the miss was invisible. Colour and
   weight are view-specific graphic overrides rather than curve properties, so they apply via
@@ -462,7 +454,7 @@ Two AutomatedSpatialQC handoffs closed in one build.
   still yields one finished line instead of a follow-up `override_element_graphics` round-trip.
 
   The two are **independent**: `weight` alone sets just the weight, against the default colour.
-  The handoff nested `weight` inside the `color` branch and left the alone-case to the maintainer;
+  The request nested `weight` inside the `color` branch and left the alone-case to the maintainer;
   neither consumer sends it alone today, and silently ignoring a parameter is exactly the bug being
   fixed here. `weight` is validated to Revit's pen range 1-16 — out of range otherwise throws deep
   inside `SetProjectionLineWeight` with a message that never names the parameter.
@@ -474,14 +466,14 @@ Two AutomatedSpatialQC handoffs closed in one build.
 
 ### Added
 
-- **`spatial_create_path_of_travel`** (HTTP-only spatial-QC pack; not an MCP tool) — places Revit's
+- **`spatial_create_path_of_travel`** (HTTP-only `spatial_*` pack; not an MCP tool) — places Revit's
   native `PathOfTravel` between two points in a floor plan view, the WRITE mirror of
   `spatial_get_paths_of_travel`. Returns `{ id, viewId, lengthMeters, timeSeconds, warning }`.
   Verified live on R27 Snowdon: the pair taken from a hand-placed PoT reproduces Revit's own
   numbers to 0.14% (15.026 m / 11.204 s vs 15.047 m / 11.220 s).
 
   Everything below was **measured against the live add-in** — each point differs from what the
-  handoff's sketch (or the API docs' surface) suggested:
+  request's sketch (or the API docs' surface) suggested:
 
   - **Failure arrives BOTH ways.** `PathOfTravel.Create` has an out-`PathOfTravelCalculationStatus`
     overload, but not every failure routes through it: coincident endpoints and points outside the
@@ -512,20 +504,16 @@ Two AutomatedSpatialQC handoffs closed in one build.
 
 ## [0.8.24] — 2026-08-09: `spatial_get_paths_of_travel` — read Revit's own Path of Travel elements
 
-Requested by AutomatedSpatialQC (`revit_addin/HANDOFF_get_paths_of_travel.md`, branch
-`feat/pot-parity`): the READ side of `bim-nav benchmark-pot` (SPEC_pot-parity.md Block C). A client
-who trusts Revit's native `Analyze > Path of Travel` drops a few `PathOfTravel` elements into the
-model by hand; the consumer reads them back, reruns the same (from, to) pair through its own
-occupancy-grid router, and prints both distances side by side — a credibility benchmark, not a
-verdict. Ships independently of the WRITE side (`spatial_create_path_of_travel`, still pending).
+Requested by a consumer that needs Revit's own `Analyze > Path of Travel` results as a
+reference. Ships independently of the WRITE side (`spatial_create_path_of_travel`, still pending).
 
 ### Added
 
-- **`spatial_get_paths_of_travel`** (HTTP-only spatial-QC pack; not an MCP tool) — every
+- **`spatial_get_paths_of_travel`** (HTTP-only `spatial_*` pack; not an MCP tool) — every
   `PathOfTravel` element with `levelName`, `from`/`to` (route-curve endpoints, world metres,
   Revit frame), `lengthMeters`, `timeSeconds`, all read verbatim from the element.
 
-### Notes — the handoff's two flagged unknowns, resolved against RevitAPI.dll (2027 metadata)
+### Notes — two open questions in the request, resolved against RevitAPI.dll (2027 metadata)
 
 - Route geometry: `PathOfTravel.GetCurves()` (the sketch's `GetCurve()`/`NumberOfCurveLoops` does
   not exist). `from`/`to` = first curve's start / last curve's end; elements whose route failed to
@@ -534,8 +522,7 @@ verdict. Ships independently of the WRITE side (`spatial_create_path_of_travel`,
   Length is `CURVE_ELEM_LENGTH` (the UI "Length"), with a curve-length-sum fallback; time is
   `PATH_OF_TRAVEL_TIME` (internal unit seconds), emitted as `null` when absent — never a fake 0.
   Level comes from `PATH_OF_TRAVEL_LEVEL_NAME` (the UI "Level"), falling back to the owning view's
-  `GenLevel`. `HANDOFF_create_path_of_travel.md` §2 asks for exactly these names when the WRITE
-  side gets picked up.
+  `GenLevel`. The WRITE side uses the same names.
 
 ## [0.8.23] — 2026-08-05: `configure_schedule` can filter on a numeric field
 
@@ -648,7 +635,7 @@ Against the live Revit 2027 add-in and the Autodesk Model Derivative API (projec
     (which *is* the Revit UniqueId) previously had to reverse-engineer the `ElementId` with the
     XOR heuristic (`parseInt(uid[37:45],16) ^ parseInt(uid[28:36],16)`) and could not verify the
     result — a wrong guess silently targets a different element. Returning `UniqueId` lets a caller
-    match the mover element exactly before any mutation. (Handoff: ClashDetection v1.2, 2026-07-27.)
+    match the mover element exactly before any mutation. (Requested by a consumer, 2026-07-27.)
   - Adds ~45 bytes/element to the response; nowhere near the 1 MB envelope ceiling.
 
 ## [0.8.20] — 2026-07-25: AutoAudit dockable panel lands on main (installer no longer wipes it)
@@ -657,7 +644,7 @@ Against the live Revit 2027 add-in and the Autodesk Model Derivative API (projec
 
 - **AutoAudit DockablePane (WebView2) is now part of `main` and the installer.** The panel — a thin
   embedded browser onto the AutoAudit UI (`http://127.0.0.1:8601/ui/`, configurable via
-  `revit-mcp-panel.json`) — previously lived only on the unmerged `feat/spatialqc-panel` branch, so
+  `revit-mcp-panel.json`) — previously lived only on an unmerged feature branch, so
   every run of the v0.8.18/v0.8.19 one-shot installer (built from `main`) overwrote the deployed
   add-in with a panel-less DLL. That regression class is closed: the panel ships in the DLL the
   installer installs.
@@ -670,8 +657,6 @@ Against the live Revit 2027 add-in and the Autodesk Model Derivative API (projec
     WebView2 fix, suspend/resume around document transitions (archi-lab WebView2 gotcha), and the
     AssemblyLoadContext resolver for the loose WebView2 assemblies.
   - New ribbon tab "AutoAudit" with a show-panel button; browser fallback when WebView2 is absent.
-  - The SpatialQC pane (:8602) stays on the private branch — deliberately not ported (the handoff
-    allows splitting it out).
 - **Installer/bundle ship the WebView2 runtime pieces** (`Microsoft.Web.WebView2.Core.dll`,
   `Microsoft.Web.WebView2.Wpf.dll`, `WebView2Loader.dll`) per Revit version, and the artifact gate
   now fails the build if any is missing. `install.ps1` copies them; `uninstall.ps1` removes them.
@@ -679,7 +664,6 @@ Against the live Revit 2027 add-in and the Autodesk Model Derivative API (projec
   script.
 
 Counts unchanged: 89 MCP tools, 91 C# commands (the panel is UI, not an MCP command).
-Addresses `MultiAIagents-main/docs/handoff_addin_dockable_panel.md` (AU 2026 demo path).
 
 ---
 
@@ -736,9 +720,8 @@ No functional change to the server: 89 MCP tools, 91 C# commands.
   not just ours. All non-ASCII was transliterated to ASCII and both scripts re-verified with the PS
   parser.
 
-No functional change to the server: 89 MCP tools, 91 C# commands. Addresses `project_review_findings`
-"ready-to-run installer" for the MCP-only path (no ribbon/.bundle, which are Design-&-Make-marketplace
-requirements we are not targeting).
+No functional change to the server: 89 MCP tools, 91 C# commands. Delivers a
+ready-to-run installer for the MCP-only path.
 
 ---
 
@@ -751,8 +734,8 @@ requirements we are not targeting).
   env var. Rationale: the listener is loopback-only, but an *unauthenticated* loopback port
   would still let any local process drive Revit. Verified before removal that nothing on the
   single deployment machine sets it — no `.env`, no system env, no Claude config does
-  (Cad2BIM and bim-orchestrator *support* the variable in their clients but do not enable
-  it; they are being notified to drop that branch).
+  (some clients *support* the variable but do not enable it; they are being notified to drop
+  that branch).
 - **`REVIT_MCP_HOST` is clamped to loopback** (`127.0.0.1`, `localhost`, `::1`). Any other
   value makes the Node client refuse to start with a clear error. The add-in's HttpListener
   prefix is hard-coded to `http://127.0.0.1:<port>/`, so a non-loopback host could never
@@ -765,16 +748,15 @@ requirements we are not targeting).
   express-rate-limit, ip-address, qs — 2 high / 3 moderate). All five were transitive
   dependencies of `@modelcontextprotocol/sdk`'s **HTTP transports**, which this stdio-only
   server never imports (`server/mcp.js` + `server/stdio.js` are the only SDK entry points),
-  so reachability was effectively nil — fixed for hygiene and marketplace review, within
+  so reachability was effectively nil — fixed for hygiene, within
   semver ranges, no code change.
 
-Counts unchanged: 89 MCP tools, 91 C# commands. Addresses `project_review_findings_2026-07-16.md`
-P1 (dependency audit + runtime security escape hatches, resolved as B2: remove rather than
-document).
+Counts unchanged: 89 MCP tools, 91 C# commands. Runtime security escape hatches were removed
+rather than documented.
 
 ---
 
-## [0.8.16] — 2026-07-17: Release package actually runs; MCP submission docs land
+## [0.8.16] — 2026-07-17: Release package actually runs
 
 ### Fixed
 
@@ -800,12 +782,10 @@ document).
   JS. A missing runtime file now fails the build instead of shipping silently. Verified on
   all three packages (R2025/R2026/R2027), plus an end-to-end check: the ZIP was extracted,
   prod deps installed, and the packaged server booted clean.
-- **MCP Publisher submission artifacts** — `mcp-manifest.json` (89 tools, cross-checked
-  against `index.ts`) and the filled Publisher Declaration content.
 
 ### Changed
 
-- **Publisher Declaration corrected to match the code.** The earlier draft overclaimed:
+- **Security and data-handling statements corrected to match the code.** An earlier draft overclaimed:
   it said the server reads only the open Revit model (`revit_load_family` reads a `.rfa`
   from any local path, and PNG/PDF/CSV exports write to disk); it said uninstall removes the
   add-in *and* MCP server (it does not remove the server folder or logs); it implied auth is
@@ -814,11 +794,8 @@ document).
   automatic rotation, kept until the user deletes them. Also records that the add-in's HTTP
   listener is hard-bound to `http://127.0.0.1:<port>/` and is therefore unreachable from the
   network under any configuration.
-- `mcp-manifest.json` declares `mcp_spec_version: 2025-11-25` — the SDK's
-  `LATEST_PROTOCOL_VERSION` and the value in Autodesk's own example (was `2025-06-18`).
 
-Counts unchanged: 89 MCP tools, 91 C# commands. Addresses `project_review_findings_2026-07-16.md`
-P0-1 and P0-2.
+Counts unchanged: 89 MCP tools, 91 C# commands.
 
 ---
 
@@ -835,8 +812,7 @@ P0-1 and P0-2.
 ### Fixed
 
 - **`find_elements` docstring caught up with reality** — it still described the pre-pagination,
-  instance-only-parameter behaviour, which misled an external audit
-  (`HANDOFF_revitmcp-find-elements-fix.md`) into re-reporting bugs that `main` had already
+  instance-only-parameter behaviour, which misled an external audit into re-reporting bugs that `main` had already
   fixed: offset pagination landed in v0.8.6 (P2-C) and instance→type parameter fallback in
   v0.8.11. Verified against fresh `origin/main`: both fixes present; only `view_id` was missing.
 
@@ -872,17 +848,17 @@ Counts unchanged: 89 MCP tools, 91 C# commands.
   instance (`.describe(...)`) inlines its `{x,y,z}` schema.
 
 Counts unchanged: 89 MCP tools, 91 C# commands.
-Addresses cad2bim gap: `HANDOFF_revitmcp_hosted_family_instance.md`.
+Addresses a consumer-reported gap.
 
 ---
 
-## [0.8.13] — 2026-07-03: Spatial-QC command pack (HTTP-only, `spatial_*`)
+## [0.8.13] — 2026-07-03: `spatial_*` command pack (HTTP-only)
 
 ### Added
 
-- **Four pure-geometry commands forward-ported from AutomatedSpatialQC's add-in fork** so
-  `spatial-qc check-revit` runs against the live `main`-based add-in again (it was aborting at
-  `get_room_boundary` because only `get_doors` had been ported earlier):
+- **Four pure-geometry commands forward-ported from a consumer's add-in fork** so that consumer
+  runs against the live `main`-based add-in again (it was aborting at `get_room_boundary` because
+  only `get_doors` had been ported earlier):
   - **`spatial_get_room_boundary`** — room boundary loops (outer ring + holes) at the finish face as
     world-XY polylines in metres (net clear area, matches `IfcSpace`).
   - **`spatial_clearance_envelope`** — volumetric MEP-aware clear-height check over a room footprint,
@@ -896,7 +872,7 @@ Addresses cad2bim gap: `HANDOFF_revitmcp_hosted_family_instance.md`.
 ### Namespacing decision
 
 - The four are **registered in C# (HTTP-callable via `/mcp`) but NOT exposed as MCP tools** — they are
-  consumed programmatically by the spatial-qc Python client, not by LLM tool routing, so surfacing
+  consumed programmatically by an external client, not by LLM tool routing, so surfacing
   them would only dilute the tool list. Prefixed `spatial_` to keep them clearly apart from the
   curated command surface and avoid any future name collision.
 - **`get_doors` was deliberately left unprefixed.** It already shipped (v0.8.12) as the general-purpose
@@ -925,7 +901,7 @@ commands), still **89 MCP tools** (surface unchanged).
   Without `hostId` behaviour is unchanged (non-hosted free-standing placement).
 
 Counts: 88 MCP tools (unchanged — no new tool, existing tool extended).
-Addresses cad2bim gap: `revit_mcp_hosted_instance_gap.md`.
+Addresses a consumer-reported gap.
 
 ---
 
@@ -937,7 +913,7 @@ Addresses cad2bim gap: `revit_mcp_hosted_instance_gap.md`.
   level, and **swing geometry**: `facingX/Y` (FacingOrientation — the normal / pull-swing side),
   `handX/Y` (HandOrientation — along the wall), and `facingFlipped/handFlipped`. Orientation is
   geometry, not a parameter, so `find_elements` cannot return it — this command exposes door swing
-  for ADA/egress maneuvering-clearance and door-swing checks (consumer: spatial-qc).
+  for ADA/egress maneuvering-clearance and door-swing checks.
 
   Ported from the `feat/extract-revit-mcp-core` line (commit `0668cf9`) onto `main` — that branch
   was 23 commits behind `main` and building it would have regressed the live add-in, so the command
