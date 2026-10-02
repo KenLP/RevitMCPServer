@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.38 (stdio).
+ * Revit MCP Server v0.8.39 (stdio).
  *
  * 94 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -26,7 +26,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.38" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.39" });
 
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
@@ -316,14 +316,14 @@ server.tool("revit_create_floor", "Create a Floor from a closed polygonal profil
 
 server.tool("revit_create_level", "Create a Level at given elevation.", {
   elevation: z.number(),
-  name: z.string().optional(),
+  name: z.string().optional().describe("Level name. Applied exactly or the call fails and nothing is created: forbidden character -> invalid_chars (400), name already taken -> name_collision (409)."),
   units: unitsField,
   dryRun: dryRunField,
 }, fwdWrite("create_level"));
 
 server.tool("revit_create_grid", "Create a straight Grid line.", {
   start: xyz, end: xyz.describe("End point."),
-  name: z.string().optional(),
+  name: z.string().optional().describe("Grid label, e.g. 'A' or '1'. Applied exactly or the call fails and nothing is created: forbidden character -> invalid_chars (400), name already taken -> name_collision (409)."),
   units: unitsField,
   dryRun: dryRunField,
 }, fwdWrite("create_grid"));
@@ -331,8 +331,8 @@ server.tool("revit_create_grid", "Create a straight Grid line.", {
 server.tool("revit_create_room", "Place a Room at a given point.", {
   location: xyz,
   levelName: z.string().optional(),
-  name: z.string().optional(),
-  number: z.string().optional(),
+  name: z.string().optional().describe("Room name. Applied exactly or the call fails and no room is created (invalid_chars 400). Revit allows duplicate room names."),
+  number: z.string().optional().describe("Room number. Same contract as name. Revit allows duplicate numbers."),
   units: unitsField,
   dryRun: dryRunField,
 }, fwdWrite("create_room"));
@@ -437,7 +437,7 @@ server.tool("revit_create_perspective_view",
     units: unitsField,
     azimuthsDeg: z.array(z.number()).min(1).optional()
       .describe("One view per angle, all from the same eye. 0 = the eye→target direction; positive turns clockwise seen from above."),
-    viewName: z.string().optional().describe("Base name. With azimuthsDeg each view gets ' - {az}deg'."),
+    viewName: z.string().optional().describe("Base name. With azimuthsDeg each view gets ' - {az}deg'. Applied exactly to every view or the call fails and no view is created (invalid_chars 400 / name_collision 409)."),
     viewTemplateId: z.number().int().optional(),
     detailLevel: z.enum(["coarse", "medium", "fine"]).optional(),
     dryRun: dryRunField,
@@ -665,7 +665,7 @@ server.tool("revit_array_linear", "Copy elements N times along a vector (linear 
   dryRun: dryRunField,
 }, fwdWrite("array_linear"));
 
-server.tool("revit_delete_elements", "Delete elements by id. Returns changeSummary.", {
+server.tool("revit_delete_elements", "Delete elements by id. All-or-nothing: an id that does not exist fails the call with not_found (404) naming it, and nothing is deleted. Returns changeSummary.", {
   ids: idsField,
   dryRun: dryRunField,
 }, fwdWrite("delete_elements"));
@@ -1037,7 +1037,7 @@ server.tool("revit_recipe_clash_review",
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[revit-mcp-server] v0.8.38 connected to Revit addin at ${REVIT_BASE_URL}`);
+  console.error(`[revit-mcp-server] v0.8.39 connected to Revit addin at ${REVIT_BASE_URL}`);
   if (ENABLED_PROFILES !== null)
     console.error(
       `[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +

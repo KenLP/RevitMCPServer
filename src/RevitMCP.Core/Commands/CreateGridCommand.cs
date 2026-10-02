@@ -9,7 +9,8 @@ namespace RevitMCPAddin.Commands;
 /// Parameters:
 ///   - start: { x, y, z? }    required
 ///   - end:   { x, y, z? }    required
-///   - name:  string          optional, e.g. "A", "1"
+///   - name:  string          optional, e.g. "A", "1". Applied exactly, or the command fails
+///                            (invalid_chars 400 / name_collision 409) and no grid is created.
 ///   - units: "meters"|"feet" optional, default "meters"
 /// </summary>
 public sealed class CreateGridCommand : IRevitCommand
@@ -35,13 +36,11 @@ public sealed class CreateGridCommand : IRevitCommand
 
         var grid = Grid.Create(doc, line);
 
+        // A taken label used to leave a second grid under an auto name with a renameWarning —
+        // a duplicate grid the caller did not ask for. Now the name lands or the call rolls back.
         var name = P.StrOrNull(p, "name");
-        string? renameWarning = null;
         if (!string.IsNullOrWhiteSpace(name))
-        {
-            try { grid.Name = name; }
-            catch (System.Exception ex) { renameWarning = ex.Message; }
-        }
+            NameRules.ApplyGridName(grid, name!);
 
         var result = new JsonObject
         {
@@ -49,7 +48,6 @@ public sealed class CreateGridCommand : IRevitCommand
             ["name"] = grid.Name,
             ["lengthFeet"] = line.Length,
         };
-        if (renameWarning != null) result["renameWarning"] = renameWarning;
         return result;
     }
 }

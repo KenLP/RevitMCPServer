@@ -22,7 +22,9 @@ namespace RevitMCPAddin.Commands;
 ///   - azimuthsDeg:    number[], optional — create one view per angle, all sharing the
 ///                     same eye, with the view direction rotated about world Z.
 ///                     0 = the eye→target direction; positive = clockwise seen from above.
-///   - viewName:       string, optional. With azimuthsDeg each view gets " - {az}deg".
+///   - viewName:       string, optional. With azimuthsDeg each view gets " - {az}deg". Applied
+///                     exactly to every view, or the command fails (invalid_chars 400 /
+///                     name_collision 409) and none of the views is created.
 ///   - viewTemplateId: long, optional.
 ///   - detailLevel:    "coarse" | "medium" | "fine", optional.
 ///
@@ -75,7 +77,6 @@ public sealed class CreatePerspectiveViewCommand : IRevitCommand
 
         var scale = units == "feet" ? 1.0 : 1.0 / P.FeetToMeters;   // internal ft -> requested
         var views = new JsonArray();
-        var warnings = new JsonArray();
 
         foreach (var azDeg in azimuths)
         {
@@ -109,13 +110,10 @@ public sealed class CreatePerspectiveViewCommand : IRevitCommand
                 var wanted = azimuths.Count > 1 || p["azimuthsDeg"] is not null
                     ? $"{baseName} - {azDeg:0.###}deg"
                     : baseName!;
-                // A duplicate name throws; the view itself is still valid and useful, so
-                // report the clash rather than losing the whole call to it.
-                try { view.Name = wanted; }
-                catch (Exception ex)
-                {
-                    warnings.Add($"could not name view '{wanted}': {ex.Message}");
-                }
+                // Was: keep the view and add a warning. Now consistent with every other create
+                // command — a series is named exactly or not created at all, so a caller never has
+                // to match views by position because one of them kept an auto name.
+                NameRules.ApplyViewName(view, wanted, "viewName");
             }
 
             views.Add(new JsonObject
@@ -128,9 +126,7 @@ public sealed class CreatePerspectiveViewCommand : IRevitCommand
             });
         }
 
-        var result = new JsonObject { ["views"] = views, ["units"] = units };
-        if (warnings.Count > 0) result["warnings"] = warnings;
-        return result;
+        return new JsonObject { ["views"] = views, ["units"] = units };
     }
 
     private static JsonObject Vec(XYZ v, double scale) => new()

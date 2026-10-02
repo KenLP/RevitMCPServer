@@ -5,7 +5,7 @@ using Autodesk.Revit.DB;
 namespace RevitMCPAddin.Commands;
 
 /// <summary>
-/// Applies a caller-supplied name (view name, sheet number, group type name) and refuses to report
+/// Applies a caller-supplied name (view, sheet number, group type, level, grid, room) and refuses to report
 /// success unless that exact value landed. Revit rejects a value it does not accept by throwing from
 /// the setter; the old <c>try { x.Name = name; } catch { }</c> pattern swallowed that, so the element
 /// kept Revit's placeholder ("Door Schedule 3", "A102", "Group 4") and the command still returned ok.
@@ -66,6 +66,40 @@ internal static class NameRules
                             string.Equals(t.Name, requested, StringComparison.OrdinalIgnoreCase))
                 .Select(t => $"A group type named '{t.Name}' already exists (id {t.Id.Value}).")
                 .FirstOrDefault());
+
+    /// <summary>Names a level. Level names are unique across the document.</summary>
+    internal static void ApplyLevelName(Level level, string requested, string paramName = "name") =>
+        Apply(() => level.Name, v => level.Name = v, requested, paramName, "level name",
+            () => new FilteredElementCollector(level.Document)
+                .OfClass(typeof(Level))
+                .Where(l => l.Id != level.Id &&
+                            string.Equals(l.Name, requested, StringComparison.OrdinalIgnoreCase))
+                .Select(l => $"A level named '{l.Name}' already exists (id {l.Id.Value}).")
+                .FirstOrDefault());
+
+    /// <summary>Names a grid. Grid names are unique across the document.</summary>
+    internal static void ApplyGridName(Grid grid, string requested, string paramName = "name") =>
+        Apply(() => grid.Name, v => grid.Name = v, requested, paramName, "grid name",
+            () => new FilteredElementCollector(grid.Document)
+                .OfClass(typeof(Grid))
+                .Where(g => g.Id != grid.Id &&
+                            string.Equals(g.Name, requested, StringComparison.OrdinalIgnoreCase))
+                .Select(g => $"A grid named '{g.Name}' already exists (id {g.Id.Value}).")
+                .FirstOrDefault());
+
+    /// <summary>
+    /// Sets a room's Name parameter. Read back from <c>ROOM_NAME</c>, not <c>Room.Name</c>, which
+    /// reports name and number together. Revit allows duplicate room names, so there is no clash.
+    /// </summary>
+    internal static void ApplyRoomName(Autodesk.Revit.DB.Architecture.Room room, string requested,
+        string paramName = "name") =>
+        Apply(() => room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "",
+              v => room.Name = v, requested, paramName, "room name", () => null);
+
+    /// <summary>Sets a room's Number. Revit allows duplicates (it warns, it does not refuse).</summary>
+    internal static void ApplyRoomNumber(Autodesk.Revit.DB.Architecture.Room room, string requested,
+        string paramName = "number") =>
+        Apply(() => room.Number, v => room.Number = v, requested, paramName, "room number", () => null);
 
     /// <summary>
     /// Sets the value or throws a <see cref="RevitCommandException"/>: <c>invalid_chars</c> (400),

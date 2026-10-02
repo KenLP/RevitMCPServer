@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.39] — 2026-10-02: the last name-taking commands follow the same rule; `delete_elements` names missing ids
+
+### Changed
+
+- **`create_level`, `create_grid`, `create_perspective_view` and `create_room` now apply a requested
+  name exactly or fail** — the contract 0.8.36 gave every other create command. Before:
+  - `create_level` / `create_grid` kept the element under Revit's auto name and returned a free-text
+    `renameWarning` with `ok: true`. A caller that did not read the field built on a level it could
+    not find again by name, or got a second grid with an auto label.
+  - `create_perspective_view` kept a view whose name was refused and listed it in `warnings`.
+  - `create_room` let a refused value escape as Revit's raw exception (`command_failed` 500).
+
+  Now a refused value returns `invalid_chars` (400) or `name_collision` (409, naming the element
+  that holds it) and the whole call rolls back. For a perspective series this is all-or-nothing:
+  if one view's name collides, none of the series is created. `renameWarning` and the naming
+  entries in `warnings` are gone.
+  - Measured on Revit 2027, one character at a time: level and grid names refuse the same 13
+    characters as view names (`\ : { } [ ] | ; < > ? ~` and the backtick) and accept `*`. Room names
+    accept all of them, and Revit allows duplicate room names and numbers, so a room can only fail on
+    something Revit itself rejects.
+  - A room's name is now read back from its Name parameter: `Room.Name` reports name and number
+    together, so the response's `name` still shows both while the check compares the name alone.
+
+### Fixed
+
+- **`delete_elements` failed as a bare 500 when any id did not exist.** Revit rejects the whole set
+  in that case; the error came back as `command_failed` with Revit's message, so the caller could
+  not tell which id or whether the server had broken. Ids are now checked first: a missing id
+  returns `not_found` (404) listing the missing ids, and nothing is deleted. Repeated ids are
+  ignored instead of counted twice.
+
+### Verified
+
+- Live on Revit 2027 (31/31): each command with a valid name, a taken name and a forbidden
+  character, plus per-character probes for levels, grids and rooms; a perspective series where only
+  the second name collides created nothing; `delete_elements` with missing ids returned 404 and
+  deleted nothing; model counts back to baseline (levels, grids, rooms, views). Regression on the
+  same build: repo smoke suite 25/25, naming suites 17/17, 33/33, 7/7, external-pack suite 11/11.
+- 200 C# tests, 24 TS tests.
+
 ## [0.8.38] — 2026-10-01: the `spatial_*` commands leave the kernel
 
 ### Removed

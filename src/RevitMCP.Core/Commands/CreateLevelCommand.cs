@@ -8,7 +8,8 @@ namespace RevitMCPAddin.Commands;
 ///
 /// Parameters:
 ///   - elevation: number, required.  In user units (default meters).
-///   - name:      string, optional.  If supplied, renames the level after creation.
+///   - name:      string, optional.  Applied exactly, or the command fails (invalid_chars 400 /
+///                name_collision 409 for a name another level has) and no level is created.
 ///   - units:     "meters"|"feet"
 /// </summary>
 public sealed class CreateLevelCommand : IRevitCommand
@@ -26,22 +27,12 @@ public sealed class CreateLevelCommand : IRevitCommand
         var elevation = P.Dbl(p, "elevation") * toFeet;
         var level = Level.Create(doc, elevation);
 
+        // Previously a taken name kept Revit's auto name ("Level 3") with a free-text
+        // renameWarning — still ok:true, so a caller that ignored the warning built on a level
+        // it could not find again by name. Now the name lands or the whole call rolls back.
         var name = P.StrOrNull(p, "name");
         if (!string.IsNullOrWhiteSpace(name))
-        {
-            try { level.Name = name; }
-            catch (System.Exception ex)
-            {
-                // Don't fail the whole call just because the name was taken.
-                return new JsonObject
-                {
-                    ["id"] = level.Id.Value,
-                    ["elevationFeet"] = elevation,
-                    ["name"] = level.Name,
-                    ["renameWarning"] = ex.Message,
-                };
-            }
-        }
+            NameRules.ApplyLevelName(level, name!);
 
         return new JsonObject
         {

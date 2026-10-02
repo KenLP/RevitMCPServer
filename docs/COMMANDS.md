@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.38 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (1 hidden: `create_spot_elevation`; 92 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
+> **v0.8.39 — 91 commands + 1 batch + 2 recipes = 94 MCP tools** (1 hidden: `create_spot_elevation`; 92 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -262,17 +262,18 @@ Data: `id`, `levelName`, `floorTypeName`, `pointCount`.
 ### `create_level`
 Params:
 - `elevation` *(number, required)*
-- `name` *(string, optional)* — name is applied after creation; if Revit
-  rejects it (duplicate, invalid chars) the level is still created and the
-  message is returned in `renameWarning`.
+- `name` *(string, optional)* — applied exactly, or the call fails and no level is
+  created: `invalid_chars` (400) for a character Revit refuses, `name_collision` (409)
+  when another level has that name.
 - `units` *("meters"|"feet")*
 
 Data: `id`, `elevationFeet`, `name`.
 
 ### `create_grid`
 Params: `start`, `end` *({x,y,z?}, required)*, `name` *(optional)*, `units`.
-Z is forced to 0 — grids are flat in plan.
-Data: `id`, `name`, `lengthFeet`, optionally `renameWarning`.
+Z is forced to 0 — grids are flat in plan. `name` is applied exactly, or the call fails
+and no grid is created (`invalid_chars` 400 / `name_collision` 409).
+Data: `id`, `name`, `lengthFeet`.
 
 ---
 
@@ -311,7 +312,8 @@ Data: `written` (Revit's `Parameter.Set` return value), `newValueString`,
 `inputUnits` (the `units` value used), `unitConversionApplied` (bool).
 
 ### `delete_elements`
-Params: `ids` *(long[], required, ≥1)*.
+Params: `ids` *(long[], required, ≥1; repeats ignored)*. All-or-nothing: if any id does
+not exist, the call fails with `not_found` (404) listing the missing ids and nothing is deleted.
 Data: `requested`, `deleted`, `deletedIds`. Note: Revit may delete more than
 you asked because of dependent cleanup.
 

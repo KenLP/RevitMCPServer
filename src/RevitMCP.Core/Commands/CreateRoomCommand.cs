@@ -11,8 +11,8 @@ namespace RevitMCPAddin.Commands;
 /// Params:
 ///   - location:   { x, y, z? }, required — point inside the room-bounding walls
 ///   - levelName:  string, optional (defaults to lowest level)
-///   - name:       string, optional
-///   - number:     string, optional
+///   - name:       string, optional. Applied exactly or the command fails and no room is created.
+///   - number:     string, optional. Same contract. Revit allows duplicate room names and numbers.
 ///   - units:      "meters"|"feet"
 /// </summary>
 public sealed class CreateRoomCommand : IRevitCommand
@@ -32,13 +32,14 @@ public sealed class CreateRoomCommand : IRevitCommand
         var pt = new UV(location.X, location.Y);
         var room = doc.Create.NewRoom(level, pt);
 
+        // A refused value used to escape as Revit's raw exception (command_failed 500).
         var nameVal = P.StrOrNull(p, "name");
         if (!string.IsNullOrWhiteSpace(nameVal))
-            room.Name = nameVal;
+            NameRules.ApplyRoomName(room, nameVal!);
 
         var numberVal = P.StrOrNull(p, "number");
         if (!string.IsNullOrWhiteSpace(numberVal))
-            room.Number = numberVal;
+            NameRules.ApplyRoomNumber(room, numberVal!);
 
         return new JsonObject
         {
