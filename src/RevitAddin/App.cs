@@ -79,10 +79,14 @@ public sealed class App : IExternalApplication
             _handler.AttachExternalEvent(_externalEvent);
 
             var port = ResolvePort(revitVersion);
-            var authToken = ResolveAuthToken(revitVersion);
+            var authToken = GenerateAuthToken();
 
             _httpServer = new McpHttpServer(port, _handler, authToken, _audit);
             _httpServer.Start();
+            // Persist only once the port is ours. A secondary Revit.exe process fails the
+            // bind (HttpListenerException 183) and used to overwrite the token file with a
+            // value nobody listens with, so every MCP call then failed with 401.
+            PersistAuthToken(revitVersion, authToken);
 
             // Log the actual build so the Revit journal / DebugView shows which dll
             // was loaded — the fastest way to spot a stale dll shadowing a newer one
@@ -296,14 +300,17 @@ public sealed class App : IExternalApplication
     /// escape hatch was removed in 0.8.17: the listener is loopback-only, but an
     /// unauthenticated loopback port would still let any local process drive Revit).
     /// </summary>
-    private static string ResolveAuthToken(string revitVersion)
+    private static string GenerateAuthToken()
     {
         // Generate a cryptographically secure random token.
         var bytes = new byte[32];
         using (var rng = RandomNumberGenerator.Create())
             rng.GetBytes(bytes);
-        var token = Convert.ToBase64String(bytes);
+        return Convert.ToBase64String(bytes);
+    }
 
+    private static void PersistAuthToken(string revitVersion, string token)
+    {
         // Write to a well-known location so the MCP server can read it.
         try
         {
@@ -318,8 +325,6 @@ public sealed class App : IExternalApplication
         {
             LogToConsole($"[RevitMCP] Warning: could not write auth token file: {ex.Message}");
         }
-
-        return token;
     }
 
     private static void LogToConsole(string message)
