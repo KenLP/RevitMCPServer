@@ -16,8 +16,8 @@ namespace RevitMCPAddin;
 /// server (TypeScript / stdio) talks to, and wires up an ExternalEvent so all
 /// Revit API work runs on the main UI thread.
 ///
-/// Auth: on startup a random 32-byte token is generated and written to
-/// <c>%APPDATA%\Autodesk\Revit\Addins\{version}\revit-mcp-token.txt</c>.
+/// Auth: on startup a random 32-byte token is generated and, once the listener has bound its
+/// port, written to <c>%APPDATA%\Autodesk\Revit\Addins\{version}\revit-mcp-token.txt</c>.
 /// The TypeScript MCP server reads that file to authenticate HTTP requests.
 /// Token auth is unconditional — there is no switch to disable it (the old
 /// REVIT_MCP_AUTH=false escape hatch was removed in 0.8.17).
@@ -295,7 +295,8 @@ public sealed class App : IExternalApplication
     }
 
     /// <summary>
-    /// Generates a random auth token and writes it to the addins folder.
+    /// Generates a random 32-byte auth token (base64). It is written to disk separately, by
+    /// <see cref="PersistAuthToken"/>, once the listener is up.
     /// Always returns a token — auth cannot be disabled (the REVIT_MCP_AUTH=false
     /// escape hatch was removed in 0.8.17: the listener is loopback-only, but an
     /// unauthenticated loopback port would still let any local process drive Revit).
@@ -309,6 +310,11 @@ public sealed class App : IExternalApplication
         return Convert.ToBase64String(bytes);
     }
 
+    /// <summary>
+    /// Writes the token where the MCP bridge reads it. Call only after the listener has started:
+    /// a second Revit process of the same version fails to bind the port and must leave the file —
+    /// which holds the token of the instance that owns the port — untouched.
+    /// </summary>
     private static void PersistAuthToken(string revitVersion, string token)
     {
         // Write to a well-known location so the MCP server can read it.

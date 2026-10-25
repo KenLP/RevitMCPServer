@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- With two Revit processes of the same version open, the second one — which cannot bind the port —
+  no longer overwrites `revit-mcp-token.txt`, so clients keep talking to the instance that owns the
+  port instead of failing with 401. The token is written only after the listener has started.
+  Verified live on Revit 2027: before, the second instance replaced the token and calls to the first
+  returned 401; after, the file is untouched and calls succeed; a single instance still writes its
+  token and accepts it. (#1)
+
 ## [0.8.40] — 2026-10-04: server-side write gates — audit log, read-back after commit, trace hooks, optional approval mode
 
 All additive: the envelope, `ok`, HTTP status codes, every existing field, `IRevitCommand` and the
