@@ -6,6 +6,24 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Warnings and errors at commit no longer block the add-in.** Every MCP write now commits with a
+  failures preprocessor. Before, a commit-time warning ("Multiple Rooms are in the same enclosed
+  region") opened a modal box on the UI thread: all queued calls waited until someone clicked it, and
+  the caller never saw the text. Now a warning is dismissed, as clicking OK does, and returned in
+  `data.revitWarnings` (on the batch result for a batch): `{message, count, elementIds, failureId,
+  resolution}`. The change stays and the warning stays in Review Warnings, also as with OK. An error
+  cannot be OK'd: the transaction rolls back and the call fails with `commit_failed`, listing
+  `data.revitErrors`. A rolled-back batch now says `committed: false`. `resolution` names the fix
+  Revit offers (e.g. "Delete Room(s)") and is never applied. A person at the screen no longer gets
+  to choose a resolution for MCP writes; the caller does, from the response.
+  `IRevitCommand.SuppressWarningsOnCommit` has no effect any more and stays so packs still build.
+  Measured on Revit 2026: two rooms in one region answer in about 1 s with no dialog, and Review
+  Warnings goes from 16 to 17; a level dropped below its walls' base fails in 7 s with five kinds of
+  error, the level unchanged and the add-in responsive; the same write in a batch also removes the
+  room created by the step before it.
+
 ### Added
 
 - **`open_document`** (MCP `revit_open_document`, UI action, risk medium): opens a `.rvt` path or a cloud

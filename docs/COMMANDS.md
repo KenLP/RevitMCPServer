@@ -839,6 +839,11 @@ Additive fields on a committed write (never on a dry-run):
   committing and, on any failure, rolls back and returns `verify_failed` with `committed: false`.
 - `data.affected = { created: long[], modified: long[], deleted: long[] }` — which elements the
   command touched. Existing keys (`id`, `newIds`, `deletedIds`…) are unchanged.
+- `data.revitWarnings = [{ message, count, elementIds, failureId, resolution? }]` — warnings Revit
+  raised at commit, dismissed as clicking OK does; absent on a clean commit. On a batch it sits on the
+  batch result, because the batch commits once. `resolution` is the fix Revit offers, never applied.
+- `commit_failed` (500) — Revit refused the commit with an error, so it rolled back and the model is
+  unchanged. `data.revitErrors` has the same shape; a batch also carries `committed: false`.
 
 Optional request headers on `POST /mcp` and `POST /mcp/batch`, copied into the audit log:
 `X-MCP-Client` (≤64 characters) and `X-MCP-Trace` (≤128 characters). Longer values are cut; they never

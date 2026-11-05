@@ -218,6 +218,29 @@ level of the body, next to `params` / `steps`:
 Command packs can implement the same read-back (`IVerifiableCommand` in `RevitMCP.Core`); a pack
 command that reports `data.affected` gets the existence check without writing any code.
 
+## Warnings and errors at commit
+
+Revit raises many warnings only when a transaction commits, and shows them in a modal box that stops
+the UI thread and every queued call until someone clicks. MCP writes never open that box.
+
+**A warning** is dismissed, which is what clicking OK does: the change stays and the warning stays in
+Review Warnings. The caller gets it in `data.revitWarnings` (on the batch result for a batch):
+
+```json
+{"message": "Multiple Rooms are in the same enclosed region. ...", "count": 1,
+ "elementIds": [2772386, 2772388], "failureId": "83d4a67c-818c-4291-adaf-f2d33064fea8",
+ "resolution": "Delete Room(s)"}
+```
+
+**An error** cannot be OK'd, so the transaction rolls back and the call fails with `commit_failed`
+(500), `data.revitErrors` in the same shape. Nothing changed in the model; a batch reports
+`committed: false` and all its steps are undone.
+
+`resolution` is the fix Revit's dialog offers. It is reported, never applied, because it changes the
+model: the caller decides what to do from the message and `elementIds`. Only writes made through
+this add-in are covered. A warning from a person's own edit, or from another add-in's transaction,
+still shows Revit's box.
+
 ## Opening models unattended (open_document, dialog policy, launcher)
 
 Three pieces let a script start Revit, open a model and reach a ready add-in without anyone clicking.

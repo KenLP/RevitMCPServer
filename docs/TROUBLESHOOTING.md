@@ -138,6 +138,16 @@ need (`inspection`, `architecture`, `documentation`, `editing`, `view`, `model-h
 
 ---
 
+## A warning or error box stopped every call
+
+Writes through the add-in no longer open Revit's warning box: warnings come back in
+`data.revitWarnings`, errors as `commit_failed` with `data.revitErrors` (see the README, "Warnings and
+errors at commit"). If a box still blocks the add-in, it came from somewhere else: a person's own edit,
+another add-in's transaction, or a dialog that is not a commit failure. `GET /health` still answers
+while `/mcp` waits. Dialogs outside commits can be logged and answered with the dialog policy.
+
+---
+
 ## HTTP 413 / 429-style 503 / 400 "too_many_steps"
 
 These are the server's load-shedding limits, not bugs:
