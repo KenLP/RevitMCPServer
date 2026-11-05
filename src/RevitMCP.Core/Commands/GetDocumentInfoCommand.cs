@@ -12,7 +12,7 @@ public sealed class GetDocumentInfoCommand : IRevitCommand
     {
         var doc = ctx.RequireDoc();
         var info = doc.ProjectInformation;
-        return new JsonObject
+        var result = new JsonObject
         {
             ["title"] = doc.Title,
             ["pathName"] = doc.PathName,
@@ -29,5 +29,9 @@ public sealed class GetDocumentInfoCommand : IRevitCommand
             ["activeViewType"] = doc.ActiveView?.ViewType.ToString(),
             ["displayUnitSystem"] = doc.DisplayUnitSystem.ToString(),
         };
+        // Cloud models only: the ids open_document {cloud} takes. Absent for a local file.
+        var cloud = CloudIds.Of(doc);
+        if (cloud is not null) result["cloud"] = cloud;
+        return result;
     }
 }

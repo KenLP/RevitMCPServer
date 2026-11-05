@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.40** — 92 C# commands (91 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **94 MCP tools**. Hidden = `create_spot_elevation`, registered for HTTP `/mcp` use but off the MCP tool surface. More HTTP-only commands can be added through opt-in [command packs](#command-packs-optional-opt-in).
+**v0.8.40** — 93 C# commands (92 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **95 MCP tools**. Hidden = `create_spot_elevation`, registered for HTTP `/mcp` use but off the MCP tool surface. More HTTP-only commands can be added through opt-in [command packs](#command-packs-optional-opt-in).
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (91 commands + 1 batch + 2 recipes = 94 MCP tools)
+## Tool surface (92 commands + 1 batch + 2 recipes = 95 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -88,7 +88,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 `revit_load_family` | `revit_duplicate_family_type`
 
 ### View Manipulation (12 write / UI)
-`revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param` | `revit_override_element_graphics` | `revit_duplicate_view` | `revit_set_section_box` | `revit_isolate_elements_in_view`
+`revit_open_document` | `revit_open_view` | `revit_set_view_detail_level` | `revit_hide_elements_in_view` | `revit_unhide_elements_in_view` | `revit_select_elements` | `revit_zoom_to_elements` | `revit_apply_view_filter` | `revit_color_override_by_param` | `revit_override_element_graphics` | `revit_duplicate_view` | `revit_set_section_box` | `revit_isolate_elements_in_view`
 
 ### Batch (1)
 `revit_batch` — run multiple commands inside ONE Revit Transaction (single undo entry).
@@ -218,6 +218,62 @@ level of the body, next to `params` / `steps`:
 Command packs can implement the same read-back (`IVerifiableCommand` in `RevitMCP.Core`); a pack
 command that reports `data.affected` gets the existence check without writing any code.
 
+## Opening models unattended (open_document, dialog policy, launcher)
+
+Three pieces let a script start Revit, open a model and reach a ready add-in without anyone clicking.
+
+**`open_document`** opens a `.rvt` path or a cloud model and makes it the active document. It needs no
+open document, so Revit can be launched bare. It passes a workset configuration (`worksets`: `all`
+by default, `none`, `last_viewed`), which is what keeps the "Opening Worksets" dialog from appearing
+at all. It is idempotent (`alreadyOpen: true` when the model already is the active document,
+`wasOpen: true` when it was open but not active), returns `openMs`, and lists every dialog Revit raised
+while opening. Cloud models take `cloud: {region, projectGuid, modelGuid}` — the ids
+`get_document_info` now reports for a cloud model. Opening takes tens of seconds (minutes for a first
+cloud download or an upgrade); the add-in imposes no timeout, the MCP tool waits up to
+`REVIT_MCP_OPEN_TIMEOUT_MS` (default 15 min). Errors: `not_found` 404, `not_signed_in` 403,
+`open_failed` 500 (with Revit's message).
+
+**Dialog policy (opt-in).** `revit-mcp-dialog-policy.json` next to the token file makes the add-in
+subscribe to `DialogBoxShowing` at start-up, so it also sees dialogs raised while Revit opens a model
+from the command line, when no command can run. No file = no subscription: Revit's dialogs behave as
+they do without the add-in.
+
+```jsonc
+{
+  "log": true,          // JSONL of every dialog seen: %APPDATA%\RevitMCP\dialogs\dialogs-YYYY-MM-DD.jsonl
+  "dir": null,
+  "rules": [            // first match wins; a dialog no rule matches is recorded, never answered
+    { "dialogId": "Dialog_Revit_Partitions", "result": 1 },
+    { "dialogId": "TaskDialog_Save_File", "result": 7 }
+  ]
+}
+```
+
+A rule needs `dialogId` and/or `messageContains`, and the integer `result` passed to
+`OverrideResult` (task dialogs: `TaskDialogResult` values such as 1 OK, 6 Yes, 7 No, or 1001+ for
+command links; Revit's own dialogs: 1 = OK). `GET /dialogs[?since=seq]` (auth) returns the recorded
+dialogs, answered on the listener thread — it works while Revit sits modal on the dialog in question.
+
+Dialog ids measured on Revit 2027:
+
+| Dialog | `dialogId` | kind | Fires `DialogBoxShowing`? |
+|---|---|---|---|
+| Opening Worksets (workshared model opened without a workset configuration) | `Dialog_Revit_Partitions` | dialog | yes — `OverrideResult(1)` accepted, model opens with its default worksets |
+| Warnings after open (e.g. "0 Errors, 23 Warnings" on an upgraded model) | `Dialog_Revit_DocWarnDialog` | dialog | yes |
+| Save changes on close ("Do you want to save changes to …?") | `TaskDialog_Save_File` | task_dialog | yes |
+| Security - Unsigned Add-In | `TaskDialog_Security_Unsigned_File_Loading` (journal) | task_dialog | before any add-in loads — not catchable |
+| Model Upgrade (progress window; only button: Cancel Upgrade) | — | — | no |
+
+**Launcher.** `scripts/launch-revit-dev.ps1` starts Revit, clicks "Load Once" for this add-in only,
+opens `-Model` through `open_document` (`-OpenVia addin`, default) or on the command line
+(`-OpenVia commandline`), and prints one JSON line with the phase times. It follows its own process
+by PID and reads that process's own journal, classifying each tick as `starting`, `addin_up`,
+`waiting_dialog`, `stalled` or `ready`. A silent journal alone is not a hang: Revit writes nothing
+while a dialog waits. Dialogs are handled by `-DialogRules` (click a button, ignore, or halt) — see
+`scripts/launch-revit-dev.rules.example.json`; one no rule covers is never clicked and ends the run
+with exit code 6. `-StallSec` / `-Restart N` kill a stalled Revit by PID (never by name) and relaunch.
+Its decision logic is tested without Revit: `powershell -File scripts/tests/launch-revit-dev.tests.ps1`.
+
 ## Command packs (optional, opt-in)
 
 The add-in can register extra commands from your own .NET class libraries ("packs"), next to its
@@ -245,7 +301,7 @@ Start from [`samples/HelloPack`](samples/HelloPack/README.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 94 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 95 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -291,13 +347,13 @@ RevitMCPServer/
 ├── samples/
 │   └── HelloPack/                  ← minimal opt-in command pack
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 92 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 93 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
     │   ├── App.cs
     │   ├── Packs/                  ← opt-in command pack loader (revit-mcp-packs.json)
-    │   ├── Server/McpHttpServer.cs ← /mcp, /mcp/batch, /commands, /health, /stats
+    │   ├── Server/McpHttpServer.cs ← /mcp, /mcp/batch, /commands, /health, /stats, /dialogs
     │   ├── Server/RequestLog.cs    ← structured request log
     │   ├── Server/ServerMetrics.cs ← counters behind /stats
     │   ├── RevitMCPAddin.csproj
@@ -697,7 +753,7 @@ Two versions side-by-side (port auto-assigned):
 }
 ```
 
-Restart the client. You should see 94 `revit_*` tools per configured version.
+Restart the client. You should see 95 `revit_*` tools per configured version.
 
 ### 3. Try it
 

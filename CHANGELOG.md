@@ -6,6 +6,58 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- **`open_document`** (MCP `revit_open_document`, UI action, risk medium): opens a `.rvt` path or a cloud
+  model (`cloud: {region, projectGuid, modelGuid}`) with `OpenAndActivateDocument` and makes it the
+  active document. Needs no open document, so Revit can be launched bare and the model opened by the
+  add-in. It always passes a workset configuration (`worksets`: `all` default, `none`, `last_viewed`) —
+  which is what removes the "Opening Worksets" dialog; there is deliberately no "ask". Also `detach`
+  (`none` / `preserve` / `discard`) and `audit`. Idempotent: `alreadyOpen: true` when the model already
+  is the active document, `wasOpen: true` when it was open but not active (it is then just activated).
+  Returns `openMs` and `dialogs` (every dialog raised during the open). Errors: `not_found` (404),
+  `not_signed_in` (403, new status mapping), `open_failed` (500, Revit's exception type and message).
+  The add-in imposes no timeout; the MCP tool waits up to `REVIT_MCP_OPEN_TIMEOUT_MS` (default 15 min).
+- **`get_document_info.cloud = {region, projectGuid, modelGuid}`** for a cloud model (absent for a
+  local file) — the ids `open_document` takes.
+- **Dialog policy, opt-in: `revit-mcp-dialog-policy.json`** next to the token file. When present the
+  add-in subscribes to `DialogBoxShowing` at start-up, so it also sees dialogs raised while Revit opens
+  a model from the command line or the UI. Rules (`dialogId` and/or `messageContains` → `result` for
+  `OverrideResult`) answer matching dialogs; a dialog no rule matches is recorded, never answered.
+  Every dialog seen goes to `%APPDATA%\RevitMCP\dialogs\dialogs-YYYY-MM-DD.jsonl` (`log`, `dir`) and to
+  **`GET /dialogs[?since=seq]`** (auth), which is answered on the listener thread and so works while
+  Revit is modal. **No file = no subscription**: Revit's dialogs behave exactly as before.
+- **`scripts/launch-revit-dev.ps1`**, a dev launcher for unattended runs:
+  `-OpenVia addin` (default: launch bare, wait for `/health`, then `open_document`) or `commandline`;
+  per-tick state from the launched PID, that PID's own journal (`Session<PID>_` in its header) and
+  the add-in: `starting` / `addin_up` / `waiting_dialog` (title, text, buttons) / `stalled` / `ready` /
+  `exited`; `-DialogRules` (click a button, `ignore`, `halt`), with the "Model Upgrade" progress window
+  ignored by default; a dialog no rule covers is never clicked (exit 6); `-StallSec` / `-Restart N`
+  kill a stalled Revit by PID and relaunch; one JSON line with `tHealthSec`, `tOpenSec`, `openMs`,
+  `tReadySec`, `dialogs`, `addinDialogs`, `restarts`, `journal` and `journalTail` on failure. Exit codes
+  0–4 unchanged; new 5 open failed, 6 unknown dialog, 7 halt rule, 8 stalled. The decision logic is in
+  `launch-revit-dev.lib.ps1`, tested without Revit by `scripts/tests/launch-revit-dev.tests.ps1`
+  (plain PowerShell 5.1, no Pester).
+
+Measured live on Revit 2027 (workshared model, 1 instance, no one clicking):
+
+| Path | /health | open | ready | Dialogs |
+|---|---|---|---|---|
+| `-OpenVia addin` (`open_document`, `worksets: all`) | 27.6 s | 23.4 s (`openMs` 19 801) | **51.1 s** | none — no "Opening Worksets" at all |
+| `-OpenVia commandline` + policy rule `Dialog_Revit_Partitions → 1` | — | — | 78 s | Opening Worksets answered in-process |
+| `-OpenVia commandline` + launcher rule "Opening Worksets → OK" | 27.3 s | — | 79.5 s | clicked OK at 59.4 s |
+| before (command line, nobody clicking) | — | — | never | waits on "Opening Worksets" until someone clicks; the journal stays silent meanwhile |
+
+Cloud: `open_document {cloud}` from a bare Revit opened a non-workshared cloud model in 43.0 s; the
+GUIDs round-trip through `get_document_info.cloud`; a second call returned `alreadyOpen: true` in
+0.2 s; an unknown model GUID returned `open_failed` (`CentralModelMissingException`) and the add-in
+kept answering. The Home screen pumps the add-in's ExternalEvent on 2027, so no blank document is
+needed first. Dialog ids measured: `Dialog_Revit_Partitions` (Opening Worksets, fires
+`DialogBoxShowing`, `OverrideResult(1)` accepted), `Dialog_Revit_DocWarnDialog` (warnings after an
+upgrade), `TaskDialog_Save_File` (save changes on close). "Model Upgrade" fires no event (progress
+window). Not exercised live: the stall restart (Revit's journal never went quiet long enough during
+start-up to trigger it).
+
 ### Fixed
 
 - With two Revit processes of the same version open, the second one — which cannot bind the port —

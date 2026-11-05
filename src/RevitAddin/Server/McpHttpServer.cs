@@ -23,6 +23,7 @@ namespace RevitMCPAddin.Server;
 ///   POST /mcp/batch     — batch command   (supports ?dryRun=true or body.dryRun)
 ///   GET  /health
 ///   GET  /commands       — list every registered command + isReadOnly + riskLevel
+///   GET  /dialogs        — dialogs Revit showed under revit-mcp-dialog-policy.json (?since=seq)
 ///
 /// Every response uses the envelope:
 ///   { ok: bool, data?: ..., error?: { code, message, type? } }
@@ -43,18 +44,20 @@ public sealed class McpHttpServer
     private readonly RevitMCPExternalEventHandler _handler;
     private readonly string? _authToken;
     private readonly AuditLog? _audit;
+    private readonly DialogMonitor? _dialogs;
     private readonly HttpListener _listener = new();
     private readonly ServerMetrics _metrics = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
     public McpHttpServer(int port, RevitMCPExternalEventHandler handler, string? authToken = null,
-        AuditLog? audit = null)
+        AuditLog? audit = null, DialogMonitor? dialogs = null)
     {
         _port = port;
         _handler = handler;
         _authToken = authToken;
         _audit = audit;
+        _dialogs = dialogs;
         _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
     }
 
@@ -197,6 +200,16 @@ public sealed class McpHttpServer
                 return;
             }
 
+            // Dialogs Revit showed (revit-mcp-dialog-policy.json). Answered on the listener thread,
+            // so it works while Revit sits modal on the very dialog a caller is asking about.
+            if (method == "GET" && path == "/dialogs")
+            {
+                long.TryParse(request.QueryString["since"], out var since);
+                await WriteJsonAsync(response, 200, JsonResult.Success(DialogsSnapshot(_dialogs, since)))
+                    .ConfigureAwait(false);
+                return;
+            }
+
             if (method == "GET" && path == "/stats")
             {
                 await WriteJsonAsync(response, 200, JsonResult.Success(_metrics.Snapshot()))
@@ -284,6 +297,22 @@ public sealed class McpHttpServer
         return string.Equals(token, _authToken, StringComparison.Ordinal);
     }
 
+    /// <summary>Body of <c>GET /dialogs[?since=seq]</c>: the policy state plus recorded dialogs, oldest first.</summary>
+    internal static JsonObject DialogsSnapshot(DialogMonitor? dialogs, long since)
+    {
+        var events = new JsonArray();
+        if (dialogs is not null)
+            foreach (var e in dialogs.Recent(since)) events.Add(e.ToJson());
+        return new JsonObject
+        {
+            ["enabled"] = dialogs?.Enabled ?? false,
+            ["rules"] = dialogs?.Settings.Rules.Count ?? 0,
+            ["log"] = dialogs?.Settings.Log ?? false,
+            ["lastError"] = dialogs?.LastError,
+            ["dialogs"] = events,
+        };
+    }
+
     /// <summary>
     /// Map a result envelope to an HTTP status code.  Success → 200.  For
     /// failures, the error <c>code</c> determines the status so clients can
@@ -303,6 +332,7 @@ public sealed class McpHttpServer
               or "too_many_steps"
               or "wrong_element_type"                         => 400,
             "unauthorized"                        => 401,
+            "not_signed_in"                       => 403,
             "unknown_command" or "not_found"      => 404,
             "timeout" or "cancelled"              => 408,
             "name_collision" or "system_family"

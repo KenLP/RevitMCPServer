@@ -1,0 +1,5 @@
+[
+  { "titleContains": "Opening Worksets", "button": "OK" },
+  { "titleContains": "Model Upgrade", "action": "ignore" },
+  { "textContains": "sign in", "action": "halt" }
+]

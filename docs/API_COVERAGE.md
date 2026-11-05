@@ -29,9 +29,9 @@ Claude Desktop / Claude Code.
 
 ## Current command surface (v0.8.40)
 
-**92 C# commands** registered (91 exposed as MCP tools + 1 hidden) across read, write, UI, and
+**93 C# commands** registered (92 exposed as MCP tools + 1 hidden) across read, write, UI, and
 coordination categories. With the batch transport tool and two Node-only workflow recipes
-(`recipe_model_health_triage`, `recipe_clash_review`), that is **94 MCP tools**.
+(`recipe_model_health_triage`, `recipe_clash_review`), that is **95 MCP tools**.
 
 The hidden command, `create_spot_elevation`, is registered in C# (HTTP-callable via `/mcp`) but kept
 off the MCP tool surface pending a reliable face-reference approach. Further HTTP-only commands can
@@ -131,6 +131,7 @@ be added at run time through opt-in command packs (see README, *Command packs*).
 
 | Command | Notes |
 |---|---|
+| `open_document` | Open a local or cloud model and activate it (`OpenAndActivateDocument`, workset configuration) |
 | `open_view` | Activate a view in the UI |
 | `select_elements` | Set UIDocument selection |
 | `zoom_to_elements` | Fit view to element bounding box |

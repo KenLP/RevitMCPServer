@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.40 (stdio).
  *
- * 94 tools covering diagnostics, inspection, creation, editing, family,
+ * 95 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -23,6 +23,7 @@ import {
   envelopeToToolResult,
   checkRevitHealth,
   REVIT_BASE_URL,
+  OPEN_TIMEOUT_MS,
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 import { withTrace } from "./trace.js";
@@ -53,13 +54,13 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
 };
 
 // ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
-// With 94 tools, loading the whole catalog into every conversation wastes tokens
+// With 95 tools, loading the whole catalog into every conversation wastes tokens
 // and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
 // list (e.g. "documentation,view") to expose only those groups; "core" is always
 // included. Unset = all tools (default, fully backward compatible).
 const PROFILES: Record<string, string[]> = {
   core: [
-    "revit_ping", "revit_get_version", "revit_get_document_info",
+    "revit_ping", "revit_get_version", "revit_get_document_info", "revit_open_document",
     "revit_find_elements", "revit_get_element_info", "revit_get_parameter",
     "revit_find_element_by_unique_id",
     "revit_batch",
@@ -159,7 +160,29 @@ const _registerTool = server.tool.bind(server);
 
 server.tool("revit_ping", "Health check. Reports active doc title.", {}, fwd("ping"));
 server.tool("revit_get_version", "Get Revit version, build, language, user.", {}, fwd("get_revit_version"));
-server.tool("revit_get_document_info", "Get project info: title, path, worksharing, active view, project metadata.", {}, fwd("get_document_info"));
+server.tool("revit_get_document_info", "Get project info: title, path, worksharing, active view, project metadata; for a cloud model also cloud {region, projectGuid, modelGuid}.", {}, fwd("get_document_info"));
+
+server.tool("revit_open_document",
+  "Open a model and make it the active document: a .rvt path, or a cloud model by the GUIDs " +
+  "get_document_info reports. Works with no document open. Idempotent: if the model already is the " +
+  "active document nothing happens (alreadyOpen:true). Passing worksets keeps Revit's 'Opening " +
+  "Worksets' dialog from appearing. Returns openMs and any dialogs Revit raised while opening. " +
+  "Large models take tens of seconds; first cloud opens can take minutes.", {
+  path: z.string().optional().describe("Model file path (.rvt). Give exactly one of path / cloud."),
+  cloud: z.object({
+    region: z.string().describe("Cloud region, e.g. 'US' or 'EMEA' (get_document_info.cloud.region)."),
+    projectGuid: z.string().describe("Project GUID."),
+    modelGuid: z.string().describe("Model GUID."),
+  }).optional().describe("Cloud model ids, as reported by get_document_info.cloud."),
+  worksets: z.enum(["all", "none", "last_viewed"]).optional().describe("Worksets to open. Default 'all'."),
+  detach: z.enum(["none", "preserve", "discard"]).optional().describe("Detach from central: none (default), preserve or discard worksets."),
+  audit: z.boolean().optional().describe("Audit the model while opening. Default false."),
+  dryRun: dryRunField,
+}, async (params: Record<string, unknown>) => {
+  const { dryRun, approvalToken, ...rest } = params;
+  return envelopeToToolResult(await callRevit("open_document", rest, dryRun === true,
+    typeof approvalToken === "string" ? approvalToken : undefined, OPEN_TIMEOUT_MS));
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INSPECTION / INTROSPECTION

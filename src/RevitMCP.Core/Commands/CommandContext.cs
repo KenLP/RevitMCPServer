@@ -27,6 +27,13 @@ public sealed class CommandContext
     /// <summary>When true, the dispatcher will roll back the transaction after execution.</summary>
     public bool DryRun { get; init; }
 
+    /// <summary>
+    /// The application-level dialog policy (<c>revit-mcp-dialog-policy.json</c>), or null when the
+    /// host runs without one. A command that wants the dialogs raised during its own call opens a
+    /// <see cref="DialogMonitor.Capture"/> on it, or subscribes a record-only monitor when null.
+    /// </summary>
+    public DialogMonitor? Dialogs { get; init; }
+
     public Document RequireDoc() =>
         Doc ?? throw new InvalidOperationException(
             "This command requires an active Revit document, but none is open.");

@@ -34,6 +34,9 @@ const DEFAULT_PORT = 7891 + (parseInt(REVIT_VERSION, 10) - 2026);
 const REVIT_PORT = Number(process.env.REVIT_MCP_PORT ?? String(DEFAULT_PORT));
 const BASE = `http://${REVIT_HOST}:${REVIT_PORT}`;
 const TIMEOUT_MS = Number(process.env.REVIT_MCP_TIMEOUT_MS ?? "30000");
+// Opening a model takes tens of seconds, minutes on a first cloud download; the addin imposes no
+// timeout of its own, so open_document gets a long client-side one.
+export const OPEN_TIMEOUT_MS = Number(process.env.REVIT_MCP_OPEN_TIMEOUT_MS ?? "900000");
 
 export interface RevitEnvelope {
   ok: boolean;
@@ -103,9 +106,10 @@ async function postJson(
   path: string,
   body: unknown,
   _retried = false,
+  timeoutMs = TIMEOUT_MS,
 ): Promise<RevitEnvelope> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const headers = { ...buildHeaders(), ...traceHeaders() };
     headers["x-request-id"] = randomUUID();
@@ -135,7 +139,7 @@ async function postJson(
       const fresh = readTokenFile();
       if (fresh && fresh !== _authToken) {
         _authToken = fresh;
-        return postJson(path, body, true);
+        return postJson(path, body, true, timeoutMs);
       }
     }
 
@@ -162,11 +166,12 @@ export function callRevit(
   params: Record<string, unknown>,
   dryRun = false,
   approvalToken?: string,
+  timeoutMs?: number,
 ): Promise<RevitEnvelope> {
   const body: Record<string, unknown> = { command, params };
   if (dryRun) body.dryRun = true;
   if (approvalToken) body.approvalToken = approvalToken;
-  return postJson("/mcp", body);
+  return postJson("/mcp", body, false, timeoutMs);
 }
 
 export function callRevitBatch(

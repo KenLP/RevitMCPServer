@@ -35,6 +35,7 @@ public sealed class App : IExternalApplication
     private ExternalEvent? _externalEvent;
     private McpHttpServer? _httpServer;
     private AuditLog? _audit;
+    private DialogMonitor? _dialogs;
     private AutoAuditPanelView? _panelView;
     private AutoAuditPanelView? _extraPanelView;
 
@@ -75,13 +76,28 @@ public sealed class App : IExternalApplication
             if (auditSettings.MutationMode == MutationMode.PreviewRequired)
                 LogToConsole("[RevitMCP] mutationMode: preview_required — model writes need the approvalToken " +
                              "from a dry-run of the same request");
+            // Dialog policy (revit-mcp-dialog-policy.json, opt-in). Subscribed here, not per command:
+            // a dialog raised while Revit opens a model from the command line or the UI fires when
+            // no ExternalEvent can run. No file = no subscription, so Revit's dialogs behave
+            // exactly as they do without the policy.
+            var dialogSettings = DialogPolicyConfig.Load(revitVersion);
+            foreach (var err in dialogSettings.Errors) LogToConsole($"[RevitMCP] Dialog policy: {err}");
+            if (dialogSettings.Enabled)
+            {
+                _dialogs = new DialogMonitor(dialogSettings, LogToConsole);
+                application.DialogBoxShowing += _dialogs.OnDialogBoxShowing;
+                _handler.ConfigureDialogs(_dialogs);
+                LogToConsole($"[RevitMCP] Dialog policy ON — {dialogSettings.Rules.Count} rule(s)" +
+                             (dialogSettings.Log ? $", log → {dialogSettings.Directory}" : ", no log file"));
+            }
+
             _externalEvent = ExternalEvent.Create(_handler);
             _handler.AttachExternalEvent(_externalEvent);
 
             var port = ResolvePort(revitVersion);
             var authToken = GenerateAuthToken();
 
-            _httpServer = new McpHttpServer(port, _handler, authToken, _audit);
+            _httpServer = new McpHttpServer(port, _handler, authToken, _audit, _dialogs);
             _httpServer.Start();
             // Persist only once the port is ours. A secondary Revit.exe process fails the
             // bind (HttpListenerException 183) and used to overwrite the token file with a
@@ -276,6 +292,10 @@ public sealed class App : IExternalApplication
         catch
         {
             // best effort
+        }
+        if (_dialogs is not null)
+        {
+            try { application.DialogBoxShowing -= _dialogs.OnDialogBoxShowing; } catch { }
         }
         return Result.Succeeded;
     }

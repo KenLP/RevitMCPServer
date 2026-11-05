@@ -40,6 +40,8 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
     private WriteGateOptions _gates = new();
     // preview_required mode only: outstanding single-use approval tokens.
     private ApprovalStore? _approvals;
+    // Application-level dialog policy (null = none configured).
+    private DialogMonitor? _dialogs;
 
     public RevitMCPExternalEventHandler(CommandRegistry registry)
     {
@@ -63,6 +65,12 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
         _gates = options ?? new WriteGateOptions();
         _approvals = _gates.Mutation == MutationMode.PreviewRequired ? new ApprovalStore(_gates.ApprovalTtl) : null;
     }
+
+    /// <summary>
+    /// Hands commands the application-level dialog monitor (null = no policy file). Called once by
+    /// the host at start-up, before the listener accepts requests.
+    /// </summary>
+    public void ConfigureDialogs(DialogMonitor? dialogs) => _dialogs = dialogs;
 
     /// <summary>The configured mutation mode (reported on <c>/health</c>).</summary>
     public MutationMode MutationMode => _gates.Mutation;
@@ -614,12 +622,13 @@ public sealed class RevitMCPExternalEventHandler : IExternalEventHandler
         }
     }
 
-    private static CommandContext BuildContext(UIApplication app, JsonObject parameters, bool dryRun = false) => new()
+    private CommandContext BuildContext(UIApplication app, JsonObject parameters, bool dryRun = false) => new()
     {
         App = app,
         Doc = app.ActiveUIDocument?.Document,
         Parameters = parameters,
         DryRun = dryRun,
+        Dialogs = _dialogs,
     };
 
     public string GetName() => "RevitMCPExternalEventHandler";
