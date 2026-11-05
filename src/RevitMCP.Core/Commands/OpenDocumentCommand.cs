@@ -69,13 +69,7 @@ public sealed class OpenDocumentCommand : IRevitCommand
             _ => WorksetConfigurationOption.OpenAllWorksets,
         }));
 
-        // Collect the dialogs raised during the open. With an application-level policy its handler
-        // is already subscribed (and answers matching dialogs); without one, a record-only monitor
-        // listens for the duration of this call and answers nothing.
-        var monitor = ctx.Dialogs is { Enabled: true } shared ? shared : new DialogMonitor(DialogPolicySettings.RecordOnly);
-        var ownSubscription = !ReferenceEquals(monitor, ctx.Dialogs);
-        if (ownSubscription) ctx.App.DialogBoxShowing += monitor.OnDialogBoxShowing;
-        var scope = monitor.Capture();
+        var watch = DialogWatch.Start(ctx);
         var sw = Stopwatch.StartNew();
         UIDocument? opened;
         try
@@ -89,24 +83,18 @@ public sealed class OpenDocumentCommand : IRevitCommand
         }
         catch (Exception ex) when (ex is not RevitCommandException)
         {
-            var dialogs = DialogsJson(scope.Events);
             throw new RevitCommandException("open_failed",
-                $"Revit could not open the model ({ex.GetType().Name}): {ex.Message}" +
-                (dialogs.Count > 0 ? $" Dialogs during the attempt: {dialogs.ToJsonString()}" : ""));
+                $"Revit could not open the model ({ex.GetType().Name}): {ex.Message}{watch.ErrorSuffix()}");
         }
         finally
         {
             sw.Stop();
-            scope.Dispose();
-            if (ownSubscription)
-            {
-                try { ctx.App.DialogBoxShowing -= monitor.OnDialogBoxShowing; } catch { }
-            }
+            watch.Dispose();
         }
 
         var doc = opened?.Document
             ?? throw new RevitCommandException("open_failed", "Revit returned no document for the open request.");
-        var result = Describe(doc, request, alreadyOpen: false, openMs: sw.ElapsedMilliseconds, scope.Events);
+        var result = Describe(doc, request, alreadyOpen: false, openMs: sw.ElapsedMilliseconds, watch.Events);
         result["wasOpen"] = wasOpen;
         return result;
     }
@@ -124,22 +112,13 @@ public sealed class OpenDocumentCommand : IRevitCommand
             ["openMs"] = openMs,
             ["worksets"] = request.Worksets,
             ["detach"] = request.Detach,
-            ["dialogs"] = DialogsJson(dialogs),
+            ["dialogs"] = DialogWatch.ToJson(dialogs),
         };
         var cloud = CloudIds.Of(doc);
         if (cloud is not null) result["cloud"] = cloud;
         return result;
     }
 
-    private static JsonArray DialogsJson(System.Collections.Generic.IReadOnlyList<DialogEvent> events) =>
-        new(events.Select(e => (JsonNode?)new JsonObject
-        {
-            ["dialogId"] = e.DialogId,
-            ["kind"] = e.Kind,
-            ["message"] = e.Message,
-            ["result"] = e.Result,
-            ["overridden"] = e.Overridden,
-        }).ToArray());
 }
 
 /// <summary>Validated params of <c>open_document</c> (pure apart from the file-exists check).</summary>
@@ -162,12 +141,7 @@ internal sealed record OpenRequest(string? Path, CloudRequest? Cloud, string Wor
 
         if (path is not null)
         {
-            string full;
-            try { full = System.IO.Path.GetFullPath(Environment.ExpandEnvironmentVariables(path.Trim())); }
-            catch (Exception ex)
-            {
-                throw new RevitCommandException("invalid_parameter", $"'path' is not a valid file path: {ex.Message}");
-            }
+            var full = OutputPath.Full(path, "path");
             if (!fileExists(full))
                 throw new RevitCommandException("not_found", $"Model file not found: {full}");
             return new OpenRequest(full, null, worksets, detach, audit);

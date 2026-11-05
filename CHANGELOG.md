@@ -36,6 +36,22 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   Returns `openMs` and `dialogs` (every dialog raised during the open). Errors: `not_found` (404),
   `not_signed_in` (403, new status mapping), `open_failed` (500, Revit's exception type and message).
   The add-in imposes no timeout; the MCP tool waits up to `REVIT_MCP_OPEN_TIMEOUT_MS` (default 15 min).
+- **`save_document`, `save_as`, `close_document`, `new_document`** (UI actions, MCP `revit_*`): the rest
+  of the unattended document loop. Local, non-workshared files only (`not_supported` 409 otherwise).
+  - `save_document`: `never_saved` 409 when the document has no file yet; `save_failed` 500.
+  - `save_as {path, overwrite=false, maxBackups=1}`: the open document becomes that file;
+    `already_exists` 409, `not_found` 404 for a missing folder.
+  - `close_document {path, save=false}`: the Revit API cannot close the active document, so that is
+    `active_document` 409 with what to do instead. Idempotent: `wasOpen: false` when not open.
+  - `new_document {template, path, overwrite=false}`: saves, closes and reopens, since Revit can only
+    activate a saved file; `create_failed` 500.
+- **`export_ifc`** (UI action, MCP `revit_export_ifc`): `outputPath`, `ifcVersion` (default `IFC4`, checked
+  against the running Revit), `viewId`, `exportBaseQuantities`, `spaceBoundaryLevel`,
+  `wallAndColumnSplitting`, `overwrite` (default true). Revit requires a transaction for IFC export, so
+  the command opens one and always rolls it back. It writes to a temporary name first, so a failed
+  export cannot pass for a success or replace an earlier file. `export_failed` 500.
+  Revit exports the rooms of one phase only (the view's, else the last), silently: the result reports
+  `phase`, `roomsInPhase` and `roomsInOtherPhases`, so a caller can see when rooms are missing.
 - **`get_document_info.cloud = {region, projectGuid, modelGuid}`** for a cloud model (absent for a
   local file) — the ids `open_document` takes.
 - **Dialog policy, opt-in: `revit-mcp-dialog-policy.json`** next to the token file. When present the

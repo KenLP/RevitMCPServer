@@ -2,7 +2,7 @@
 /**
  * Revit MCP Server v0.8.40 (stdio).
  *
- * 95 tools covering diagnostics, inspection, creation, editing, family,
+ * 100 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
  *
  * v0.8.0 additions:
@@ -46,6 +46,13 @@ const rgbSchema = z.object({ r: colorChannel, g: colorChannel, b: colorChannel }
 const fwd = (cmd: string) => async (params: Record<string, unknown>) =>
   envelopeToToolResult(await callRevit(cmd, params));
 
+// Helper: forward a document or file command that can take minutes: dryRun, approvalToken, long timeout.
+const fwdLong = (cmd: string) => async (params: Record<string, unknown>) => {
+  const { dryRun, approvalToken, ...rest } = params;
+  return envelopeToToolResult(await callRevit(cmd, rest, dryRun === true,
+    typeof approvalToken === "string" ? approvalToken : undefined, OPEN_TIMEOUT_MS));
+};
+
 // Helper: forward a write command (supports dryRun and approvalToken)
 const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
   const { dryRun, approvalToken, ...rest } = params;
@@ -54,13 +61,14 @@ const fwdWrite = (cmd: string) => async (params: Record<string, unknown>) => {
 };
 
 // ── Tool profiles (P2-A) ──────────────────────────────────────────────────────
-// With 95 tools, loading the whole catalog into every conversation wastes tokens
+// With 100 tools, loading the whole catalog into every conversation wastes tokens
 // and hurts tool-selection accuracy. Set REVIT_MCP_PROFILE to a comma-separated
 // list (e.g. "documentation,view") to expose only those groups; "core" is always
 // included. Unset = all tools (default, fully backward compatible).
 const PROFILES: Record<string, string[]> = {
   core: [
     "revit_ping", "revit_get_version", "revit_get_document_info", "revit_open_document",
+    "revit_save_document", "revit_save_as", "revit_close_document", "revit_new_document",
     "revit_find_elements", "revit_get_element_info", "revit_get_parameter",
     "revit_find_element_by_unique_id",
     "revit_batch",
@@ -92,7 +100,7 @@ const PROFILES: Record<string, string[]> = {
     "revit_create_3d_view", "revit_create_perspective_view",
     "revit_create_schedule", "revit_configure_schedule",
     "revit_tag_element", "revit_tag_all_in_view", "revit_get_tags_in_view",
-    "revit_create_text_note", "revit_export_view_pdf", "revit_duplicate_view",
+    "revit_create_text_note", "revit_export_view_pdf", "revit_export_ifc", "revit_duplicate_view",
     "revit_create_aligned_dimension", "revit_create_detail_line", "revit_create_filled_region",
   ],
   editing: [
@@ -178,11 +186,39 @@ server.tool("revit_open_document",
   detach: z.enum(["none", "preserve", "discard"]).optional().describe("Detach from central: none (default), preserve or discard worksets."),
   audit: z.boolean().optional().describe("Audit the model while opening. Default false."),
   dryRun: dryRunField,
-}, async (params: Record<string, unknown>) => {
-  const { dryRun, approvalToken, ...rest } = params;
-  return envelopeToToolResult(await callRevit("open_document", rest, dryRun === true,
-    typeof approvalToken === "string" ? approvalToken : undefined, OPEN_TIMEOUT_MS));
-});
+}, fwdLong("open_document"));
+
+server.tool("revit_save_document",
+  "Save the active document to its own file, overwriting it. Local, non-workshared files only; a document " +
+  "that has no file yet returns never_saved (use revit_save_as). Returns saveMs and any dialogs Revit raised.", {
+  dryRun: dryRunField,
+}, fwdLong("save_document"));
+
+server.tool("revit_save_as",
+  "Save the active document to a new .rvt file. Afterwards the open document IS that file. Local, " +
+  "non-workshared files only. An existing file returns already_exists unless overwrite is true.", {
+  path: z.string().describe("Target .rvt path; its folder must exist."),
+  overwrite: z.boolean().optional().describe("Replace an existing file. Default false."),
+  maxBackups: z.number().int().min(1).optional().describe("Backup files to keep. Default 1."),
+  dryRun: dryRunField,
+}, fwdLong("save_as"));
+
+server.tool("revit_close_document",
+  "Close an open document that is NOT the active one, by path. Revit's API cannot close the active document " +
+  "(active_document): open another model first, or end the session by stopping Revit. A path that is not open " +
+  "returns closed:false, wasOpen:false. Changes are discarded unless save is true.", {
+  path: z.string().describe("Path of the open document."),
+  save: z.boolean().optional().describe("Save changes first. Default false."),
+  dryRun: dryRunField,
+}, fwdLong("close_document"));
+
+server.tool("revit_new_document",
+  "Create a project from a template, save it to path and make it the active document.", {
+  template: z.string().describe("Template .rte path."),
+  path: z.string().describe("Target .rvt path; its folder must exist."),
+  overwrite: z.boolean().optional().describe("Replace an existing file. Default false."),
+  dryRun: dryRunField,
+}, fwdLong("new_document"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INSPECTION / INTROSPECTION
@@ -994,6 +1030,20 @@ server.tool("revit_set_level_elevation",
     dryRun: dryRunField,
   },
   fwdWrite("set_level_elevation"));
+
+server.tool("revit_export_ifc",
+  "Export the active document to an IFC file without touching the model. Revit exports only the rooms of one " +
+  "phase (the view's, else the last): a non-zero roomsInOtherPhases in the result means rooms are missing from " +
+  "the file. Returns sizeBytes, exportMs and any dialogs. A large model takes minutes.", {
+  outputPath: z.string().describe("Absolute target .ifc path; its folder must exist."),
+  ifcVersion: z.string().optional().describe("Name of Revit's IFCVersion, e.g. IFC4, IFC2x3, IFC4x3. Default IFC4."),
+  viewId: z.number().int().optional().describe("Export what this view shows. Omit for the whole model."),
+  exportBaseQuantities: z.boolean().optional().describe("Default true."),
+  spaceBoundaryLevel: z.number().int().min(0).max(2).optional().describe("Default 1."),
+  wallAndColumnSplitting: z.boolean().optional().describe("Default false."),
+  overwrite: z.boolean().optional().describe("Replace an existing file. Default true."),
+  dryRun: dryRunField,
+}, fwdLong("export_ifc"));
 
 server.tool("revit_export_view_pdf",
   "Export a view or sheet to a PDF file on disk. " +

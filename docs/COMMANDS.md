@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.40 — 92 commands + 1 batch + 2 recipes = 95 MCP tools** (1 hidden: `create_spot_elevation`; 93 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
+> **v0.8.40 — 97 commands + 1 batch + 2 recipes = 100 MCP tools** (1 hidden: `create_spot_elevation`; 98 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.
@@ -113,6 +113,11 @@ The HTTP command name is the name without the prefix (used in
 | `revit_duplicate_view`            | `duplicate_view`        | ❌        | Duplicate a view (with or without detailing / as dependent). `newName` applied exactly or the call fails (`invalid_chars` 400 / `name_collision` 409) |
 | `revit_set_section_box`           | `set_section_box`       | ❌        | Set and activate the section box on a 3D view             |
 | `revit_open_document`             | `open_document`         | UI        | Open a `.rvt` path or a cloud model (GUIDs) and activate it; no document needed. `worksets` all/none/last_viewed (never the "Opening Worksets" dialog), `detach`, `audit`. Idempotent (`alreadyOpen`). Returns `openMs` + `dialogs`. `not_found` 404, `not_signed_in` 403, `open_failed` 500 |
+| `revit_save_document`             | `save_document`         | UI        | Save the active document to its own file (local, non-workshared) |
+| `revit_save_as`                   | `save_as`               | UI        | Save to a new `.rvt`; the open document becomes that file |
+| `revit_close_document`            | `close_document`        | UI        | Close an open, non-active document by path |
+| `revit_new_document`              | `new_document`          | UI        | Create a project from a template and activate it |
+| `revit_export_ifc`                | `export_ifc`            | UI        | Export to IFC; the model is left untouched |
 | `revit_open_view`                 | `open_view`             | UI        | Activate a view in the UI                                 |
 | `revit_select_elements`           | `select_elements`       | UI        | Set UIDocument selection                                  |
 | `revit_zoom_to_elements`          | `zoom_to_elements`      | UI        | Fit view to element bounding box                          |

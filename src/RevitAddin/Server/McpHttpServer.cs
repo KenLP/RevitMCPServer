@@ -337,7 +337,9 @@ public sealed class McpHttpServer
             "timeout" or "cancelled"              => 408,
             "name_collision" or "system_family"
               or "ambiguous_selection"
-              or "approval_mismatch"              => 409,
+              or "approval_mismatch"
+              or "not_supported" or "never_saved"
+              or "already_exists" or "active_document" => 409,
             "approval_required"                   => 428,
             "payload_too_large"                   => 413,
             "overloaded"                          => 503,

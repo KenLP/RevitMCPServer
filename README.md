@@ -27,7 +27,7 @@ API?"*, read [`docs/API_COVERAGE.md`](docs/API_COVERAGE.md).
 
 ## Status
 
-**v0.8.40** — 93 C# commands (92 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **95 MCP tools**. Hidden = `create_spot_elevation`, registered for HTTP `/mcp` use but off the MCP tool surface. More HTTP-only commands can be added through opt-in [command packs](#command-packs-optional-opt-in).
+**v0.8.40** — 98 C# commands (97 exposed as MCP tools + 1 hidden) + 1 batch tool + 2 workflow recipes = **100 MCP tools**. Hidden = `create_spot_elevation`, registered for HTTP `/mcp` use but off the MCP tool surface. More HTTP-only commands can be added through opt-in [command packs](#command-packs-optional-opt-in).
 Supports **Revit 2025** (.NET 8), **Revit 2026** (.NET 8) and **Revit 2027** (.NET 10) with
 auto-port assignment for side-by-side use. Features: **dry-run mode**,
 **structured diffs**, **auth token**, **per-tool risk levels**, **Family &
@@ -52,7 +52,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | Revit addin  | Revit 2027 / .NET 10      | ✅      |
 | MCP server   | Node 22 / TypeScript 5    | ✅      |
 
-## Tool surface (92 commands + 1 batch + 2 recipes = 95 MCP tools)
+## Tool surface (97 commands + 1 batch + 2 recipes = 100 MCP tools)
 
 ### Diagnostics (3)
 `revit_ping` | `revit_get_version` | `revit_get_document_info`
@@ -297,6 +297,39 @@ while a dialog waits. Dialogs are handled by `-DialogRules` (click a button, ign
 with exit code 6. `-StallSec` / `-Restart N` kill a stalled Revit by PID (never by name) and relaunch.
 Its decision logic is tested without Revit: `powershell -File scripts/tests/launch-revit-dev.tests.ps1`.
 
+## Saving, closing and exporting without the UI
+
+Four document commands complete the unattended loop, and `export_ifc` feeds tools that read IFC.
+All are UI actions: they run outside a transaction, a dry-run does nothing, and they cannot share a
+batch with model writes. Each returns the `dialogs` Revit raised, like `open_document`.
+
+| Command | What it does |
+|---|---|
+| `save_document` | Saves the active document to its own file |
+| `save_as` | Saves to a new `.rvt`; the open document then **is** that file. `overwrite` (default false), `maxBackups` (default 1) |
+| `close_document` | Closes an open document by `path`. `save` defaults to false. A path that is not open returns `wasOpen: false` |
+| `new_document` | Creates a project from a template, saves it to `path` and activates it |
+| `export_ifc` | Writes an IFC file: `outputPath`, `ifcVersion` (default `IFC4`), `viewId`, `exportBaseQuantities`, `spaceBoundaryLevel`, `wallAndColumnSplitting`, `overwrite` (default true) |
+
+Things the Revit API decides:
+
+- **The active document cannot be closed.** `close_document` returns `active_document`: open another
+  model first, or end the session by stopping Revit.
+- `save_document`, `save_as` and `close_document` support local, non-workshared files only
+  (`not_supported` otherwise). `export_ifc` has no such limit.
+- `Document.Save()` has no backup setting, so `save_document` follows the model's own backup count;
+  `save_as` is the way to set it.
+- `ifcVersion` is checked against what the running Revit defines: Revit 2026 has no `IFC4x3RV` or
+  `IFC4x3DTV`.
+- **IFC export carries the rooms of one phase only**: the view's phase, else the last phase. The result
+  reports `phase`, `roomsInPhase` and `roomsInOtherPhases`; a non-zero `roomsInOtherPhases` means rooms
+  are missing from the file. Areas and MEP Spaces also export as `IfcSpace`, so `IfcSpace` is not always
+  a count of rooms.
+
+`export_ifc` needs a transaction by Revit's rule, so it opens one and always rolls it back: the model
+is not modified. It writes to a temporary name first, so a failed export never replaces an earlier
+file. These commands are UI actions, so `mutationMode: preview_required` does not gate them.
+
 ## Command packs (optional, opt-in)
 
 The add-in can register extra commands from your own .NET class libraries ("packs"), next to its
@@ -324,7 +357,7 @@ Start from [`samples/HelloPack`](samples/HelloPack/README.md).
 
 ### Tool profiles (token efficiency)
 
-Exposing all 95 tools to every conversation costs tokens and degrades tool-selection
+Exposing all 100 tools to every conversation costs tokens and degrades tool-selection
 accuracy. Set the **`REVIT_MCP_PROFILE`** env var to a comma-separated list to expose only
 the groups you need; `core` (ping, doc/element info, find, batch) is always included.
 Unset = all tools (default, backward compatible).
@@ -342,7 +375,7 @@ Unset = all tools (default, backward compatible).
 | `view` | 11 | open/hide/isolate/filter/override/section-box |
 
 ```jsonc
-// e.g. a documentation + view client (a subset instead of all 93):
+// e.g. a documentation + view client (a subset instead of all 98):
 { "mcpServers": { "revit": {
   "command": "node", "args": ["dist/index.js"],
   "env": { "REVIT_MCP_VERSION": "2027", "REVIT_MCP_PROFILE": "documentation,view" }
@@ -370,7 +403,7 @@ RevitMCPServer/
 ├── samples/
 │   └── HelloPack/                  ← minimal opt-in command pack
 └── src/
-    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 93 commands
+    ├── RevitMCP.Core/              ← portable kernel: dispatcher + 98 commands
     │   ├── RevitMCPExternalEventHandler.cs
     │   └── Commands/               ← one IRevitCommand per tool
     ├── RevitAddin/                 ← C# addin host (in-Revit, .NET 8/10)
@@ -776,7 +809,7 @@ Two versions side-by-side (port auto-assigned):
 }
 ```
 
-Restart the client. You should see 95 `revit_*` tools per configured version.
+Restart the client. You should see 100 `revit_*` tools per configured version.
 
 ### 3. Try it
 

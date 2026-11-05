@@ -155,6 +155,11 @@ public sealed class CommandRegistry
         // === View manipulation ===
         Register(new OpenViewCommand());
         Register(new OpenDocumentCommand());
+        Register(new SaveDocumentCommand());
+        Register(new SaveAsCommand());
+        Register(new CloseDocumentCommand());
+        Register(new NewDocumentCommand());
+        Register(new ExportIfcCommand());
         Register(new SetViewDetailLevelCommand());
         Register(new HideElementsInViewCommand());
         Register(new UnhideElementsInViewCommand());
