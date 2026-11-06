@@ -46,7 +46,7 @@ public sealed class ExportIfcCommand : IRevitCommand
             SpaceBoundaryLevel = request.SpaceBoundaryLevel,
             WallAndColumnSplitting = request.WallAndColumnSplitting,
         };
-        // The exporter reads this from its named options; the property alone produced no quantities.
+        // Revit 2027's exporter reads this from its named options; the property alone produced no quantities.
         options.AddOption("ExportBaseQuantities", request.BaseQuantities ? "true" : "false");
         View? filterView = null;
         if (request.ViewId is { } viewId)
@@ -73,7 +73,11 @@ public sealed class ExportIfcCommand : IRevitCommand
             using (var tx = new Transaction(doc, "MCP export_ifc"))
             {
                 tx.Start();
-                try { exported = doc.Export(folder, tempName, options); }
+                try
+                {
+                    SetTemplateQuantities(doc, request.BaseQuantities);
+                    exported = doc.Export(folder, tempName, options);
+                }
                 finally { if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack(); }
             }
 
@@ -106,6 +110,18 @@ public sealed class ExportIfcCommand : IRevitCommand
         {
             try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
         }
+    }
+
+    /// <summary>
+    /// Revit 2026's exporter ignores the options for base quantities and reads the session's parameter
+    /// template, so the template is set inside the transaction that gets rolled back. Revit 2025 has no
+    /// such class.
+    /// </summary>
+    private static void SetTemplateQuantities(Document doc, bool export)
+    {
+#if REVIT2026
+        IFCParameterTemplate.GetOrCreateInSessionTemplate(doc).ExportIFCBaseQuantities = export;
+#endif
     }
 
     /// <summary>The phase whose rooms the exporter keeps: the view's, else the last one.</summary>

@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.41] — 2026-11-06: document lifecycle, IFC export, commit warnings
+
 ### Changed
 
 - **Warnings and errors at commit no longer block the add-in.** Every MCP write now commits with a
@@ -52,6 +54,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   export cannot pass for a success or replace an earlier file. `export_failed` 500.
   Revit exports the rooms of one phase only (the view's, else the last), silently: the result reports
   `phase`, `roomsInPhase` and `roomsInOtherPhases`, so a caller can see when rooms are missing.
+  `exportBaseQuantities` is measured on Revit 2026 and 2027, whose exporters read it from different
+  places; Revit 2025 is not measured.
 - **`get_document_info.cloud = {region, projectGuid, modelGuid}`** for a cloud model (absent for a
   local file) — the ids `open_document` takes.
 - **Dialog policy, opt-in: `revit-mcp-dialog-policy.json`** next to the token file. When present the
