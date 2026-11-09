@@ -13,7 +13,7 @@ The MCP tool name is the command name with the `revit_` prefix.
 The HTTP command name is the name without the prefix (used in
 `POST /mcp` `command` field and inside `revit_batch` steps).
 
-> **v0.8.42 — 97 commands + 1 batch + 2 recipes = 100 MCP tools** (1 hidden: `create_spot_elevation`; 98 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
+> **v0.8.43 — 97 commands + 1 batch + 2 recipes = 100 MCP tools** (1 hidden: `create_spot_elevation`; 98 C# commands registered; workflow recipes are Node-only; opt-in command packs can add HTTP-only commands at run time).
 >
 > **Pagination:** `list_elements` and `find_elements` accept `offset` (default 0) +
 > `limit` (default 200, max 5000) and return `total`, `hasMore`, and `nextOffset`.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Revit MCP Server v0.8.42 (stdio).
+ * Revit MCP Server v0.8.43 (stdio).
  *
  * 100 tools covering diagnostics, inspection, creation, editing, family,
  * transform, view manipulation, annotation, model health, batch operations, and coordination/clash detection.
@@ -20,7 +20,7 @@ import { callRevit, callRevitBatch, envelopeToToolResult, checkRevitHealth, REVI
 import { modelHealthTriage, clashReview } from "./recipes.js";
 import { withTrace } from "./trace.js";
 import { annotationsFor } from "./annotations.js";
-const server = new McpServer({ name: "revit-mcp-server", version: "0.8.42" });
+const server = new McpServer({ name: "revit-mcp-server", version: "0.8.43" });
 // ── Common schemas ──────────────────────────────────────────────────────────
 const xyz = z.object({ x: z.number(), y: z.number(), z: z.number().optional() });
 const unitsField = z.enum(["meters", "feet"]).optional().describe("Units. Default 'meters'.");
@@ -108,7 +108,9 @@ for (const [profile, names] of Object.entries(PROFILES))
     for (const name of names)
         TOOL_PROFILE[name] = profile;
 function resolveEnabledProfiles() {
-    const raw = process.env.REVIT_MCP_PROFILE?.trim();
+    // REVIT_MCP_PROFILE wins; the Claude Code plugin passes its "Tool groups" option as
+    // CLAUDE_PLUGIN_OPTION_TOOL_PROFILE.
+    const raw = process.env.REVIT_MCP_PROFILE?.trim() || process.env.CLAUDE_PLUGIN_OPTION_TOOL_PROFILE?.trim();
     if (!raw)
         return null; // null = expose everything (default)
     const set = new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
@@ -911,7 +913,7 @@ server.tool("revit_recipe_clash_review", "Workflow recipe (read-only): runs a co
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error(`[revit-mcp-server] v0.8.42 connected to Revit addin at ${REVIT_BASE_URL}`);
+    console.error(`[revit-mcp-server] v0.8.43 connected to Revit addin at ${REVIT_BASE_URL}`);
     if (ENABLED_PROFILES !== null)
         console.error(`[revit-mcp-server] profiles: ${[...ENABLED_PROFILES].sort().join(", ")} ` +
             `— ${toolsRegistered} tools exposed, ${toolsSkipped} hidden`);

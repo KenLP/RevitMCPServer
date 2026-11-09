@@ -33,9 +33,12 @@ if (!LOOPBACK_HOSTS.has(RAW_HOST)) {
   );
 }
 const REVIT_HOST = RAW_HOST === "::1" ? "[::1]" : RAW_HOST;
-export const REVIT_VERSION = envValue("REVIT_MCP_VERSION") ?? "2026";
+// REVIT_MCP_VERSION wins; the Claude Code plugin passes its "Revit version" option as
+// CLAUDE_PLUGIN_OPTION_REVIT_VERSION, the variable name the plugin directory expects.
+export const REVIT_VERSION =
+  envValue("REVIT_MCP_VERSION") ?? envValue("CLAUDE_PLUGIN_OPTION_REVIT_VERSION") ?? "2026";
 if (!/^20\d\d$/.test(REVIT_VERSION)) {
-  throw new Error(`REVIT_MCP_VERSION="${REVIT_VERSION}" is not a Revit year such as 2025, 2026 or 2027.`);
+  throw new Error(`The Revit version "${REVIT_VERSION}" is not a Revit year such as 2025, 2026 or 2027.`);
 }
 // Auto-assign port by version: 2026 → 7891, 2027 → 7892, …
 // Explicit REVIT_MCP_PORT always wins.

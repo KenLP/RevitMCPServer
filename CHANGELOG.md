@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.43] — 2026-11-09: ready for the plugin directory
+
 ### Changed
 
 - **Tool descriptions say what a tool does, not how the model should behave.** Phrases such as
@@ -14,6 +16,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   The advice on choosing between tools (doors, model health, clearance with `axis: "Z"`, writing
   parameters, isolate versus section box, UniqueId versus ElementId) moved to the plugin's skill.
   No tool name, parameter or behaviour changed.
+- The plugin hands its options to the bridge as `CLAUDE_PLUGIN_OPTION_REVIT_VERSION` and
+  `CLAUDE_PLUGIN_OPTION_TOOL_PROFILE`, the names the plugin directory accepts. `REVIT_MCP_VERSION`
+  and `REVIT_MCP_PROFILE` still work and take precedence.
 
 ### Added
 

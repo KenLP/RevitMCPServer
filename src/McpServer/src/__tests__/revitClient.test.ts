@@ -276,6 +276,12 @@ describe('REVIT_MCP_VERSION and REVIT_MCP_PORT', () => {
     expect(await baseUrlWith({ REVIT_MCP_VERSION: '2027', REVIT_MCP_PORT: '9999' })).toBe('http://127.0.0.1:9999');
   });
 
+  it("reads the plugin's option variable, with REVIT_MCP_VERSION taking precedence", async () => {
+    expect(await baseUrlWith({ CLAUDE_PLUGIN_OPTION_REVIT_VERSION: '2027' })).toBe('http://127.0.0.1:7892');
+    expect(await baseUrlWith({ CLAUDE_PLUGIN_OPTION_REVIT_VERSION: '', REVIT_MCP_VERSION: '' })).toBe('http://127.0.0.1:7891');
+    expect(await baseUrlWith({ CLAUDE_PLUGIN_OPTION_REVIT_VERSION: '2027', REVIT_MCP_VERSION: '2025' })).toBe('http://127.0.0.1:7890');
+  });
+
   it('refuses a version that is not a Revit year', async () => {
     vi.stubEnv('REVIT_MCP_VERSION', 'R2026');
     vi.resetModules();

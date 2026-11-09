@@ -1,7 +1,7 @@
 {
   "name": "revit-mcp-bimlynx",
   "displayName": "RevitMCP",
-  "version": "0.8.42",
+  "version": "0.8.43",
   "description": "Read, create and edit elements in the Revit model you have open, through the RevitMCP add-in running inside Revit 2025, 2026 or 2027 on the same Windows machine.",
   "author": {
     "name": "Le Phuc",
@@ -27,8 +27,8 @@
         "${CLAUDE_PLUGIN_ROOT}/server/index.js"
       ],
       "env": {
-        "REVIT_MCP_VERSION": "${user_config.revit_version}",
-        "REVIT_MCP_PROFILE": "${user_config.tool_profile}"
+        "CLAUDE_PLUGIN_OPTION_REVIT_VERSION": "${user_config.revit_version}",
+        "CLAUDE_PLUGIN_OPTION_TOOL_PROFILE": "${user_config.tool_profile}"
       }
     }
   },
