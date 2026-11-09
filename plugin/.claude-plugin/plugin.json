@@ -16,6 +16,10 @@
     "aec",
     "mcp"
   ],
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/KenLP/RevitMCPServer/blob/main/plugin/README.md",
+  "supportUrl": "https://github.com/KenLP/RevitMCPServer/issues",
+  "privacyPolicyUrl": "https://github.com/KenLP/RevitMCPServer/blob/main/plugin/README.md#privacy",
   "mcpServers": {
     "revit": {
       "command": "node",

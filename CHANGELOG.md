@@ -6,6 +6,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Tool descriptions say what a tool does, not how the model should behave.** Phrases such as
+  "use this instead of …", "IMPORTANT: do NOT …" or "Use X to find ids" are rewritten as plain facts
+  ("Level ids come from revit_list_levels"); a test reads `tools/list` and fails on such phrasing.
+  The advice on choosing between tools (doors, model health, clearance with `axis: "Z"`, writing
+  parameters, isolate versus section box, UniqueId versus ElementId) moved to the plugin's skill.
+  No tool name, parameter or behaviour changed.
+
+### Added
+
+- The plugin carries a listing icon and `documentationUrl`, `supportUrl` and `privacyPolicyUrl` for
+  Anthropic's plugin directory.
+
 ## [0.8.42] — 2026-11-09: tool annotations and a Claude Code plugin
 
 ### Added

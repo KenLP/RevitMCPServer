@@ -98,7 +98,7 @@ describe("tool annotations", () => {
 });
 
 /** Talk to the built server over stdio, as a client does, and read tools/list. */
-function listTools(): Promise<Array<{ name: string; title?: string; annotations?: Record<string, unknown> }>> {
+function listTools(): Promise<Array<{ name: string; title?: string; description?: string; annotations?: Record<string, unknown> }>> {
   const entry = join(SRC, "..", "dist", "index.js");
   if (!existsSync(entry)) throw new Error(`${entry} is missing: run "npm run build" before the tests.`);
   return new Promise((resolve, reject) => {
@@ -133,5 +133,13 @@ describe("tools/list of the built server", () => {
       expect(tool.title, tool.name).toBe(expected.title);
       expect(tool.annotations, tool.name).toEqual(expected);
     }
+  }, 20000);
+
+  // Directory review rejects descriptions that tell the model how to behave. A description says
+  // what the tool does; advice on choosing between tools lives in the plugin's skill.
+  it("describes each tool without instructing the model", async () => {
+    const steering = /\buse this\b|\binstead\b|\bimportant\b|\bdo not\b|\bdon't\b|\byou\b|\buse revit_|\buses revit_|\bcall this\b|\bmake sure\b/i;
+    for (const tool of await listTools())
+      expect(tool.description ?? "", tool.name).not.toMatch(steering);
   }, 20000);
 });

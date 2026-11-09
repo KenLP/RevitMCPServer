@@ -198,7 +198,7 @@ server.tool("revit_open_document",
 
 server.tool("revit_save_document",
   "Save the active document to its own file, overwriting it. Local, non-workshared files only; a document " +
-  "that has no file yet returns never_saved (use revit_save_as). Returns saveMs and any dialogs Revit raised.", {
+  "that has no file yet returns never_saved, and revit_save_as gives it one. Returns saveMs and any dialogs Revit raised.", {
   dryRun: dryRunField,
 }, fwdLong("save_document"));
 
@@ -213,7 +213,7 @@ server.tool("revit_save_as",
 
 server.tool("revit_close_document",
   "Close an open document that is NOT the active one, by path. Revit's API cannot close the active document " +
-  "(active_document): open another model first, or end the session by stopping Revit. A path that is not open " +
+  "(active_document) until another model is active; stopping Revit ends the session. A path that is not open " +
   "returns closed:false, wasOpen:false. Changes are discarded unless save is true.", {
   path: z.string().describe("Path of the open document."),
   save: z.boolean().optional().describe("Save changes first. Default false."),
@@ -238,7 +238,7 @@ server.tool("revit_list_elements",
   category: z.string().optional().describe("BuiltInCategory, e.g. 'OST_Walls'."),
   onlyInstances: z.boolean().optional(),
   limit: z.number().int().min(1).max(5000).optional().describe("Page size. Default 200."),
-  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. Use nextOffset from the previous page."),
+  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. nextOffset of the previous page continues it."),
 }, fwd("list_elements"));
 
 server.tool("revit_get_element_info", "Full parameters + bbox of one element.", {
@@ -247,8 +247,8 @@ server.tool("revit_get_element_info", "Full parameters + bbox of one element.", 
 
 server.tool("revit_find_element_by_unique_id",
   "Resolve an element from its UniqueId — the 45-char identifier ACC/BIM 360 reports as externalId. " +
-  "Use this instead of deriving an ElementId from the string: ElementId is numbered per document, so an id " +
-  "taken from a linked model can silently address a different element in the host.",
+  "Unlike an ElementId, which is numbered per document, a UniqueId names the same element everywhere: an " +
+  "ElementId taken from a linked model can address a different element in the host.",
   {
     uniqueId: z.string().describe("45-char '<guid-36>-<8 hex>', e.g. an ACC externalId."),
     linkId: z.number().int().optional().describe("Search ONLY inside this RevitLinkInstance (from revit_get_linked_files)."),
@@ -269,7 +269,7 @@ server.tool("revit_find_elements",
   })).optional().describe("Parameter filters."),
   fields: z.array(z.string()).optional().describe("Parameter names to project in results."),
   limit: z.number().int().min(1).max(5000).optional().describe("Page size. Default 200."),
-  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. Use nextOffset from the previous page."),
+  offset: z.number().int().min(0).optional().describe("Page start index. Default 0. nextOffset of the previous page continues it."),
 }, fwd("find_elements"));
 
 // Shared by revit_query_where / revit_update_where. The C# side (WhereSupport)
@@ -324,7 +324,7 @@ server.tool("revit_list_sheets", "All sheets with number, name, viewport count."
 server.tool("revit_list_rooms", "All placed rooms with area, number, level.", {}, fwd("list_rooms"));
 server.tool("revit_list_spaces",
   "All placed MEP Spaces (OST_MEPSpaces) with area, volume, number, level. " +
-  "Use levelId (from revit_list_levels) to filter to a single level.",
+  "levelId (from revit_list_levels) limits the list to one level.",
   {
     levelId: z.number().int().optional().describe("ElementId of a Level — return only spaces on that level."),
     limit: z.number().int().min(1).max(2000).optional().describe("Max spaces to return. Default 500."),
@@ -341,7 +341,7 @@ server.tool("revit_get_model_health",
   "warnings (count + top groups), file size, imported vs linked CAD, in-place families, model/detail groups, " +
   "views not on sheets, element counts by category, and complexity counts (levels, grids, design options, reference planes). " +
   "Returns a scorecard with a letter grade (A-F), a 0-100 score, and flagged issues. " +
-  "Use this for a quick 'is this model healthy?' overview before deeper work.",
+  "A quick overview of whether the model is healthy.",
   {
     deep: z.boolean().optional().describe("Also run the purge scan (Document.GetUnusedElements). Slower on large models. Default false."),
     topN: z.number().int().min(1).max(50).optional().describe("How many top warning groups / categories to list. Default 10."),
@@ -360,7 +360,7 @@ server.tool("revit_get_selected_elements", "Elements currently selected by the u
 server.tool("revit_get_linked_files", "List Revit link instances (metadata only — id, name, load status).", {}, fwd("get_linked_files"));
 
 server.tool("revit_get_linked_elements",
-  "Read elements that live INSIDE a specific linked RVT file. Bounding boxes are transformed to host-model coordinates. Use this before check_clearance to inspect what's in a link.",
+  "Read elements that live INSIDE a specific linked RVT file. Bounding boxes are transformed to host-model coordinates.",
   {
     linkId: z.number().int().describe("ElementId of the RevitLinkInstance (from revit_get_linked_files)."),
     category: z.string().optional().describe("BuiltInCategory name, e.g. 'OST_DuctCurves'. Omit for all elements."),
@@ -453,7 +453,7 @@ server.tool("revit_create_opening_in_wall", "Create a rectangular opening in a w
   dryRun: dryRunField,
 }, fwdWrite("create_opening_in_wall"));
 
-server.tool("revit_place_family_instance", "Place a FamilyInstance at a point. Pass hostId (wall element id) for doors/windows so Revit uses the hosted overload and auto-cuts the opening. Without hostId the instance is placed non-hosted (no opening cut). When selection is ambiguous returns a candidate list with placed:false.", {
+server.tool("revit_place_family_instance", "Place a FamilyInstance at a point. With hostId (wall element id), doors and windows use the hosted overload and Revit cuts the opening. Without hostId the instance is placed non-hosted (no opening cut). When selection is ambiguous returns a candidate list with placed:false.", {
   location: xyz,
   familyName: z.string().optional(),
   familyTypeName: z.string().optional(),
@@ -593,16 +593,16 @@ server.tool("revit_get_schedule_data",
   "totalColumns, hasMore, nextOffset; page large schedules with offset.", {
   scheduleId: z.number().int().describe("ElementId of the ViewSchedule (from revit_get_views)."),
   limit: z.number().int().min(1).max(1000).optional().describe("Rows per page. Default 100."),
-  offset: z.number().int().min(0).optional().describe("First body row to return. Default 0. Use nextOffset from the previous page."),
+  offset: z.number().int().min(0).optional().describe("First body row to return. Default 0. nextOffset of the previous page continues it."),
 }, fwd("get_schedule_data"));
 
 server.tool("revit_get_doors",
   "All placed doors with nominal width (m), plan location (world XY, m), level, and door swing geometry: " +
   "facingX/Y (FacingOrientation — the normal / pull-swing side), handX/Y (HandOrientation — along the wall), " +
-  "and facingFlipped/handFlipped. Orientation is geometry, not a parameter, so find_elements cannot return it — " +
-  "use this for ADA/egress maneuvering-clearance and door-swing checks. " +
-  "For door PARAMETERS (FireRating, Mark, type name, custom Width param) use find_elements(category='Doors'); " +
-  "for which rooms a door connects use get_element_rooms; for a bare id list use list_elements(category='OST_Doors').",
+  "and facingFlipped/handFlipped: the geometry for egress, maneuvering-clearance and door-swing checks. " +
+  "Orientation is geometry, not a parameter, so revit_find_elements does not return it; door parameters " +
+  "(FireRating, Mark, type name, Width) come from revit_find_elements, the rooms a door connects from " +
+  "revit_get_element_rooms.",
   {},
   fwd("get_doors"));
 
@@ -613,7 +613,7 @@ server.tool("revit_load_family",
 }, fwdWrite("load_family"));
 
 server.tool("revit_duplicate_family_type",
-  "Duplicate a family type (FamilySymbol) under a new name. Set parameters on the new type afterwards with revit_set_parameter using the returned typeId.", {
+  "Duplicate a family type (FamilySymbol) under a new name. revit_set_parameter can then edit the new type by the returned typeId.", {
   sourceTypeId: z.number().int().describe("ElementId of the FamilySymbol to copy."),
   newName: z.string().describe("Name for the new type (unique within the family)."),
 }, fwdWrite("duplicate_family_type"));
@@ -643,7 +643,7 @@ server.tool("revit_create_filled_region",
 // EDIT — PARAMETERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff. For numeric (Double) parameters with measurable units pass the matching unit string for automatic conversion; default 'internal' means raw Revit feet.", {
+server.tool("revit_set_parameter", "Set a parameter on an element. Returns before/after diff. For numeric (Double) parameters with measurable units, units converts the value; the default 'internal' means raw Revit feet.", {
   id: z.number().int(),
   parameterName: z.string(),
   value: z.union([z.string(), z.number(), z.boolean(), z.object({ id: z.number().int() })]),
@@ -665,7 +665,7 @@ server.tool("revit_set_parameter_batch", "Set the same parameter on multiple ele
 server.tool("revit_update_where",
   "Set one parameter on EVERY element matching where-conditions, then re-read each written value to confirm it " +
   "actually took. Selection is by condition, not by id list, so no find-then-write round trip. atomic defaults to " +
-  "TRUE: if any element fails read-back verification the whole call rolls back. Use dryRun to preview matched " +
+  "TRUE: if any element fails read-back verification the whole call rolls back. A dryRun previews the matched " +
   "count and before/after values without touching the model.", {
   category: z.string().describe("BuiltInCategory name, e.g. 'OST_Doors'."),
   where: whereField,
@@ -684,8 +684,7 @@ server.tool("revit_update_where",
 
 server.tool("revit_import_parameters",
   "Spreadsheet-shaped import: each row sets ONE parameter on ONE element, so different rows may target different " +
-  "elements AND different parameters. (Use revit_set_parameter_batch instead when writing the SAME parameter to many " +
-  "elements.) Every row runs inside one Revit transaction, so the whole import is a single undo step.", {
+  "elements AND different parameters; revit_set_parameter_batch writes one parameter to many elements. Every row runs inside one Revit transaction, so the whole import is a single undo step.", {
   items: z.array(z.object({
     elementId: z.number().int(),
     parameterName: z.string(),
@@ -795,7 +794,7 @@ server.tool("revit_unhide_elements_in_view", "Unhide elements in a view.", {
 server.tool("revit_isolate_elements_in_view",
   "Temporarily isolate HOST elements in a view (cyan 'Isolate Element' mode). Pass reset=true to clear. " +
   "NOTE: host-document elements only — cannot keep individual linked-file elements (isolating host hides the whole link). " +
-  "For a region spanning host + linked geometry, use revit_set_section_box instead.",
+  "revit_set_section_box crops host and linked geometry together.",
   {
     ids: idsField.optional(),
     viewId: z.number().int().optional(),
@@ -805,7 +804,7 @@ server.tool("revit_isolate_elements_in_view",
 
 server.tool("revit_duplicate_view",
   "Duplicate a view (preserving its template, filters, and overrides). Returns the new view id. " +
-  "Use to make a throwaway inspection copy of an already-filtered view before section-boxing it.",
+  "For example, a throwaway copy of a filtered view to section-box.",
   {
     viewId: z.number().int().describe("Source view to duplicate."),
     duplicateOption: z.enum(["Duplicate", "WithDetailing", "AsDependent"]).optional().describe("Duplicate mode. Default 'Duplicate'."),
@@ -871,8 +870,8 @@ const elementSetSchema = z.object({
 });
 server.tool("revit_override_element_graphics",
   "Apply per-element color and fill overrides to specific elements in a view. " +
-  "Use to highlight violations (e.g. red for clashing furniture, gray for doors). " +
-  "Pass reset=true to clear overrides. Works on any element type in any view.",
+  "For example, red for clashing furniture or gray for doors. " +
+  "reset=true clears the overrides. Works on any element type in any view.",
   {
     viewId: z.number().int().describe("ElementId of the view to override in."),
     elementIds: z.array(z.number().int()).min(1).describe("Element IDs to override."),
@@ -887,10 +886,10 @@ const elementSetSchemaB = elementSetSchema.extend({});
 
 server.tool("revit_check_clearance",
   "Detect hard clashes or clearance violations between two element sets (host or linked files). " +
-  "axis='bbox' (default): inflates setA bounding boxes by clearanceMm in all directions — use for omnidirectional proximity checks (e.g. 1m clear zone around a door). " +
+  "axis='bbox' (default): inflates setA bounding boxes by clearanceMm in all directions, for omnidirectional proximity checks (e.g. a 1 m clear zone around a door). " +
   "axis='Z': fires a vertical ReferenceIntersector raycast from each setA element and automatically finds the nearest setB element directly below or above it; " +
-  "reports the actual measured clearance — use direction='below' (duct→floor below) or 'above' (duct→ceiling above). " +
-  "IMPORTANT for axis='Z': do NOT manually fetch or enumerate setB elements first — just pass a category filter in setB and let the raycast locate the nearest hit automatically. Fetching all setB elements and comparing manually is unnecessary, slow, and wrong. " +
+  "reports the actual measured clearance; direction='below' looks down (duct→floor below), 'above' up (duct→ceiling above). " +
+  "With axis='Z', setB can be just a category filter: the raycast finds the nearest hit itself, so setB elements need not be listed first. " +
   "clearanceMm=0 + axis='bbox' → hard clash only. " +
   "Example: setA = HVAC ducts (host), setB = floors in Arch link, axis='Z', direction='below', clearanceMm=2400.",
   {
@@ -914,7 +913,7 @@ server.tool("revit_get_view_image",
     pixelSize: z.number().int().min(128).max(4096).optional()
       .describe("Image WIDTH in pixels; height follows the view's aspect ratio. Default 512. This is the parameter that changes resolution."),
     dpi: z.number().int().min(36).max(300).optional()
-      .describe("Print DPI metadata only (snaps to 72/150/300, default 72) — it does NOT change the pixel dimensions. Use pixelSize for that."),
+      .describe("Print DPI metadata only (snaps to 72/150/300, default 72) — it does NOT change the pixel dimensions; pixelSize does."),
   },
   async (params) => {
     const envelope = await callRevit("get_view_image", params);
@@ -941,7 +940,7 @@ server.tool("revit_get_view_image",
 
 server.tool("revit_change_element_type",
   "Swap the type of an element (e.g. change a wall from 'Generic - 200mm' to 'Generic - 300mm', " +
-  "or change a door family symbol). Uses revit_list_family_types / revit_list_wall_types to find valid typeId values. " +
+  "or change a door family symbol). Valid typeId values come from revit_list_family_types or revit_list_wall_types. " +
   "Returns old and new type info.",
   {
     id: z.number().int().describe("ElementId of the element to change."),
@@ -953,7 +952,7 @@ server.tool("revit_change_element_type",
 server.tool("revit_apply_view_template",
   "Apply or remove a view template from a view. " +
   "Provide templateId (ElementId) or templateName; omit both (or pass templateId=-1) to remove the current template. " +
-  "Use revit_list_view_templates to discover available templates.",
+  "Template ids come from revit_list_view_templates.",
   {
     viewId: z.number().int().describe("ElementId of the view to modify."),
     templateId: z.number().int().optional().describe("ElementId of the view template. Pass -1 to remove."),
@@ -988,7 +987,7 @@ server.tool("revit_get_element_rooms",
   "fromRoom + toRoom apply to boundary connectors (OST_Doors, OST_Windows). " +
   "room applies to point-located elements (OST_Furniture, OST_PlumbingFixtures, OST_LightingFixtures, etc.). " +
   "Non-family-instance elements return null for all fields. " +
-  "Use revit_list_rooms to discover room ids/names in the model.",
+  "Room ids and names come from revit_list_rooms.",
   {
     ids: idsField.describe("ElementIds to query. 1–N elements per call."),
   },
@@ -1000,8 +999,8 @@ server.tool("revit_get_element_rooms",
 
 server.tool("revit_configure_schedule",
   "Add filters, sort fields, and grouping to an existing ViewSchedule, and optionally export it to CSV. " +
-  "Use revit_create_schedule to create the schedule first, then call this to configure it. " +
-  "Use revit_list_sheets or revit_get_views to find schedule ids.",
+  "Works on a schedule that exists already (revit_create_schedule makes one); schedule ids come from " +
+  "revit_get_views or revit_list_sheets.",
   {
     scheduleId: z.number().int().describe("ElementId of the ViewSchedule."),
     clearFilters: z.boolean().optional().describe("Remove all existing filters before adding new ones. Default false."),
@@ -1029,7 +1028,7 @@ server.tool("revit_configure_schedule",
 
 server.tool("revit_set_level_elevation",
   "Change the elevation of a Level element. All hosted elements (floors, ceilings, MEP) move with it. " +
-  "Use revit_list_levels to find level ids.",
+  "Level ids come from revit_list_levels.",
   {
     id: z.number().int().describe("ElementId of the Level."),
     elevation: z.number().describe("New elevation value."),
@@ -1055,7 +1054,7 @@ server.tool("revit_export_ifc",
 
 server.tool("revit_export_view_pdf",
   "Export a view or sheet to a PDF file on disk. " +
-  "Returns the output file path and size. Use revit_get_views or revit_list_sheets to find view ids.",
+  "Returns the output file path and size. View and sheet ids come from revit_get_views or revit_list_sheets.",
   {
     viewId: z.number().int().optional().describe("ElementId of the view or sheet. Defaults to the active view."),
     outputFolder: z.string().optional().describe("Folder path for the PDF. Defaults to Documents folder."),
@@ -1098,9 +1097,9 @@ server.tool("revit_batch",
 // ═══════════════════════════════════════════════════════════════════════════
 
 server.tool("revit_recipe_model_health_triage",
-  "WORKFLOW RECIPE (read-only): run a model-health scan and return a prioritized, " +
+  "Workflow recipe (read-only): runs a model-health scan and returns a prioritized, " +
   "actionable triage list — each issue with its severity and a recommended fix. " +
-  "Composes get_model_health; use this instead of get_model_health when you want guidance, not raw metrics.",
+  "Composes revit_get_model_health, which returns the raw metrics without the fixes.",
   { deep: z.boolean().optional().describe("Include the purge scan (slower). Default false.") },
   async (params) => envelopeToToolResult(await modelHealthTriage(callRevit, params.deep === true)));
 
@@ -1117,10 +1116,10 @@ const clashPairSchema = z.object({
 });
 
 server.tool("revit_recipe_clash_review",
-  "WORKFLOW RECIPE (read-only): run a coordination clash sweep across multiple element-set pairs " +
-  "(host vs host, or host vs LINKED RVT) and return a consolidated, prioritized clash report — " +
+  "Workflow recipe (read-only): runs a coordination clash sweep across multiple element-set pairs " +
+  "(host vs host, or host vs LINKED RVT) and returns a consolidated, prioritized clash report — " +
   "hard clashes first, then clearance violations by smallest gap, counted per pair. " +
-  "Each pair is a check_clearance input; for links set setB.source='link' + linkId (from revit_get_linked_files). " +
+  "Each pair is a check_clearance input; a link is addressed by setB.source='link' + linkId (from revit_get_linked_files). " +
   "Composes check_clearance.",
   { pairs: z.array(clashPairSchema).min(1).describe("Coordination matrix: each entry is a labelled check_clearance pair.") },
   async (params) => envelopeToToolResult(await clashReview(callRevit, params.pairs as never)));
