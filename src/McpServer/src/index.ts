@@ -27,6 +27,7 @@ import {
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 import { withTrace } from "./trace.js";
+import { annotationsFor } from "./annotations.js";
 
 const server = new McpServer({ name: "revit-mcp-server", version: "0.8.41" });
 
@@ -156,7 +157,13 @@ const _registerTool = server.tool.bind(server);
     const last = args.length - 1;
     if (typeof args[last] === "function")
       args[last] = withTrace(name, args[last] as (...a: unknown[]) => Promise<unknown>);
-    return (_registerTool as (...a: unknown[]) => unknown)(...args);
+    // Title and read/write hints (annotations.ts). Every call site passes a schema, so the
+    // annotations go between it and the handler: tool(name, description, schema, annotations, cb).
+    const annotations = annotationsFor(name);
+    args.splice(last, 0, annotations);
+    const registered = (_registerTool as (...a: unknown[]) => unknown)(...args) as { title?: string };
+    registered.title = annotations.title;
+    return registered;
   }
   toolsSkipped++;
   return undefined;

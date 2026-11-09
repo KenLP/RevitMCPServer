@@ -1,0 +1,12 @@
+{
+  "name": "revit-mcp-lephu-server",
+  "version": "0.8.41",
+  "private": true,
+  "description": "Runtime dependencies of the RevitMCP bridge in server/.",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "3.25.76"
+  }
+}

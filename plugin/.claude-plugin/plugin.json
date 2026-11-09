@@ -1,0 +1,45 @@
+{
+  "name": "revit-mcp-lephu",
+  "displayName": "RevitMCP",
+  "version": "0.8.41",
+  "description": "Read, create and edit elements in the Revit model you have open, through the RevitMCP add-in running inside Revit 2025, 2026 or 2027 on the same Windows machine.",
+  "author": {
+    "name": "Le Phu",
+    "url": "https://github.com/KenLP"
+  },
+  "homepage": "https://github.com/KenLP/RevitMCPServer",
+  "repository": "https://github.com/KenLP/RevitMCPServer",
+  "license": "MIT",
+  "keywords": [
+    "revit",
+    "bim",
+    "aec",
+    "mcp"
+  ],
+  "mcpServers": {
+    "revit": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/server/index.js"
+      ],
+      "env": {
+        "REVIT_MCP_VERSION": "${user_config.revit_version}",
+        "REVIT_MCP_PROFILE": "${user_config.tool_profile}"
+      }
+    }
+  },
+  "userConfig": {
+    "revit_version": {
+      "type": "string",
+      "title": "Revit version",
+      "description": "The Revit you run: 2025, 2026 or 2027. It picks the add-in's local port (7890, 7891 or 7892).",
+      "default": "2026"
+    },
+    "tool_profile": {
+      "type": "string",
+      "title": "Tool groups",
+      "description": "Optional. Comma-separated groups to expose: inspection, model-health, recipes, coordination, architecture, documentation, editing, view. Leave empty for all tools.",
+      "default": ""
+    }
+  }
+}

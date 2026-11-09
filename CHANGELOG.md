@@ -6,6 +6,26 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Tool annotations.** Every MCP tool now has a `title` and `readOnlyHint`; write tools also have
+  `destructiveHint` and `idempotentHint`, and every tool `openWorldHint: false`. Reads (and
+  select, zoom, open view, which change only the UI) are read-only. A write that only adds
+  (create, place, tag, duplicate, copy) is not destructive; one that edits, deletes, overwrites,
+  saves or closes is. A tool nobody classified counts as destructive. The table is in
+  `src/McpServer/src/annotations.ts`; a test checks it against each tool's C# `IsReadOnly` and
+  reads `tools/list` from the built server.
+- **Claude Code plugin** in `plugin/`, offered by a marketplace at the repository root
+  (`/plugin marketplace add KenLP/RevitMCPServer`, then `/plugin install revit-mcp-lephu@lephu-bim`).
+  It holds the compiled bridge, its pinned runtime dependencies, a skill on working with the
+  model, and asks for the Revit version. The add-in is still installed from the release zip.
+  `scripts/build-plugin.mjs` refreshes the plugin from the bridge build; `check-version.mjs`
+  checks its version stamps and `build-release.ps1` compares it with a fresh build.
+
+### Changed
+
+- `build-release.ps1` builds the bridge before its tests, since one test starts the built server.
+
 ## [0.8.41] — 2026-11-06: document lifecycle, IFC export, commit warnings
 
 ### Changed

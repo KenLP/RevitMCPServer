@@ -52,3 +52,6 @@ docs/HANDOFF.md
 
 # Stray tool/simulation logs - never part of the repo.
 *.log
+
+# Claude Code plugin: dependencies Claude Code installs at plugin install time
+plugin/node_modules/

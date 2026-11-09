@@ -150,6 +150,20 @@ const lock = JSON.parse(readFileSync(join(root, 'src/McpServer/package-lock.json
 if (lock.version !== expected)
   errors.push(`package-lock.json version "${lock.version}" != package.json "${expected}" (run: npm install --package-lock-only)`);
 
+// The Claude Code plugin pins its version, and its server/ is the compiled bridge of that version:
+// a stale copy would keep users on the old bridge. scripts/build-plugin.mjs refreshes all three;
+// build-release.ps1 also compares server/ with a fresh build.
+const pluginManifest = JSON.parse(readFileSync(join(root, 'plugin/.claude-plugin/plugin.json'), 'utf8'));
+if (pluginManifest.version !== expected)
+  errors.push(`plugin/.claude-plugin/plugin.json version "${pluginManifest.version}" != package.json "${expected}" (run: node scripts/build-plugin.mjs)`);
+const pluginPkg = JSON.parse(readFileSync(join(root, 'plugin/package.json'), 'utf8'));
+if (pluginPkg.version !== expected)
+  errors.push(`plugin/package.json version "${pluginPkg.version}" != package.json "${expected}" (run: node scripts/build-plugin.mjs)`);
+const pluginServer = readFileSync(join(root, 'plugin/server/index.js'), 'utf8');
+const pluginServerVersion = pluginServer.match(/new McpServer\(\s*\{[^}]*version:\s*"([^"]+)"/s)?.[1];
+if (pluginServerVersion !== expected)
+  errors.push(`plugin/server/index.js is the v${pluginServerVersion ?? '?'} bridge, not v${expected} (run: npm run build in src/McpServer, then node scripts/build-plugin.mjs)`);
+
 // Unreplaced template placeholders must never reach a release artifact.
 for (const [name, text] of [
   ['scripts/build-release.ps1', readFileSync(join(root, 'scripts/build-release.ps1'), 'utf8')],

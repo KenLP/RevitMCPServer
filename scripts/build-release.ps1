@@ -53,18 +53,25 @@ npm ci
 if ($LASTEXITCODE -ne 0) { Fail "npm ci failed" }
 OK "npm ci"
 
+# Build before the tests: one of them starts dist/index.js and reads its tools/list.
+Step "TypeScript: build"
+npm run build
+if ($LASTEXITCODE -ne 0) { Fail "TypeScript build failed" }
+OK "TypeScript build complete"
+
 if (-not $SkipTests) {
     Step "TypeScript: tests"
     npm test
     if ($LASTEXITCODE -ne 0) { Fail "TypeScript tests failed" }
     OK "All TypeScript tests passed"
 }
-
-Step "TypeScript: build"
-npm run build
-if ($LASTEXITCODE -ne 0) { Fail "TypeScript build failed" }
 Pop-Location
-OK "TypeScript build complete"
+
+# The Claude Code plugin in plugin/ carries its own copy of the compiled bridge.
+Step "Claude Code plugin: matches this build"
+node "$root/scripts/build-plugin.mjs" --check
+if ($LASTEXITCODE -ne 0) { Fail "plugin/ is out of date: run node scripts/build-plugin.mjs and commit" }
+OK "plugin/ matches the bridge"
 
 # -- C# -----------------------------------------------------------------------
 

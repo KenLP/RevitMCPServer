@@ -490,6 +490,21 @@ Then restart Claude Desktop. The server shows up under **Connectors**
 open **Tool access** there to see the **89 `revit_*` tools** per version.
 (Older Claude builds showed these under a 🔨 tools icon instead.)
 
+### Claude Code plugin
+
+For Claude Code (and Cowork on the same computer), the bridge also comes as a plugin from this
+repository's marketplace. Install the add-in with `.\install.ps1 -NoClientConfig`, then:
+
+```text
+/plugin marketplace add KenLP/RevitMCPServer
+/plugin install revit-mcp-lephu@lephu-bim
+```
+
+The plugin asks for your Revit version and adds a skill on how to work with the tools. See
+[plugin/README.md](plugin/README.md). Every tool carries MCP annotations (a title,
+`readOnlyHint`, `destructiveHint`), so a client can run reads without asking and always ask
+before a change.
+
 ---
 
 ## Build from source — advanced
