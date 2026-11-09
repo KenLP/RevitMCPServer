@@ -497,7 +497,7 @@ repository's marketplace. Install the add-in with `.\install.ps1 -NoClientConfig
 
 ```text
 /plugin marketplace add KenLP/RevitMCPServer
-/plugin install revit-mcp-lephu@lephu-bim
+/plugin install revit-mcp-bimlynx@bimlynx
 ```
 
 The plugin asks for your Revit version and adds a skill on how to work with the tools. See

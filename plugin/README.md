@@ -31,7 +31,7 @@ Autodesk. Revit is a trademark of Autodesk, Inc.
 
    ```text
    /plugin marketplace add KenLP/RevitMCPServer
-   /plugin install revit-mcp-lephu@lephu-bim
+   /plugin install revit-mcp-bimlynx@bimlynx
    ```
 
    When asked, enter the **Revit version** you run (default 2026). Leave **Tool groups** empty

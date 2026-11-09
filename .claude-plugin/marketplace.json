@@ -1,13 +1,13 @@
 {
-  "name": "lephu-bim",
-  "description": "BIM tools by Le Phu: RevitMCP, Revit 2025-2027 over MCP.",
+  "name": "bimlynx",
+  "description": "BimLynx BIM tools: RevitMCP, Revit 2025-2027 over MCP.",
   "owner": {
     "name": "Le Phu",
     "url": "https://github.com/KenLP"
   },
   "plugins": [
     {
-      "name": "revit-mcp-lephu",
+      "name": "revit-mcp-bimlynx",
       "source": "./plugin",
       "description": "Read, create and edit elements in the open Revit model through the RevitMCP add-in.",
       "category": "aec",

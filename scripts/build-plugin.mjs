@@ -45,7 +45,7 @@ for (const name of Object.keys(pkg.dependencies).sort()) {
   dependencies[name] = locked;
 }
 expected.set("package.json", JSON.stringify({
-  name: "revit-mcp-lephu-server",
+  name: "revit-mcp-bimlynx-server",
   version: pkg.version,
   private: true,
   description: "Runtime dependencies of the RevitMCP bridge in server/.",
