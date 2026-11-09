@@ -2,7 +2,7 @@
   "name": "bimlynx",
   "description": "BimLynx BIM tools: RevitMCP, Revit 2025-2027 over MCP.",
   "owner": {
-    "name": "Le Phu",
+    "name": "BimLynx",
     "url": "https://github.com/KenLP"
   },
   "plugins": [
