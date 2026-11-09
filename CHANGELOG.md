@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.42] — 2026-11-09: tool annotations and a Claude Code plugin
+
 ### Added
 
 - **Tool annotations.** Every MCP tool now has a `title` and `readOnlyHint`; write tools also have
@@ -25,6 +27,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Changed
 
 - `build-release.ps1` builds the bridge before its tests, since one test starts the built server.
+- A blank `REVIT_MCP_VERSION` or `REVIT_MCP_PORT` counts as not set, as a plugin passes an empty
+  string for an option nobody filled in; it used to give port NaN. A version that is not a Revit
+  year, such as `R2026`, now stops the bridge with a message.
 
 ## [0.8.41] — 2026-11-06: document lifecycle, IFC export, commit warnings
 
