@@ -17,7 +17,13 @@ import { traceHeaders } from "./trace.js";
 // non-loopback REVIT_MCP_HOST can never reach a real addin — the only thing it
 // could do is hand the bearer token and the full command stream to whatever is
 // listening there, over plaintext HTTP. Refuse to start instead.
-const RAW_HOST = process.env.REVIT_MCP_HOST ?? "127.0.0.1";
+/** An env var's value, with unset and blank alike meaning "not given" (a plugin passes "" for an empty option). */
+function envValue(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+const RAW_HOST = envValue("REVIT_MCP_HOST") ?? "127.0.0.1";
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 if (!LOOPBACK_HOSTS.has(RAW_HOST)) {
   throw new Error(
@@ -27,11 +33,14 @@ if (!LOOPBACK_HOSTS.has(RAW_HOST)) {
   );
 }
 const REVIT_HOST = RAW_HOST === "::1" ? "[::1]" : RAW_HOST;
-const REVIT_VERSION = process.env.REVIT_MCP_VERSION ?? "2026";
+export const REVIT_VERSION = envValue("REVIT_MCP_VERSION") ?? "2026";
+if (!/^20\d\d$/.test(REVIT_VERSION)) {
+  throw new Error(`REVIT_MCP_VERSION="${REVIT_VERSION}" is not a Revit year such as 2025, 2026 or 2027.`);
+}
 // Auto-assign port by version: 2026 → 7891, 2027 → 7892, …
 // Explicit REVIT_MCP_PORT always wins.
 const DEFAULT_PORT = 7891 + (parseInt(REVIT_VERSION, 10) - 2026);
-const REVIT_PORT = Number(process.env.REVIT_MCP_PORT ?? String(DEFAULT_PORT));
+const REVIT_PORT = Number(envValue("REVIT_MCP_PORT") ?? String(DEFAULT_PORT));
 const BASE = `http://${REVIT_HOST}:${REVIT_PORT}`;
 const TIMEOUT_MS = Number(process.env.REVIT_MCP_TIMEOUT_MS ?? "30000");
 // Opening a model takes tens of seconds, minutes on a first cloud download; the addin imposes no

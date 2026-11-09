@@ -16,7 +16,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { callRevit, callRevitBatch, envelopeToToolResult, checkRevitHealth, REVIT_BASE_URL, OPEN_TIMEOUT_MS, } from "./revitClient.js";
+import { callRevit, callRevitBatch, envelopeToToolResult, checkRevitHealth, REVIT_BASE_URL, REVIT_VERSION, OPEN_TIMEOUT_MS, } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
 import { withTrace } from "./trace.js";
 import { annotationsFor } from "./annotations.js";
@@ -925,7 +925,7 @@ async function main() {
     else if (health.authEnabled && !health.authTokenPresent) {
         console.error("[revit-mcp-server] WARNING: Revit addin requires auth but no token was found. " +
             "Set REVIT_MCP_AUTH_TOKEN or ensure the token file is readable at " +
-            `%APPDATA%/Autodesk/Revit/Addins/${process.env.REVIT_MCP_VERSION ?? "2026"}/revit-mcp-token.txt`);
+            `%APPDATA%/Autodesk/Revit/Addins/${REVIT_VERSION}/revit-mcp-token.txt`);
     }
     else {
         console.error(`[revit-mcp-server] Revit addin reachable (v${health.version ?? "?"}, ` +

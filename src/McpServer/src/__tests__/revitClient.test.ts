@@ -249,3 +249,36 @@ describe('REVIT_MCP_HOST loopback clamp', () => {
     await expect(import('../revitClient.js')).resolves.toBeDefined();
   });
 });
+
+describe('REVIT_MCP_VERSION and REVIT_MCP_PORT', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function baseUrlWith(env: Record<string, string>) {
+    for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
+    vi.resetModules();
+    return (await import('../revitClient.js')).REVIT_BASE_URL;
+  }
+
+  it('picks the port from the version', async () => {
+    expect(await baseUrlWith({ REVIT_MCP_VERSION: '2025' })).toBe('http://127.0.0.1:7890');
+    expect(await baseUrlWith({ REVIT_MCP_VERSION: ' 2027 ' })).toBe('http://127.0.0.1:7892');
+  });
+
+  it('treats a blank version or port as not given, as a plugin passes an empty option', async () => {
+    expect(await baseUrlWith({ REVIT_MCP_VERSION: '', REVIT_MCP_PORT: '' })).toBe('http://127.0.0.1:7891');
+    expect(await baseUrlWith({ REVIT_MCP_VERSION: '  ', REVIT_MCP_HOST: '' })).toBe('http://127.0.0.1:7891');
+  });
+
+  it('lets an explicit port win', async () => {
+    expect(await baseUrlWith({ REVIT_MCP_VERSION: '2027', REVIT_MCP_PORT: '9999' })).toBe('http://127.0.0.1:9999');
+  });
+
+  it('refuses a version that is not a Revit year', async () => {
+    vi.stubEnv('REVIT_MCP_VERSION', 'R2026');
+    vi.resetModules();
+    await expect(import('../revitClient.js')).rejects.toThrow(/not a Revit year/);
+  });
+});

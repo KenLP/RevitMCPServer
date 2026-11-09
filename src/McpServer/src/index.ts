@@ -23,6 +23,7 @@ import {
   envelopeToToolResult,
   checkRevitHealth,
   REVIT_BASE_URL,
+  REVIT_VERSION,
   OPEN_TIMEOUT_MS,
 } from "./revitClient.js";
 import { modelHealthTriage, clashReview } from "./recipes.js";
@@ -1149,7 +1150,7 @@ async function main() {
     console.error(
       "[revit-mcp-server] WARNING: Revit addin requires auth but no token was found. " +
       "Set REVIT_MCP_AUTH_TOKEN or ensure the token file is readable at " +
-      `%APPDATA%/Autodesk/Revit/Addins/${process.env.REVIT_MCP_VERSION ?? "2026"}/revit-mcp-token.txt`,
+      `%APPDATA%/Autodesk/Revit/Addins/${REVIT_VERSION}/revit-mcp-token.txt`,
     );
   } else {
     console.error(
